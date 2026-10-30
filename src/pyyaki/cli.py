@@ -50,7 +50,11 @@ def main() -> int:
                 )
             )
             print(f"PyYaki prototype: http://127.0.0.1:{args.port}", flush=True)
-            server.run(sockets=[listener])
+            try:
+                server.run(sockets=[listener])
+            except KeyboardInterrupt:
+                # Uvicorn re-raises SIGINT after its graceful shutdown completes.
+                return 130
         return 0
     except OSError as exc:
         parser.exit(1, f"pyyaki: cannot open project or listen on port {args.port}: {exc}\n")
