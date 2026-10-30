@@ -1,0 +1,117 @@
+"""Command registration and dispatch, independent of the web transport."""
+
+import inspect
+import logging
+import re
+import types
+import typing
+import uuid
+from dataclasses import dataclass
+from typing import get_args, get_origin, get_type_hints
+
+from pydantic import TypeAdapter, ValidationError
+
+from ._json import check_json
+from .errors import FrameworkError
+
+logger = logging.getLogger(__name__)
+NAME = re.compile(r"[a-z][a-z0-9_.-]{0,63}\Z")
+
+
+def supported(annotation) -> bool:
+    if annotation in (str, bool, int, float, type(None)):
+        return True
+    origin, args = get_origin(annotation), get_args(annotation)
+    if origin is list:
+        return len(args) == 1 and supported(args[0])
+    if origin is dict:
+        return len(args) == 2 and args[0] is str and supported(args[1])
+    if origin in (typing.Union, types.UnionType):
+        return len(args) == 2 and type(None) in args and all(supported(arg) for arg in args)
+    return False
+
+
+@dataclass(frozen=True)
+class Command:
+    function: typing.Callable
+    signature: inspect.Signature
+    arguments: dict[str, TypeAdapter]
+    result: TypeAdapter
+
+
+class App:
+    def __init__(self):
+        self._commands: dict[str, Command] = {}
+
+    def command(self, name: str):
+        if not isinstance(name, str) or not NAME.fullmatch(name) or name.startswith("pyyaki"):
+            raise ValueError("Invalid or reserved command name")
+
+        def register(function):
+            if name in self._commands:
+                raise ValueError(f"Duplicate command: {name}")
+            if not inspect.iscoroutinefunction(function):
+                raise TypeError("Commands must be async def functions")
+            signature = inspect.signature(function)
+            hints = get_type_hints(function)
+            adapters = {}
+            for parameter in signature.parameters.values():
+                if parameter.kind not in (
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.KEYWORD_ONLY,
+                ):
+                    raise TypeError("Commands only accept named parameters")
+                annotation = hints.get(parameter.name)
+                if annotation is None or not supported(annotation):
+                    raise TypeError(f"Unsupported or missing annotation: {parameter.name}")
+                adapters[parameter.name] = TypeAdapter(annotation)
+                if parameter.default is not inspect.Parameter.empty:
+                    check_json(parameter.default)
+                    adapters[parameter.name].validate_python(parameter.default, strict=True)
+            annotation = hints.get("return")
+            if annotation is None or not supported(annotation):
+                raise TypeError("Commands need a supported return annotation")
+            self._commands[name] = Command(function, signature, adapters, TypeAdapter(annotation))
+            return function
+
+        return register
+
+    async def dispatch(self, name: str, params: dict) -> object:
+        command = self._commands.get(name)
+        if command is None:
+            raise FrameworkError("METHOD_NOT_FOUND", "Unknown command")
+        if type(params) is not dict:
+            raise FrameworkError("VALIDATION_ERROR", "params must be an object")
+        try:
+            check_json(params, "VALIDATION_ERROR")
+            arguments = command.signature.bind(**params)
+            arguments.apply_defaults()
+            for key, value in arguments.arguments.items():
+                arguments.arguments[key] = command.arguments[key].validate_python(
+                    value, strict=True
+                )
+        except (TypeError, ValidationError) as exc:
+            raise FrameworkError("VALIDATION_ERROR", "Arguments do not match the command") from exc
+        try:
+            result = await command.function(**arguments.arguments)
+            check_json(result)
+            try:
+                command.result.validate_python(result, strict=True)
+            except ValidationError as exc:
+                raise FrameworkError("SERIALIZATION_ERROR", "Invalid command result") from exc
+            return result
+        except FrameworkError:
+            raise
+        except Exception:
+            diagnostic_id = uuid.uuid4().hex
+            logger.exception("Command failed (diagnostic_id=%s)", diagnostic_id)
+            raise FrameworkError(
+                "INTERNAL_ERROR", "Command failed", {"diagnostic_id": diagnostic_id}
+            ) from None
+
+    def asgi(self):
+        # Construction does not open a port or execute application commands.
+        from .config import load_config
+        from .web import create_asgi
+
+        return create_asgi(self, load_config())

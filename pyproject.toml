@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyyaki"
+version = "0.1.0.dev0"
+description = "Python commands and editable web UI: early PyYaki prototype"
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "pydantic>=2.12,<3",
+    "uvicorn>=0.35,<1",
+    "websockets>=14,<16",
+]
+
+[project.scripts]
+pyyaki = "pyyaki.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "httpx>=0.28,<1", "playwright>=1.50,<2", "ruff>=0.9,<1", "build>=1,<2", "setuptools>=75"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pyyaki = ["static/*.js"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
