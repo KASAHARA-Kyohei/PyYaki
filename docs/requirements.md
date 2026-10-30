@@ -23,11 +23,13 @@ PyYakiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから�
 
 2026-10-31に確認した開発体制は、主な開発機がMacで、ある程度開発が進んだ段階で手元のWindowsを使って動作確認するもの。手元のWindowsのOS版・CPU・検証用Pythonは未確認であり、下表のMVP候補に適合するかはWindows検証開始前に確認する。macOSでは共通Python処理・UI・Web経路を確認し、Windows専用の起動・通信・ビルド・配布の受入条件はWindows上で別途検証する。この開発体制はmacOSネイティブGUI対応を意味しない。
 
+同日、最初の試作に使うPythonは**CPython 3.14通常GIL版の1 minorに限定する**方針を利用者が承認した。これは試作環境の選択であり、Windows配布ランタイムの互換性やMVPの対応環境の検証完了を意味しない。試作に使うパッチ版は実装開始時に記録する。
+
 | 区分 | MVP提案 | 留意点 |
 | --- | --- | --- |
 | アプリ開発者 | PythonとテキストUI資産を編集する人 | Python環境は必要。Rust、Cargo、Node.jsは基本構成で不要 |
 | Windows利用者 | Windows 11 x64、標準ユーザー、ローカルディスク | Pythonの別途導入不要。Windows 10、ARM64、x86、Windows Serverは将来評価 |
-| Python | CPython 3.14通常GIL版を最初の検証候補にする | パッチ版は配布前に固定。free-threaded版、PyPyはMVP対象外 |
+| Python | CPython 3.14通常GIL版を配布ランタイムの検証候補にする | 初期試作への使用は承認済み。配布パッチ版は配布前に固定。free-threaded版、PyPyはMVP対象外 |
 | Windowsビルド | Windows 11 x64 + 対応する開発用CPython | 他OSからのWindowsクロスビルドはMVP対象外 |
 | Web開発 | 対応CPython上のFastAPI/Uvicorn、主要なChromium系ブラウザ | macOS/LinuxはWeb開発だけを検証対象とする案。Safari/Firefoxは後続評価 |
 | Web実行 | Pythonサーバー + ブラウザ | ブラウザ内Python実行ではない。静的ホスティングだけでは動作しない |
@@ -106,6 +108,12 @@ PyYakiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから�
 
 ## 6. MVPで実装する範囲
 
+### 6.1 最初のMac試作の完成条件（2026-10-31承認済み）
+
+CPython 3.14通常GIL版を使い、HTMLから明示登録したPythonコマンドを呼び、成功時の結果と失敗時のエラーを画面に表示できるところまでを最初の到達点とする。意図的に待機する非同期コマンドの処理中も、画面の表示更新と操作が応答することを確認する。新しい数値目標は設けず、測定済みの高速性や長時間稼働の安定性は保証しない。Windows版・MVP全体の完成条件とは区別する。
+
+### 6.2 MVP全体の範囲
+
 単一ウィンドウ、静的UI資産、明示登録した非同期Pythonコマンド、JSON要求/応答、セッション限定イベント、Web向け開発サーバーとASGI公開、Windowsでの実行、単一exeビルド、初回展開、エラー表示、計測を対象とする提案。
 
 単一exe、ランタイム未導入端末での初回オフライン実行、Rust不要のpip導入、Python初期化前描画は、後回しの拡張機能ではなく**MVP公開の合格条件**とする。Fixed Version同梱はこの条件を満たすための技術提案であり、要件そのものとは区別する。困難な場合はゲート不合格として記録し、利用者の合意なしにフォルダー配布へ変更しない。
@@ -123,4 +131,4 @@ PyYakiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから�
 
 ## 8. 前提と残る確認
 
-単一exeを必須とする点と、名称PyYaki/`pyyaki`の採用は確認済み。[名称調査結果](../README.md)は公開時に再確認する。Windowsの具体的な対応版、性能予算、Python minor版、OSSライセンス、公開先、PyPIへの実際の登録可否は提案または未確認である。未決事項は正式採用前に確認し、[ADR候補](architecture.md#8-adr候補一覧)へ記録する。外部への公開やOSSライセンスの正式採用はこの文書作成には含めない。
+単一exeを必須とする点、名称PyYaki/`pyyaki`の採用、最初のMac試作の完成条件とCPython 3.14通常GIL版の使用は確認済み。[名称調査結果](../README.md)は公開時に再確認する。Windowsの具体的な対応版、性能予算、配布Pythonの互換性・パッチ版、OSSライセンス、公開先、PyPIへの実際の登録可否は提案または未確認である。未決事項は正式採用前に確認し、[ADR候補](architecture.md#8-adr候補一覧)へ記録する。外部への公開やOSSライセンスの正式採用はこの文書作成には含めない。

@@ -187,7 +187,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 
 ## 8. ADR候補一覧
 
-技術・ライセンスの判断は全件**候補・未採択**。推奨案は設計上の提案であり、実測または利用者の承認を伴う採用記録ではない。名称だけは2026-10-31に利用者の承認でPyYaki/`pyyaki`を採用した。採択時は日付、結果、測定物、採択理由、廃案の影響を同じIDに追記する。
+以下のADRは、MVPの技術・ライセンス全体としては**候補・未採択**。名称PyYaki/`pyyaki`と、ADR-007の初期試作用Pythonの選択は2026-10-31に利用者が承認した。初期試作の選択と、配布互換性を検証した採択を区別する。その他の推奨案は設計上の提案であり、採用記録ではない。採択時は日付、結果、測定物、採択理由、廃案の影響を同じIDに追記する。
 
 | ID | 論点 / 選択肢 | 推奨案と影響 | 採択条件・時期 |
 | --- | --- | --- | --- |
@@ -197,7 +197,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-004 | カスタムプロトコル / 仮想ホスト | wryカスタムプロトコル + HTTPS合成origin。セキュリティ制御が必要 | G1/G2で外向き通信、origin、CSP、JS応答APIを検証 |
 | ADR-005 | 単一exeの実行方式・圧縮・検証 | **単一exe必須は確定**。方式はユーザーキャッシュ展開を推奨。容量と初回遅延あり | G1/G3で署名、全ハッシュ確認、キャッシュ競合、初回時間を確認 |
 | ADR-006 | Evergreen / Fixed Version | 配布exeはFixed Version同梱。開発runは既存Evergreenまたは明示したFixed Version | G1/G3で未導入・オフライン・標準権限を確認。再配布条件を確認 |
-| ADR-007 | OS/CPU/Python対応範囲 | Windows 11 x64、CPython 3.14通常GIL版の1 minorを候補とする | G1で版を固定し、G3でnative wheel代表群を確認 |
+| ADR-007 | OS/CPU/Python対応範囲 | 初期試作はCPython 3.14通常GIL版の1 minorに限定。複数版対応を後回しにして検証範囲を絞るため、2026-10-31に利用者が承認。実測は未実施。Windows 11 x64と配布Pythonの組合せは候補のまま | 試作パッチ版は実装開始時に記録。G1でWindows検証用の版を固定し、G3でnative wheel代表群を確認。配布互換性不成立なら方式・対応範囲への影響を記録して再検討 |
 | ADR-008 | FastAPI / Starlette、通信契約 | FastAPI/Uvicorn + WebSocket、共通JSON契約。Python側依存を許容 | G2でWindows/Webの契約試験とセッション分離に合格 |
 | ADR-009 | 起動予算と計測法 | requirements.mdの暫定値と4指標の計測。初回/再起動を分離 | G1で実測し、G4で再現可能な測定報告を公開 |
 | ADR-010 | ライセンス・商標・公開名 | 名称PyYaki/`pyyaki`は2026-10-31に採用済み。ライセンスはApache-2.0を提案し、MITも比較 | 名称調査はREADMEを参照。登録可否は公開時に再確認。ライセンスは権利者が選択し、公開前にLICENSEを追加 |
