@@ -179,6 +179,7 @@ WebView2は送信元の継続確認と具体的なメッセージAPIを推奨し
 | R-09 | Web版のセッション混線・権限差 / 高 | 共通契約試験と2ブラウザ試験。Contextを分離。ネイティブ専用APIはcapabilityで区別 |
 | R-10 | 小規模OSSが汎用ホストを保守する負担 / 高 | Tauri/PyTauriとの再利用比較、対応環境を限定。公開前に依存更新の担当と手順を用意 |
 | R-11 | ライセンス・再配布条件が異なる / 高 | Rust/Python/JS依存とWebView2/VC runtimeを別管理。権利条件未確認の資材は公開成果物に入れない |
+| R-12 | Macで開発を先行し、Windows固有方式の問題発見が遅れる / 高 | 開発機はMac、手元のWindowsで後から確認する体制。Macでは共通処理・UI・Web経路を先行し、Windows依存部分はG1で成立を確認してから作り込む。Windows実測まで起動・配布方式や性能を確定しない |
 
 Microsoftは通常Evergreenを推奨するが、オフライン初回起動とインストール不要の要件からFixed Version同梱を推奨案とする。セキュリティ更新をアプリ配布者が継続管理する代償がある。[企業向けWebView2管理](https://learn.microsoft.com/en-us/deployedge/webview2-enterprise)
 

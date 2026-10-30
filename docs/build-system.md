@@ -19,6 +19,8 @@
 | 利用者が`pyyaki build windows` | 対応Windows/Python、ホストと対象依存wheel、ランタイム資材 | Rust/Cargo/MSVC/Node不要。未取得資材の明示取得時だけ接続 |
 | 配布exeを使う人 | 対応Windows、ローカルの配置先と書込み可能なユーザー領域 | Python/WebView2導入・ネット接続・管理者権限不要。ただし組織の実行許可は必要 |
 
+本プロジェクトの主な開発機はMacで、手元のWindowsで後から動作確認する体制。Macで共通Python処理・UI・Web経路を開発できる範囲と、Windowsホスト・wheel・単一exeのビルドや実行の検証を区別する。Windows向けビルドはWindowsで行う設計を維持し、Macからのクロスビルドを前提にしない。手元のWindowsのOS・CPUは検証開始前に確認する。
+
 ## 2. pip導入とネイティブCLI
 
 ### 2.1 パッケージ案
