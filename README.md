@@ -1,0 +1,98 @@
+# PyYaruki
+
+Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、WindowsデスクトップアプリとWebアプリを開発するためのOSSフレームワーク構想です。
+
+**現在は設計段階です。実行コード・公開パッケージは本リポジトリにまだなく、以下のコマンドとAPIは想定仕様です。性能・互換性も未検証です。** `pyyaruki`という公開パッケージ名の使用可能性は未確認であり、同名の配布物が本プロジェクトのものとは限りません。
+
+## 目指す使い方
+
+RustやCargoをインストールせず、Python環境から次の操作を行える構成を目指します。
+
+```console
+pip install pyyaruki
+pyyaruki dev
+pyyaruki run
+pyyaruki build windows
+```
+
+| コマンド | 想定する動作 |
+| --- | --- |
+| `pyyaruki dev` | ブラウザ向けの開発サーバーをloopbackで起動 |
+| `pyyaruki run` | WindowsのネイティブGUIホストを直接起動 |
+| `pyyaruki build windows` | Python・UI・依存・WebView2を含む単一のポータブルexeを生成 |
+
+基本構成で利用者にRust/Cargo/MSVC/Node.jsを要求しません。フレームワーク本体のメンテナーはRustのビルド環境を使用します。MVPの検証範囲はWindows 11 x64とCPython 3.14通常GIL版の組合せを提案しています。Windows向けビルドはWindows上で行う設計です。
+
+「Pythonだけ」はRust等をアプリ開発者が書く必要をなくす方向性です。自由なUIはHTML/CSS/JavaScriptで編集します。PythonだけでUIを宣言するDSLはMVPに含みません。
+
+## 想定するアプリ構造
+
+```text
+my-app/
+├─ pyproject.toml
+├─ requirements-windows.lock
+├─ app.py
+├─ domain/
+└─ ui/
+   ├─ index.html
+   ├─ styles.css
+   ├─ main.js
+   └─ assets/
+```
+
+Pythonの例（設計案）:
+
+```python
+from pyyaruki import App
+
+app = App()
+
+@app.command("greet")
+async def greet(name: str) -> dict[str, str]:
+    return {"message": f"Hello, {name}!"}
+
+asgi = app.asgi()
+```
+
+JavaScriptの例（設計案）:
+
+```javascript
+import { pyyaruki } from "/_pyyaruki/sdk.js";
+
+await pyyaruki.ready();
+const result = await pyyaruki.invoke("greet", { name: "Yaruki" });
+document.querySelector("#message").textContent = result.message;
+```
+
+同じコマンドとUIを両環境で利用し、フレームワークが通信経路を切り替えます。静的設定やイベントを含む詳細は[API設計](docs/api-design.md)を参照してください。
+
+## Windows版とWeb版
+
+Windows版は、ビルド済みRustホストが先に起動画面を描き、単一exe内の依存をユーザー専用キャッシュへ展開します。続いてWebView2にHTMLを表示し、その後で別プロセスのPythonを初期化する構成案です。空白のウィンドウ枠、起動画面、アプリUI、操作可能状態の速度を区別して計測します。
+
+WindowsのUI配信とRPCにはlocalhostサーバーを使わず、WebView内部の資産配信と専用パイプを使う案です。配布先でPython/WebView2の別途導入、管理者権限、ネット接続を必要としないことを必須条件とします。単一exeは配布ファイルが1つという意味で、実行時にはキャッシュやプロファイルを保存します。
+
+Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じディスパッチャーとUIを使います。ブラウザだけでPythonを実行する方式や、静的ホスティングだけで動く方式はMVP対象外です。本番Webには配布者による認証・認可・TLS等の運用が必要です。
+
+## 技術選定と検証課題
+
+初期候補はtao/wry、別プロセスCPython、FastAPI/Uvicorn、Windows Embeddable Package、Fixed Version WebView2です。PyO3のプロセス内埋め込みはMVP対象外の提案です。Tauri/PyTauri等の再利用も比較し、実測後に採否を決めます。
+
+特に、単一exeの初回展開時間、WebView2の容量と更新、native wheelのDLL依存、ネイティブCLIのpip配置、署名と企業の実行制限を検証します。署名してもDefender/SmartScreen/企業ポリシーによる制限が必ず解消するとは保証しません。
+
+最初の実装は、PythonとWebView2が未導入のWindowsで、単一exeからPythonを待たずに描画する最小試作を推奨します。コード実装はまだ開始していません。
+
+## 設計文書
+
+| 文書 | 内容 |
+| --- | --- |
+| [AGENTS.md](AGENTS.md) | Codexの開発ルールと文書の責務 |
+| [要件定義](docs/requirements.md) | 必須要件、受入条件、MVP範囲、起動速度の測定 |
+| [アーキテクチャ](docs/architecture.md) | 既存OSS比較、技術選定、起動順、IPC、リスク、ADR候補 |
+| [API設計](docs/api-design.md) | Python/JavaScript API、通信契約、エラー、制限値 |
+| [ビルド・配布設計](docs/build-system.md) | pip導入、単一exe、ランタイム、署名、更新、依存管理 |
+| [ロードマップ](docs/roadmap.md) | 技術検証ゲート、実装順序、公開条件 |
+
+## ライセンス
+
+OSSとして公開する方針です。ライセンスはApache-2.0を第一候補として比較中で、**正式採用前**です。依存OSS、CPython、Microsoft WebView2等の条件はそれぞれ別に確認し、公開前にLICENSE/NOTICEと再配布条件を整備します。
