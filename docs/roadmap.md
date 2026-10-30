@@ -138,7 +138,7 @@ Windows起動、pip導入、単一exe生成、依存互換性は未検証であ�
 - 静的確認: Ruffのlint/formatと、JSのES module構文確認に合格。
 - パッケージ: wheelを生成し、別venvへ事前取得済み依存からオフライン導入。パッケージ内のSDKとCLI版表示を確認。これはWindows単一exeの検証ではない。
 
-テスト依存からStarletteのhttpx非推奨警告が1件出る。テストは成功しているが、将来のテストクライアント移行は未対応であり、警告を非表示にしていない。
+この試作時点ではStarletteのhttpx非推奨警告が1件出ていた。その後、同日に開発用依存としてhttpx2を追加し、非推奨警告をエラー扱いにして全56件のテストが通過した。直接httpxを使うCLIテストもあるためhttpxは残している。移行方針は[StarletteのTestClient公式資料](https://www.starlette.io/testclient/)を参照。これはWindows実機検証の結果ではない。
 
 ブラウザ試験の再実行は、リポジトリのルートで開発依存を導入し、`python -m playwright install chromium`でテスト用ブラウザを準備した後、次のように行う。Node.jsはアプリ実行には不要。
 
