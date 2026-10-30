@@ -1,25 +1,29 @@
-# PyYaruki
+# PyYaki
 
 Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、WindowsデスクトップアプリとWebアプリを開発するためのOSSフレームワーク構想です。
 
-**現在は設計段階です。実行コード・公開パッケージは本リポジトリにまだなく、以下のコマンドとAPIは想定仕様です。性能・互換性も未検証です。** `pyyaruki`という公開パッケージ名の使用可能性は未確認であり、同名の配布物が本プロジェクトのものとは限りません。
+名称は「鯛焼き」にかけたものです。表示名を**PyYaki**、パッケージ・Python import・CLI・JavaScript SDKの識別子を**`pyyaki`**に統一します。
+
+**現在は設計段階です。実行コード・公開パッケージは本リポジトリにまだなく、以下のコマンドとAPIは想定仕様です。性能・互換性も未検証です。**
+
+2026-10-31の名称調査では、[PyPIの`pyyaki`公式API](https://pypi.org/pypi/pyyaki/json)は404で、[GitHubの名前検索](https://github.com/search?q=pyyaki+in%3Aname&type=repositories)でも該当する公開リポジトリは見つかりませんでした。名称は採用しましたが、PyPIでの登録可能性を保証するものではなく、公開時に再確認します。
 
 ## 目指す使い方
 
 RustやCargoをインストールせず、Python環境から次の操作を行える構成を目指します。
 
 ```console
-pip install pyyaruki
-pyyaruki dev
-pyyaruki run
-pyyaruki build windows
+pip install pyyaki
+pyyaki dev
+pyyaki run
+pyyaki build windows
 ```
 
 | コマンド | 想定する動作 |
 | --- | --- |
-| `pyyaruki dev` | ブラウザ向けの開発サーバーをloopbackで起動 |
-| `pyyaruki run` | WindowsのネイティブGUIホストを直接起動 |
-| `pyyaruki build windows` | Python・UI・依存・WebView2を含む単一のポータブルexeを生成 |
+| `pyyaki dev` | ブラウザ向けの開発サーバーをloopbackで起動 |
+| `pyyaki run` | WindowsのネイティブGUIホストを直接起動 |
+| `pyyaki build windows` | Python・UI・依存・WebView2を含む単一のポータブルexeを生成 |
 
 基本構成で利用者にRust/Cargo/MSVC/Node.jsを要求しません。フレームワーク本体のメンテナーはRustのビルド環境を使用します。MVPの検証範囲はWindows 11 x64とCPython 3.14通常GIL版の組合せを提案しています。Windows向けビルドはWindows上で行う設計です。
 
@@ -43,7 +47,7 @@ my-app/
 Pythonの例（設計案）:
 
 ```python
-from pyyaruki import App
+from pyyaki import App
 
 app = App()
 
@@ -57,10 +61,10 @@ asgi = app.asgi()
 JavaScriptの例（設計案）:
 
 ```javascript
-import { pyyaruki } from "/_pyyaruki/sdk.js";
+import { pyyaki } from "/_pyyaki/sdk.js";
 
-await pyyaruki.ready();
-const result = await pyyaruki.invoke("greet", { name: "Yaruki" });
+await pyyaki.ready();
+const result = await pyyaki.invoke("greet", { name: "Yaki" });
 document.querySelector("#message").textContent = result.message;
 ```
 

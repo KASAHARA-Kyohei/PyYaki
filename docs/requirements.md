@@ -1,16 +1,18 @@
-# PyYaruki 要件定義
+# PyYaki 要件定義
 
-状態: 初期設計案 / 作成・調査日: 2026-10-30 / コード未実装
+状態: 初期設計案 / 作成・技術調査日: 2026-10-30 / 名称更新: 2026-10-31 / コード未実装
 
 ## 1. 目的と用語
 
-PyYarukiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから、WindowsデスクトップアプリとWebアプリを作るOSSフレームワークを目指す。
+PyYakiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから、WindowsデスクトップアプリとWebアプリを作るOSSフレームワークを目指す。
+
+表示名はPyYaki（鯛焼きにかけた名称）、パッケージ・Python import・CLI・JavaScript SDKは`pyyaki`とし、2026-10-31に利用者が採用を承認した。
 
 「Pythonだけ」は、利用者がRust/Cargoやネイティブビルド環境を扱わず、Pythonをアプリケーション言語にできることを指す設計案とする。自由なUIにはHTML/CSS/JavaScriptを使用する。PythonだけでUIも宣言する仕組みはMVP対象外であり、この表現を「HTML等の知識が一切不要」という保証には使わない。
 
 - **必須**: 利用者が指定した要件。設計案によって緩和しない。
 - **提案**: 本書のMVP範囲、対応環境、数値目標など。採用済みではない。
-- **公式確認**: 一次資料に機能が記載されている状態。PyYarukiでの動作検証とは異なる。
+- **公式確認**: 一次資料に機能が記載されている状態。PyYakiでの動作検証とは異なる。
 - **要検証**: 試作・実機確認が必要。現在、性能や互換性の実測結果はない。
 - **単一exe**: Python、アプリ、UI、必要なWebView2を含む配布ファイルが1つ。ユーザー回答により必須。実行時のユーザー領域への展開方式は提案であり、無展開・完全インメモリ実行を保証しない。
 - **画面**: Rustによる起動画面、HTMLのアプリ画面、Python接続後の操作可能画面を区別する。
@@ -38,10 +40,10 @@ PyYarukiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから
 | FR-02 | 自由なHTML/CSS/JavaScript UI | ローカルの外部CSS、ES modules、画像、フォントが利用できる。特定のUIライブラリ・CDN・Node.jsを必須にしない |
 | FR-03 | Rust製GUIホスト | ウィンドウ管理とPython非依存の起動経路をRustで提供する。HTML描画はWindowsのWebView2が担当し、RustがHTMLレンダラーを自作する意味ではない |
 | FR-04 | Python初期化前の画面表示 | Pythonの起動を意図的に5秒遅延しても、Rustの描画と閉じる操作が先に動く。通常の起動ではHTMLシェルの描画確認後にPythonを起動する提案。空のウィンドウ枠だけを合格にしない |
-| FR-05 | `pip install pyyaruki` | 対応環境の新規venvへwheelだけで導入できる。Rust/Cargo/C/C++コンパイラ不要。Windowsの`pyyaruki`はPythonを先に初期化しないネイティブコマンドとする |
-| FR-06 | `pyyaruki dev` | ブラウザ向けサーバーを既定で`127.0.0.1`に限定して起動。UI変更を再読込し、Python変更時は開発サーバーを再起動する。ポート競合を説明できる |
-| FR-07 | `pyyaruki run` | Windows上でGUIホストを直接起動し、開発用venvのPythonワーカーへ接続。HTTP/WebSocket待受を作らず、Python importが失敗してもGUIに原因を表示する |
-| FR-08 | `pyyaruki build windows` | Rust不要で依存ファイルを含む**単一exe**を生成。配布先でPython/WebView2未導入・ネットワーク切断・標準ユーザーの条件でも起動する。フォルダー/ZIPのみの成果物は要件を満たさない |
+| FR-05 | `pip install pyyaki` | 対応環境の新規venvへwheelだけで導入できる。Rust/Cargo/C/C++コンパイラ不要。Windowsの`pyyaki`はPythonを先に初期化しないネイティブコマンドとする |
+| FR-06 | `pyyaki dev` | ブラウザ向けサーバーを既定で`127.0.0.1`に限定して起動。UI変更を再読込し、Python変更時は開発サーバーを再起動する。ポート競合を説明できる |
+| FR-07 | `pyyaki run` | Windows上でGUIホストを直接起動し、開発用venvのPythonワーカーへ接続。HTTP/WebSocket待受を作らず、Python importが失敗してもGUIに原因を表示する |
+| FR-08 | `pyyaki build windows` | Rust不要で依存ファイルを含む**単一exe**を生成。配布先でPython/WebView2未導入・ネットワーク切断・標準ユーザーの条件でも起動する。フォルダー/ZIPのみの成果物は要件を満たさない |
 | FR-09 | ビルド済みランチャー | フレームワークのリリースでコンパイルしたホストを再利用する。利用者のアプリごとにRustをコンパイルしない。版とハッシュの不一致をビルド時に検出する |
 | FR-10 | Webアプリとして実行 | 同一アプリをASGIアプリとして公開できる。2つのブラウザセッションで状態とイベントが混線しない。インターネット公開にはアプリ側の認証・認可を要求する |
 | FR-11 | AIがUIを編集しやすい | UIファイルをPython/Rustから独立させ、命名の安定したDOM、通信SDK、公開コマンドの契約を文書化。生成済み巨大ファイルだけを編集対象にしない |
@@ -74,7 +76,7 @@ PyYarukiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから
 | t3 | Pythonワーカーがimport・登録を終え、hello/welcomeが完了する |
 | t4 | JSから最初のPythonコマンドを呼び、結果が画面に描画される |
 
-`T_native=t1-t0`、`T_shell=t2-t0`、`T_backend=t3-t0`、`T_interactive=t4-t0`を個別に記録する。展開・ハッシュ検証・WebView2初期化・Python初期化・アプリimportも内訳として残す。`pyyaruki run`ではコマンドのネイティブ起動をt0とし、Pythonラッパーを計測の外に隠さない。
+`T_native=t1-t0`、`T_shell=t2-t0`、`T_backend=t3-t0`、`T_interactive=t4-t0`を個別に記録する。展開・ハッシュ検証・WebView2初期化・Python初期化・アプリimportも内訳として残す。`pyyaki run`ではコマンドのネイティブ起動をt0とし、Pythonラッパーを計測の外に隠さない。
 
 ### 5.2 暫定の性能予算
 
@@ -117,4 +119,4 @@ PyYarukiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから
 
 ## 8. 前提と残る確認
 
-単一exeを必須とする点は確認済み。Windowsの具体的な対応版、性能予算、Python minor版、OSSライセンス、公開先・パッケージ名の使用可能性は提案または未確認である。正式採用前に確認し、[ADR候補](architecture.md#8-adr候補一覧)へ記録する。外部への公開やOSSライセンスの正式採用はこの文書作成には含めない。
+単一exeを必須とする点と、名称PyYaki/`pyyaki`の採用は確認済み。[名称調査結果](../README.md)は公開時に再確認する。Windowsの具体的な対応版、性能予算、Python minor版、OSSライセンス、公開先、PyPIへの実際の登録可否は提案または未確認である。未決事項は正式採用前に確認し、[ADR候補](architecture.md#8-adr候補一覧)へ記録する。外部への公開やOSSライセンスの正式採用はこの文書作成には含めない。

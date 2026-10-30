@@ -1,6 +1,6 @@
-# PyYaruki ビルド・配布設計
+# PyYaki ビルド・配布設計
 
-状態: 初期設計案 / 調査日: 2026-10-30 / ビルド・署名・Windows実機検証は未実施
+状態: 初期設計案 / 技術調査日: 2026-10-30 / 名称更新: 2026-10-31 / ビルド・署名・Windows実機検証は未実施
 
 ## 1. 配布単位と成立条件
 
@@ -8,30 +8,30 @@
 
 推奨案は、ビルド済みRustホストへPython、アプリ、UI、依存パッケージ、Fixed Version WebView2を格納し、起動時にユーザー専用キャッシュへ展開する方式。Python DLL、`.pyd`、WebView2の実行ファイル等をディスクへ配置する設計であり、単一ファイルのまま完全インメモリで動作する構想とは区別する。
 
-展開前にRustの起動画面を描き、展開後にHTMLを表示してからPythonを起動する。初回の展開負担と容量は避けられない可能性があり、[requirements.mdの計測仕様](requirements.md#5-起動速度の測定仕様)で検証する。PyInstallerもone-fileでは展開を伴いone-folderより起動が遅くなると説明している。これは方式の参考であって、PyYarukiの性能実測ではない。[PyInstallerのone-file動作](https://pyinstaller.org/en/stable/operating-mode.html)
+展開前にRustの起動画面を描き、展開後にHTMLを表示してからPythonを起動する。初回の展開負担と容量は避けられない可能性があり、[requirements.mdの計測仕様](requirements.md#5-起動速度の測定仕様)で検証する。PyInstallerもone-fileでは展開を伴いone-folderより起動が遅くなると説明している。これは方式の参考であって、PyYakiの性能実測ではない。[PyInstallerのone-file動作](https://pyinstaller.org/en/stable/operating-mode.html)
 
 | 場面 | 必要なもの | ネットワーク/権限 |
 | --- | --- | --- |
 | OSS開発者がホストを開発・公開 | Rust/Cargo、Windowsのビルド環境、対応Python | CI/メンテナー環境だけで使用 |
-| 利用者が`pip install pyyaruki` | 対応Pythonとpip、公開済みwheel | 通常は取得時に接続。事前配布したwheelhouseでオフライン導入可。venvなら管理者不要 |
-| 利用者が`pyyaruki dev` | Python環境、ブラウザ | loopback HTTP/WebSocket。外部サービスを使わなければオフライン可 |
-| 利用者が`pyyaruki run` | Windows、開発venv、利用可能なWebView2 | Rust不要。既存Evergreenまたは事前取得したFixed Version。実行時の自動取得・昇格はしない |
-| 利用者が`pyyaruki build windows` | 対応Windows/Python、ホストと対象依存wheel、ランタイム資材 | Rust/Cargo/MSVC/Node不要。未取得資材の明示取得時だけ接続 |
+| 利用者が`pip install pyyaki` | 対応Pythonとpip、公開済みwheel | 通常は取得時に接続。事前配布したwheelhouseでオフライン導入可。venvなら管理者不要 |
+| 利用者が`pyyaki dev` | Python環境、ブラウザ | loopback HTTP/WebSocket。外部サービスを使わなければオフライン可 |
+| 利用者が`pyyaki run` | Windows、開発venv、利用可能なWebView2 | Rust不要。既存Evergreenまたは事前取得したFixed Version。実行時の自動取得・昇格はしない |
+| 利用者が`pyyaki build windows` | 対応Windows/Python、ホストと対象依存wheel、ランタイム資材 | Rust/Cargo/MSVC/Node不要。未取得資材の明示取得時だけ接続 |
 | 配布exeを使う人 | 対応Windows、ローカルの配置先と書込み可能なユーザー領域 | Python/WebView2導入・ネット接続・管理者権限不要。ただし組織の実行許可は必要 |
 
 ## 2. pip導入とネイティブCLI
 
 ### 2.1 パッケージ案
 
-- `pyyaruki`: 共通Pythonディスパッチャー、Webアダプター、JS SDK、ビルド機能。
-- Windows x64の`pyyaruki` wheelには、同じ版のビルド済みネイティブ`pyyaruki.exe`と汎用GUIホストの資材を同梱する。
+- `pyyaki`: 共通Pythonディスパッチャー、Webアダプター、JS SDK、ビルド機能。
+- Windows x64の`pyyaki` wheelには、同じ版のビルド済みネイティブ`pyyaki.exe`と汎用GUIホストの資材を同梱する。
 - 非Windowsのpure Python wheelはWeb開発用Python CLIを提供し、`run`/`build windows`は未対応と明確にエラーにする。
 - Python、WebView2、アプリ固有依存の大きなアーカイブは基本wheelへすべて詰めず、バージョン固定の資材キャッシュからビルド時に取得する案。`pip install`時に任意URLから実行ファイルを取得・実行しない。
 - Windows wheelはPython ABIへ直接リンクしない実行ファイルを含むため、`py3-none-win_amd64`をタグ候補とする。`Requires-Python`とCPython判定は別途設定する。タグと実際の対応Pythonの一致をG1で検証する。
 
 ### 2.2 Pythonより先に起動するCLI
 
-Windowsで`[project.scripts]`からPythonラッパーを生成する方式は`run`に使わない。wheelの`{distribution}-{version}.data/scripts/pyyaruki.exe`からvenvの`Scripts`へネイティブexeを配置する案とする。同名のconsole scriptを同時に生成しない。
+Windowsで`[project.scripts]`からPythonラッパーを生成する方式は`run`に使わない。wheelの`{distribution}-{version}.data/scripts/pyyaki.exe`からvenvの`Scripts`へネイティブexeを配置する案とする。同名のconsole scriptを同時に生成しない。
 
 wheel仕様には`.data/scripts`をインストール先へ配置する仕組みがある。実際のpip配置、上書き・アンインストール、対応バージョン、venvのPython探索は未検証であり、リリース前に確認する。[wheel配布仕様](https://packaging.python.org/en/latest/specifications/binary-distribution-format/)、[互換性タグ仕様](https://packaging.python.org/en/latest/specifications/platform-compatibility-tags/)
 
@@ -39,20 +39,20 @@ CLIの分岐案:
 
 | コマンド | Windowsでの処理 |
 | --- | --- |
-| `pyyaruki run` | ネイティブコマンドからGUIホストを起動。設定読取と画面描画の後に開発venvのPythonを起動 |
-| `pyyaruki dev` | 同じvenvのPythonで開発サーバーを起動。ブラウザを開く案 |
-| `pyyaruki build windows` | 同じvenvのPythonで依存検証と単一exe組立を行う |
+| `pyyaki run` | ネイティブコマンドからGUIホストを起動。設定読取と画面描画の後に開発venvのPythonを起動 |
+| `pyyaki dev` | 同じvenvのPythonで開発サーバーを起動。ブラウザを開く案 |
+| `pyyaki build windows` | 同じvenvのPythonで依存検証と単一exe組立を行う |
 
 最初はvenvへの導入を推奨する。CLIは自分の配置場所と`pyvenv.cfg`から関連Pythonを特定し、PATHの先頭のPythonへ暗黙に切り替えない。例外環境向けに`run --python <absolute-path>`を候補とし、指定したインタープリターが同じフレームワーク版を持つかワーカー接続時に確認する。
 
-`pip --user`や通常インストール環境でのネイティブコマンドとPythonの対応付けはG1で確認する。未対応なら明示エラーとvenv導入手順を提供し、別のPythonで勝手に起動しない。`python -m pyyaruki run`はPython初期化済みになるため、先行描画を保証する入口としては提供しない。
+`pip --user`や通常インストール環境でのネイティブコマンドとPythonの対応付けはG1で確認する。未対応なら明示エラーとvenv導入手順を提供し、別のPythonで勝手に起動しない。`python -m pyyaki run`はPython初期化済みになるため、先行描画を保証する入口としては提供しない。
 
 ## 3. ビルドパイプライン案
 
 1. **入力検証**: `pyproject.toml`から静的設定と対象を読む。対応OS/CPU/Python、依存lock、include資産、出力先を検査。アプリのimportによって設定を取得しない。
-2. **資材解決**: 同じPyYaruki版のホスト、固定CPythonパッチ版、固定WebView2版、対象依存wheelを解決し、取得元・ハッシュ・ライセンス・来歴を記録。
+2. **資材解決**: 同じPyYaki版のホスト、固定CPythonパッチ版、固定WebView2版、対象依存wheelを解決し、取得元・ハッシュ・ライセンス・来歴を記録。
 3. **依存の配置**: 対象Windows/Pythonに合うwheelを、開発環境から隔離したstagingへ配置。開発venv全体をコピーしない。
-4. **ランタイム準備**: Embeddable Packageを展開し、制御した`._pth`とPyYarukiワーカーを配置。パッケージのDLL・データを保持する。
+4. **ランタイム準備**: Embeddable Packageを展開し、制御した`._pth`とPyYakiワーカーを配置。パッケージのDLL・データを保持する。
 5. **資産収集**: アプリの明示includeを収集し、UIとSDKを配置。秘密情報や不要な開発ファイルが入っていないか一覧を確認する。
 6. **検証実行**: ターゲットランタイムでワーカー起動、アプリimport、native拡張のimport、最小RPCを確認する。ビルド元Windowsでも成功するだけでは配布検証の代わりにしない。
 7. **マニフェスト生成**: 全ファイルの相対パス、サイズ、SHA-256、版、ソースコミット、Python ABI、WebView2版、公開プロトコル版、ライセンス情報を記録。
@@ -85,7 +85,7 @@ payload/
 ├─ manifest.json
 ├─ runtime/python/          # python.exe、python3.dll、python314.dll、標準ライブラリ等
 ├─ runtime/webview2/        # 同じCPU向けFixed Version
-├─ framework/pyyaruki/      # ワーカーと共通ディスパッチャー
+├─ framework/pyyaki/      # ワーカーと共通ディスパッチャー
 ├─ packages/                # lockから解決した依存wheelの内容
 ├─ app/                     # 利用者のPythonコードとデータ
 ├─ ui/                      # HTML/CSS/JS、画像、フォント
@@ -131,11 +131,11 @@ Python、WebView2、Rustホスト、native wheelが必要とするVC/UCRT/OpenSS
 
 Fixed Versionは数百MB規模になり得る。実際の圧縮後exe容量・展開後容量は版ごとに測り、固定の容量保証をしない。Windows 10固有ACLとUNC制限があるため、MVPではWindows 11 x64のローカルディスクを最初の検証対象とする。
 
-WebView2のUser Data Folderはアプリの展開物とは分離し、書込み可能な`%LOCALAPPDATA%\PyYaruki\apps\<app-id>\profiles\<instance-id>`を候補とする。多重起動時に同じプロファイルを競合させない。アプリが保存する業務データにはこの一時的なプロファイルを使わない。[WebView2 User Data Folder](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder)
+WebView2のUser Data Folderはアプリの展開物とは分離し、書込み可能な`%LOCALAPPDATA%\PyYaki\apps\<app-id>\profiles\<instance-id>`を候補とする。多重起動時に同じプロファイルを競合させない。アプリが保存する業務データにはこの一時的なプロファイルを使わない。[WebView2 User Data Folder](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder)
 
 ## 6. 安全な展開とキャッシュ
 
-提案パスは`%LOCALAPPDATA%\PyYaruki\apps\<app-id>\versions\<payload-sha256>`。アプリデータは別の`data`、ログは`logs`、プロファイルは`profiles`へ置く。配布exeの隣へ書き込まず、既定の一時フォルダーから実行する方式も避ける。組織によってはLocalAppDataからの実行自体が禁止されるため、その制限を回避するものではない。
+提案パスは`%LOCALAPPDATA%\PyYaki\apps\<app-id>\versions\<payload-sha256>`。アプリデータは別の`data`、ログは`logs`、プロファイルは`profiles`へ置く。配布exeの隣へ書き込まず、既定の一時フォルダーから実行する方式も避ける。組織によってはLocalAppDataからの実行自体が禁止されるため、その制限を回避するものではない。
 
 1. 起動画面を描画後、資材マニフェストとアーカイブ範囲を検証する。対象のapp-idはパスに使う前に検証する。
 2. 同じapp-idとペイロードハッシュの展開はOSロックで直列化する。別版は別ディレクトリにし、起動中の版を上書きしない。
@@ -153,7 +153,7 @@ WebView2のUser Data Folderはアプリの展開物とは分離し、書込み�
 - メンテナーのWindows CIで固定Rust toolchain/Cargo.lockからホストをビルドし、コミット、ターゲット、機能、依存、ハッシュ、SBOM、署名情報を発行する。
 - wheelのホスト資材とPython/JSの版を一致させる。利用者のbuildは同じ版を再利用し、毎回「最新ホスト」を取得しない。
 - 外部ランタイム資材は版付きURLとSHA-256を資材マニフェストで固定する。変更可能なlatest URLだけを信頼しない。信頼する署名鍵/CI identityとマニフェストの対応も検証する。
-- ホスト更新は`pip install --upgrade pyyaruki`と**アプリの再ビルド・再配布**で反映する。pip更新だけで既に配ったexeが更新されることはない。
+- ホスト更新は`pip install --upgrade pyyaki`と**アプリの再ビルド・再配布**で反映する。pip更新だけで既に配ったexeが更新されることはない。
 - 配布exeは起動時に更新サーバーへ問い合わせない。MVPは署名された新しいexeを配布者が提供し、利用者が終了後に置き換える方式。
 - オフライン資材セットにはwheelhouse、ホスト、Python ZIP、WebView2、マニフェスト、検証用公開鍵/来歴と通知を含める。取得手順とオフラインビルド手順を用意する。
 - 資材不足の`build --offline`は不足項目を列挙して終了する案。ネットワークへ自動フォールバックしない。未準備状態の`pip install`/buildまでオフライン可能と説明しない。
@@ -175,7 +175,7 @@ Microsoftは署名済みの新しいバイナリでもSmartScreen警告が出る
 
 ### 9.1 ライセンス方針案
 
-PyYaruki本体はApache-2.0を第一候補、MITを代替候補とし、権利者がADR-010で選択する。現段階では正式採用しておらず、LICENSEファイルを追加したり「Apache-2.0で公開済み」と表示したりしない。
+PyYaki本体はApache-2.0を第一候補、MITを代替候補とし、権利者がADR-010で選択する。現段階では正式採用しておらず、LICENSEファイルを追加したり「Apache-2.0で公開済み」と表示したりしない。
 
 | 対象 | 取り扱い |
 | --- | --- |
@@ -197,7 +197,7 @@ PyYaruki本体はApache-2.0を第一候補、MITを代替候補とし、権利�
 6. 署名・タイムスタンプ前の内容を再現可能性の比較対象にし、署名後のバイト単位一致は別扱いにする。再現可能ビルドは未達成の目標と明記する。
 7. 脆弱性の連絡先、修正版提供方針、サポートする版の範囲、資材の廃止手順を公開前に決める。
 
-PEP 740はPyPI等のattestationと来歴を扱うが、pipが常にそれを強制検証する保証ではない。ビルド資材の検証方針はPyYaruki側でも明示する。[PEP 740](https://peps.python.org/pep-0740/)
+PEP 740はPyPI等のattestationと来歴を扱うが、pipが常にそれを強制検証する保証ではない。ビルド資材の検証方針はPyYaki側でも明示する。[PEP 740](https://peps.python.org/pep-0740/)
 
 ## 10. ビルド失敗条件と検証
 

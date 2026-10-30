@@ -1,6 +1,6 @@
-# PyYaruki 公開API設計
+# PyYaki 公開API設計
 
-状態: 初期設計案 / 2026-10-30 / API・コード例は未実装
+状態: 初期設計案 / 作成: 2026-10-30 / 名称更新: 2026-10-31 / API・コード例は未実装
 
 本書は公開API、JSON契約、エラー、制限値の正本。例は想定利用を示すものであり、現在実行できるサンプルではない。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
 
@@ -28,27 +28,27 @@ my-app/
    └─ assets/
 ```
 
-UIをPythonの巨大なHTML文字列やRustバイナリのソースへ埋め込まない。生成SDKの置き場と利用者が編集するファイルを分ける。`/_pyyaruki/`はフレームワーク予約パスで、利用者資産を配置しない。
+UIをPythonの巨大なHTML文字列やRustバイナリのソースへ埋め込まない。生成SDKの置き場と利用者が編集するファイルを分ける。`/_pyyaki/`はフレームワーク予約パスで、利用者資産を配置しない。
 
 ### 2.1 静的設定の例
 
 以下は`pyproject.toml`内の設計例。実ファイルはまだ作成しない。
 
 ```toml
-[tool.pyyaruki]
+[tool.pyyaki]
 app-id = "com.example.hello"
-name = "Hello PyYaruki"
+name = "Hello PyYaki"
 version = "0.1.0"
 entry = "app:app"
 ui-dir = "ui"
 ui-entry = "index.html"
 
-[tool.pyyaruki.window]
-title = "Hello PyYaruki"
+[tool.pyyaki.window]
+title = "Hello PyYaki"
 width = 960
 height = 640
 
-[tool.pyyaruki.build.windows]
+[tool.pyyaki.build.windows]
 python = "3.14"
 dependencies = "requirements-windows.lock"
 include = ["app.py", "domain/**", "ui/**"]
@@ -66,7 +66,7 @@ webview2 = "fixed"
 ### 3.1 共通コマンド
 
 ```python
-from pyyaruki import App, Context
+from pyyaki import App, Context
 
 app = App()
 
@@ -79,7 +79,7 @@ async def greet(name: str, *, ctx: Context) -> dict[str, str]:
 asgi = app.asgi()
 ```
 
-同じファイルを`pyyaruki run`がワーカーでimportし、`pyyaruki dev`がASGI経由で使う。`asgi`の生成はサーバー起動、GUI表示、業務処理開始を行わない。ライフサイクル開始はホスト/ASGI lifespanが担当する。
+同じファイルを`pyyaki run`がワーカーでimportし、`pyyaki dev`がASGI経由で使う。`asgi`の生成はサーバー起動、GUI表示、業務処理開始を行わない。ライフサイクル開始はホスト/ASGI lifespanが担当する。
 
 ### 3.2 公開するクラスとメソッド
 
@@ -106,7 +106,7 @@ asgi = app.asgi()
 MVPの引数・戻り値は`str`、`bool`、安全範囲の`int`、有限の`float`、`None`、`list[T]`、`dict[str, T]`、それらの単純なoptionalを対象とする案。入力と戻り値を厳密検証し、`"1"`から`1`のような暗黙変換はしない。
 
 - paramsは名前付きJSON objectのみ。余分な引数、不足、型違いを`VALIDATION_ERROR`とする。
-- コマンド名・アプリイベント名は`[a-z][a-z0-9_.-]{0,63}`。`pyyaruki`で始まる名前は予約する。
+- コマンド名・アプリイベント名は`[a-z][a-z0-9_.-]{0,63}`。`pyyaki`で始まる名前は予約する。
 - 署名の`*args`、`**kwargs`、無注釈引数、Contextの誤った位置は起動時に拒否する。
 - 整数は`-(2^53-1)`〜`2^53-1`に限定。それ以上の整数、Decimal、日時、bytesはアプリが明示的に文字列等へ変換する。
 - NaN/Infinity、循環参照、JSのundefined/BigInt、任意クラスのインスタンスは拒否する。戻り値の不正は`SERIALIZATION_ERROR`とする。
@@ -117,14 +117,14 @@ Pythonコマンドは1つのasyncioイベントループで実行する。CPU処
 ## 4. JavaScript API案
 
 ```javascript
-import { pyyaruki } from "/_pyyaruki/sdk.js";
+import { pyyaki } from "/_pyyaki/sdk.js";
 
-const unsubscribe = pyyaruki.on("greeted", ({ name }) => {
+const unsubscribe = pyyaki.on("greeted", ({ name }) => {
   document.querySelector("#last-name").textContent = name;
 });
 
-await pyyaruki.ready();
-const result = await pyyaruki.invoke("greet", { name: "Yaruki" });
+await pyyaki.ready();
+const result = await pyyaki.invoke("greet", { name: "Yaki" });
 document.querySelector("#message").textContent = result.message;
 
 // この画面のイベント購読を終了するときに呼ぶ。
@@ -168,11 +168,11 @@ v1は整数のプロトコル版。未対応v、未知のメッセージtype、�
 ### 5.2 要求と応答
 
 ```json
-{"v":1,"type":"call","id":"client-generated-unique-id","method":"greet","params":{"name":"Yaruki"},"timeout_ms":30000}
+{"v":1,"type":"call","id":"client-generated-unique-id","method":"greet","params":{"name":"Yaki"},"timeout_ms":30000}
 ```
 
 ```json
-{"v":1,"type":"result","id":"client-generated-unique-id","result":{"message":"Hello, Yaruki!"}}
+{"v":1,"type":"result","id":"client-generated-unique-id","result":{"message":"Hello, Yaki!"}}
 ```
 
 ```json
@@ -186,7 +186,7 @@ IDは接続中に一意な最大128文字のASCII文字列。並行呼出しの�
 ### 5.3 イベント・取消
 
 ```json
-{"v":1,"type":"event","name":"greeted","payload":{"name":"Yaruki"},"seq":1}
+{"v":1,"type":"event","name":"greeted","payload":{"name":"Yaki"},"seq":1}
 ```
 
 ```json
@@ -222,7 +222,7 @@ Windowsホストとワーカーには、公開メッセージとは別の制御�
 | `INTERNAL_ERROR` | 想定外の例外。利用者向けメッセージと診断IDだけを返す |
 | `APP_*` | アプリが定義した想定内エラー |
 
-SDKは上記を`PyYarukiError`としてrejectし、`code`、`message`、任意のJSON `details`を提供する。Pythonのトレースバック、絶対パス、秘密情報は本番応答へ含めない。プロトコル破損など要求IDを復元できない場合は接続を閉じ、保留要求を`DISCONNECTED`で失敗させる。
+SDKは上記を`PyYakiError`としてrejectし、`code`、`message`、任意のJSON `details`を提供する。Pythonのトレースバック、絶対パス、秘密情報は本番応答へ含めない。プロトコル破損など要求IDを復元できない場合は接続を閉じ、保留要求を`DISCONNECTED`で失敗させる。
 
 | 制限 | MVP提案値 |
 | --- | --- |
@@ -237,7 +237,7 @@ SDKは上記を`PyYarukiError`としてrejectし、`code`、`message`、任意�
 
 ## 7. Web公開と開発時更新
 
-本番Webの起動例は`uvicorn app:asgi --host 127.0.0.1 --port 8000 --workers 1`を想定する。認証・TLS終端・リバースプロキシ・監視は配布者の運用責任であり、`pyyaruki dev`をそのまま公開する設計にしない。
+本番Webの起動例は`uvicorn app:asgi --host 127.0.0.1 --port 8000 --workers 1`を想定する。認証・TLS終端・リバースプロキシ・監視は配布者の運用責任であり、`pyyaki dev`をそのまま公開する設計にしない。
 
 `dev`はUI資産を監視してページ全体を再読込する案。Python変更はサーバー再起動となり、Contextとイベント購読は破棄される。状態を維持するHMR、編集中コードの差替え、ネイティブrunの自動更新はMVPに含めない。
 

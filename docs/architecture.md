@@ -1,12 +1,12 @@
-# PyYaruki アーキテクチャ設計
+# PyYaki アーキテクチャ設計
 
-状態: 初期設計案 / 調査日: 2026-10-30 / 公式資料確認のみ、試作・ベンチマーク未実施
+状態: 初期設計案 / 技術調査日: 2026-10-30 / 名称更新: 2026-10-31 / 公式資料確認のみ、試作・ベンチマーク未実施
 
 ## 1. 既存OSSとの比較
 
 最初に既存手段で要件を満たせるかを評価する。速度の優劣は未測定であり、下表は構造と公式に記載された機能の比較である。
 
-| 選択肢 | 公式資料で確認できる特徴 | PyYaruki要件との差・評価 |
+| 選択肢 | 公式資料で確認できる特徴 | PyYaki要件との差・評価 |
 | --- | --- | --- |
 | [pywebview](https://pywebview.flowrl.com/guide/architecture.html) | Python APIからWebViewを生成。JSブリッジ、HTTP配信、サーバーを使わないHTMLロードを提供 | 既に自由なHTML UIとPython連携がある。Python起動前描画は通常のPythonエントリーでは実現できず、別ホストが必要。サーバー不使用の方式自体は既存なので新規性としない |
 | [NiceGUI](https://github.com/zauberzeug/nicegui#architecture) | Python/FastAPI、Vue/Quasar、socket.io、ブラウザ/ネイティブ表示 | Web共通化に強い。Python主体・サーバー主体の構成から、Windowsでサーバーを排除し、Pythonより先に起動するには変更が必要 |
@@ -32,14 +32,14 @@
 
 PyO3の公式資料では、Python拡張モジュールとRustからのPython埋め込みは別の配布方式として扱われ、動的埋め込みではPython共有ライブラリが必要になる。単に`abi3`を指定してすべての同梱依存が互換になるわけではない。[PyO3のビルド・埋め込み](https://pyo3.rs/latest/building-and-distribution.html)
 
-FastAPIのWebSocket機能は公式に提供されているが、PyYarukiのセッション分離、origin検査、制限値は独自に実装・検証する必要がある。[FastAPI WebSockets](https://fastapi.tiangolo.com/advanced/websockets/)
+FastAPIのWebSocket機能は公式に提供されているが、PyYakiのセッション分離、origin検査、制限値は独自に実装・検証する必要がある。[FastAPI WebSockets](https://fastapi.tiangolo.com/advanced/websockets/)
 
 ## 3. 構成と責務
 
 ### 3.1 Windows
 
 ```text
-単一配布exe / pipで導入したネイティブ pyyaruki.exe
+単一配布exe / pipで導入したネイティブ pyyaki.exe
   │
   ├─ Rustホスト: 主スレッド
   │    ├─ 起動画面 / ウィンドウ / OSイベントループ
@@ -52,7 +52,7 @@ FastAPIのWebSocket機能は公式に提供されているが、PyYarukiのセ�
   │    └─ IPC入出力 / Pythonワーカー監視
   │
   ├─ WebView2のブラウザ/レンダラー等の子プロセス
-  │    └─ 共通HTML/CSS/JS + PyYaruki SDK
+  │    └─ 共通HTML/CSS/JS + PyYaki SDK
   │
   └─ CPythonワーカー（別プロセス、1アプリ1ワーカー）
        ├─ 共通Pythonディスパッチャー
@@ -93,9 +93,9 @@ WebではPythonはサーバーで実行される。Windowsの「HTTPサーバー
 ### 4.2 再起動と開発時
 
 - **展開済みexe**: 同じ起動画面を表示し、キャッシュ検証後にHTMLを表示する。展開省略と完全性確認の両立はADR-005で実測する。
-- **`pyyaruki run`**: Windows用ネイティブコマンドがTOMLの静的設定を読み、プロジェクトのUIを表示してからvenvのPythonを起動する。起動設定の取得に`import app`を使わない。
-- **`pyyaruki dev`**: Python起動後にFastAPI/Uvicornとブラウザを使用する。Windowsデスクトップの先行描画保証は適用しない。
-- **`pyyaruki build windows`**: Pythonによる依存解決・組立を行ってよい。配布先の起動経路とは異なる。
+- **`pyyaki run`**: Windows用ネイティブコマンドがTOMLの静的設定を読み、プロジェクトのUIを表示してからvenvのPythonを起動する。起動設定の取得に`import app`を使わない。
+- **`pyyaki dev`**: Python起動後にFastAPI/Uvicornとブラウザを使用する。Windowsデスクトップの先行描画保証は適用しない。
+- **`pyyaki build windows`**: Pythonによる依存解決・組立を行ってよい。配布先の起動経路とは異なる。
 
 Windowsで一般的なPython `console_scripts`ラッパーを`run`の入口にすると、この初期化順を満たせない。[wheel内ネイティブコマンドの配布案](build-system.md#2-pip導入とネイティブcli)をADR-003で検証する。
 
@@ -117,7 +117,7 @@ Pythonの起動タイムアウトは起動後10秒の提案。展開中の経過
 
 ### 5.1 Windowsの資産配信
 
-wryのカスタムプロトコルを初期候補とする。`pyyaruki://localhost/index.html`に相当するURLはWindowsではHTTPSの合成origin（候補`https://pyyaruki.localhost`）として扱い、要求をホスト内で同梱ファイルに解決する。**URLにlocalhostが含まれても、DNS接続やlocalhostのHTTPサーバーを必要とする設計ではない。** 全要求がWebView2内で処理されることを実機トレースで確かめる。
+wryのカスタムプロトコルを初期候補とする。`pyyaki://localhost/index.html`に相当するURLはWindowsではHTTPSの合成origin（候補`https://pyyaki.localhost`）として扱い、要求をホスト内で同梱ファイルに解決する。**URLにlocalhostが含まれても、DNS接続やlocalhostのHTTPサーバーを必要とする設計ではない。** 全要求がWebView2内で処理されることを実機トレースで確かめる。
 
 カスタムプロトコルのWindows上のorigin変換とHTTPS設定は公式APIに存在する。[wryのプロトコルAPI](https://docs.rs/wry/latest/x86_64-pc-windows-msvc/wry/struct.WebViewBuilder.html)、[WindowsのHTTPS設定](https://docs.rs/wry/latest/x86_64-pc-windows-msvc/wry/trait.WebViewBuilderExtWindows.html)
 
@@ -139,7 +139,7 @@ wryのカスタムプロトコルを初期候補とする。`pyyaruki://localhos
 
 ### 5.3 WebのRPC
 
-- 静的資産とSDK、HTTPセッション初期化、WebSocketを同一originへ配置する。`GET /_pyyaruki/session`で短命の接続用nonceを返し、SDKがWebSocketの最初のhelloで送る案。
+- 静的資産とSDK、HTTPセッション初期化、WebSocketを同一originへ配置する。`GET /_pyyaki/session`で短命の接続用nonceを返し、SDKがWebSocketの最初のhelloで送る案。
 - セッション初期化はHost検査と同一origin要求に限定。開発時はランダムなHttpOnly/SameSite cookieを発行し、初期化応答は`Cache-Control: no-store`とする。Cookieが必要な本番運用ではHTTPS/Secureを必須にする。
 - 接続時にHost/Originを検査し、cookieとnonceを照合する。nonceをURL、永続ストレージ、ログに載せず、未認証の接続はタイムアウトさせる。CORSのワイルドカードを使わない。
 - これらはCSRFや接続の混線への対策であり、ユーザーのログイン認証ではない。公開時はアプリが認証・認可をASGIミドルウェア等で追加する。MVPの`dev`は外部公開オプションを提供しない案。
@@ -186,7 +186,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 
 ## 8. ADR候補一覧
 
-全件**候補・未採択**。推奨案は設計上の提案であり、実測または利用者の承認を伴う採用記録ではない。採択時は日付、結果、測定物、採択理由、廃案の影響を同じIDに追記する。
+技術・ライセンスの判断は全件**候補・未採択**。推奨案は設計上の提案であり、実測または利用者の承認を伴う採用記録ではない。名称だけは2026-10-31に利用者の承認でPyYaki/`pyyaki`を採用した。採択時は日付、結果、測定物、採択理由、廃案の影響を同じIDに追記する。
 
 | ID | 論点 / 選択肢 | 推奨案と影響 | 採択条件・時期 |
 | --- | --- | --- | --- |
@@ -199,7 +199,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-007 | OS/CPU/Python対応範囲 | Windows 11 x64、CPython 3.14通常GIL版の1 minorを候補とする | G1で版を固定し、G3でnative wheel代表群を確認 |
 | ADR-008 | FastAPI / Starlette、通信契約 | FastAPI/Uvicorn + WebSocket、共通JSON契約。Python側依存を許容 | G2でWindows/Webの契約試験とセッション分離に合格 |
 | ADR-009 | 起動予算と計測法 | requirements.mdの暫定値と4指標の計測。初回/再起動を分離 | G1で実測し、G4で再現可能な測定報告を公開 |
-| ADR-010 | ライセンス・商標・公開名 | Apache-2.0を提案。明示的な特許条項を重視。MITも比較 | G0で権利者が選択。名称確認後、公開前にLICENSEを追加 |
+| ADR-010 | ライセンス・商標・公開名 | 名称PyYaki/`pyyaki`は2026-10-31に採用済み。ライセンスはApache-2.0を提案し、MITも比較 | 名称調査はREADMEを参照。登録可否は公開時に再確認。ライセンスは権利者が選択し、公開前にLICENSEを追加 |
 | ADR-011 | 署名・来歴・更新 | 最終exeのアプリ配布者署名、SBOM、署名マニフェスト、手動更新 | G3/G4で署名後改変検出と企業環境評価。署名費用は別途判断 |
 | ADR-012 | native依存とDLL探索 | 対応wheel限定、通常のsite初期化と`.pth`は既定不使用 | G3で`.pth`依存wheelを含め確認し、必要な例外だけ宣言 |
 
