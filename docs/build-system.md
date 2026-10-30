@@ -1,6 +1,10 @@
 # PyYaki ビルド・配布設計
 
-状態: 初期設計案 / 技術調査日: 2026-10-30 / 名称更新: 2026-10-31 / ビルド・署名・Windows実機検証は未実施
+状態: 初期設計案 + 初期Web試作のwheel生成確認 / 技術調査日: 2026-10-30 / 更新: 2026-10-31 / Windowsビルド・署名・実機検証は未実施
+
+現在実装したのはローカル開発用のpure Pythonパッケージ`0.1.0.dev0`だけ。`requirements-dev.lock`にMacのCPython 3.14向け開発依存とハッシュを固定し、`pyproject.toml`からeditable導入とwheelを生成する。Windows向けの`requirements-windows.lock`やランタイム資材はまだ作成していない。開発用lockをWindows配布の互換性証明に使わない。
+
+初期試作の`pyyaki`はPythonのconsole scriptで、実装済みサブコマンドはloopback向け`dev`のみ。`run`/`build`は未実装エラーにする。これは以下に設計するWindowsネイティブCLIではなく、Pythonより先の描画を保証しない。試作wheelはJS SDKを含むが、Rustホスト・Pythonランタイム・WebView2は含まず、公開も行っていない。
 
 ## 1. 配布単位と成立条件
 

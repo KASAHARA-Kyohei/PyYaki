@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Hello PyYaki</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/main.js"></script>
+</head>
+<body>
+  <main>
+    <header class="masthead">
+      <a class="wordmark" href="/" aria-label="PyYaki ホーム">PyYaki<span>◒</span></a>
+      <p id="connection" role="status" class="connection">接続準備中</p>
+    </header>
+    <section class="intro" aria-labelledby="title">
+      <p class="eyebrow">HELLO, PYYAKI / 001</p>
+      <h1 id="title">PythonとUIを、<br><em>ひとつにつなぐ。</em></h1>
+      <p class="description">小さなコマンドから、はじめましょう。<br>入力と結果は、Pythonとブラウザの間を行き来します。</p>
+    </section>
+    <section class="workbench" aria-label="コマンドの動作確認">
+      <div class="controls">
+        <p class="eyebrow">TRY A COMMAND</p>
+        <form id="greet-form">
+          <label for="name">お名前</label>
+          <div class="input-row">
+            <input id="name" name="name" value="Yaki" maxlength="100" required autocomplete="off">
+            <button id="greet" type="submit" disabled>あいさつする <span aria-hidden="true">↗</span></button>
+          </div>
+        </form>
+        <div class="secondary-actions">
+          <button id="wait" class="secondary" type="button" disabled>3秒の処理を試す</button>
+          <button id="fail" class="text-button" type="button" disabled>エラーを試す</button>
+        </div>
+        <div class="response-check">
+          <div><p>待ち時間にも、動くUI。</p><small>処理中にボタンを押して確かめられます。</small></div>
+          <button id="counter" class="counter" type="button" aria-label="UI応答のカウンター"><span id="count">0</span> <span aria-hidden="true">＋</span></button>
+        </div>
+      </div>
+      <div class="output" aria-labelledby="output-title">
+        <div class="output-heading"><h2 id="output-title">Pythonからの応答</h2><span id="activity">READY</span></div>
+        <p id="result" role="status">コマンドを送ると、ここに結果が表示されます。</p>
+        <p id="error" role="alert" hidden></p>
+        <p id="timing" class="timing">まだ呼び出されていません</p>
+      </div>
+    </section>
+    <footer><span>Python × HTML / CSS / JavaScript</span><span>WEB PROTOTYPE · Windows版は未実装</span></footer>
+  </main>
+</body>
+</html>

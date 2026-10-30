@@ -1,0 +1,7 @@
+[tool.pyyaki]
+app-id = "com.example.hello"
+name = "Hello PyYaki"
+version = "0.1.0"
+entry = "app:app"
+ui-dir = "ui"
+ui-entry = "index.html"

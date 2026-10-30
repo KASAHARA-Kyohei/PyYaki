@@ -1,0 +1,67 @@
+:root {
+  --paper: #f8f5ee;
+  --ink: #28382f;
+  --muted: #727b70;
+  --line: #dadfd4;
+  --accent: #ad4b2c;
+  --soft: #e9eddf;
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { width: min(1120px, calc(100% - 96px)); margin: 0 auto; }
+.masthead { display: flex; align-items: center; justify-content: space-between; padding: 30px 0; border-bottom: 1px solid var(--line); }
+.wordmark { font-family: Georgia, serif; font-size: 32px; font-weight: bold; letter-spacing: -1.5px; color: inherit; text-decoration: none; }
+.wordmark span { color: var(--accent); margin-left: 8px; }
+.connection { font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.connection::before { content: ""; width: 7px; height: 7px; background: var(--muted); border-radius: 50%; }
+.connection[data-state="ready"]::before { background: #4e764c; }
+.connection[data-state="failed"]::before { background: var(--accent); }
+.intro { padding: 64px 0 44px; }
+.eyebrow { font: 11px/1.5 "Courier New", monospace; letter-spacing: 2px; color: var(--muted); margin: 0 0 22px; }
+h1 { font-family: "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif; font-weight: 500; font-size: clamp(34px, 4.6vw, 56px); line-height: 1.55; letter-spacing: -.04em; margin: 0; }
+h1 em { font-style: normal; color: var(--accent); }
+.description { color: var(--muted); font-size: 14px; line-height: 1.9; margin: 24px 0 0; }
+.workbench { border: 1px solid var(--line); display: grid; grid-template-columns: 1.15fr 1fr; }
+.controls { padding: 32px; }
+.controls .eyebrow { margin-bottom: 26px; }
+label { display: block; font-size: 12px; margin-bottom: 10px; }
+.input-row { display: flex; gap: 8px; }
+input { width: 100%; min-width: 0; background: #fffdf8; color: var(--ink); border: 1px solid #bec6b9; border-radius: 3px; font: inherit; padding: 12px; }
+button { cursor: pointer; font: inherit; font-size: 12px; border: 1px solid transparent; border-radius: 3px; background: var(--ink); color: #fffdf8; padding: 13px 15px; white-space: nowrap; transition: background .15s; }
+button:hover { background: #405146; }
+button:disabled { opacity: .45; cursor: wait; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.input-row button span { margin-left: 12px; }
+.secondary-actions { display: flex; gap: 14px; margin-top: 16px; align-items: center; }
+.secondary { background: transparent; border-color: #bec6b9; color: var(--ink); }
+.secondary:hover { background: var(--soft); }
+.text-button { color: var(--muted); background: transparent; text-decoration: underline; text-underline-offset: 4px; }
+.text-button:hover { background: transparent; color: var(--accent); }
+.response-check { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); margin-top: 32px; padding-top: 22px; gap: 12px; }
+.response-check p { font-size: 13px; margin: 0 0 7px; }
+small { font-size: 10px; color: var(--muted); }
+.counter { background: var(--soft); color: var(--ink); font-family: "Courier New", monospace; font-size: 18px; min-width: 76px; }
+.counter:hover { background: #dce3cd; }
+.output { padding: 32px; background: var(--soft); border-left: 1px solid var(--line); display: flex; flex-direction: column; }
+.output-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h2 { font-size: 12px; font-weight: 500; margin: 0; }
+#activity { font: 10px "Courier New", monospace; color: var(--muted); letter-spacing: 1px; }
+#result, #error { font-family: "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif; font-size: 20px; line-height: 1.8; overflow-wrap: anywhere; margin: 32px 0; }
+#error { color: #953b26; }
+[hidden] { display: none !important; }
+.timing { margin: auto 0 0; padding-top: 18px; font-size: 10px; color: var(--muted); }
+footer { padding: 24px 0 32px; display: flex; justify-content: space-between; gap: 16px; font-size: 10px; color: var(--muted); letter-spacing: .5px; }
+@media (max-width: 720px) {
+  main { width: calc(100% - 40px); }
+  .masthead { padding: 22px 0; }
+  .intro { padding: 40px 0 32px; }
+  .workbench { grid-template-columns: 1fr; }
+  .controls, .output { padding: 24px; }
+  .output { border-left: 0; border-top: 1px solid var(--line); min-height: 230px; }
+  footer { flex-direction: column; gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { button { transition: none; } }

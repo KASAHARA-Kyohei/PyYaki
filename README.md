@@ -4,11 +4,32 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 名称は「鯛焼き」にかけたものです。表示名を**PyYaki**、パッケージ・Python import・CLI・JavaScript SDKの識別子を**`pyyaki`**に統一します。
 
-**現在は設計段階です。実行コード・公開パッケージは本リポジトリにまだなく、以下のコマンドとAPIは想定仕様です。性能・互換性も未検証です。**
+**現在は最初のMac向けWeb試作です。ローカルでPythonコマンドを呼ぶ最小構成を実装しました。公開パッケージ、Windows GUI、単一exeビルドはまだありません。起動性能・長時間稼働・Windows互換性は未検証です。**
 
 2026-10-31の名称調査では、[PyPIの`pyyaki`公式API](https://pypi.org/pypi/pyyaki/json)は404で、[GitHubの名前検索](https://github.com/search?q=pyyaki+in%3Aname&type=repositories)でも該当する公開リポジトリは見つかりませんでした。名称は採用しましたが、PyPIでの登録可能性を保証するものではなく、公開時に再確認します。
 
-## 目指す使い方
+## Macで試作を動かす
+
+リポジトリのルートで実行します。CPython 3.14通常GIL版が必要です。初回の依存取得にはネット接続を使い、アプリの実行に外部サービス・CDN・Node.jsは使いません。
+
+```console
+python3.14 -m venv .venv
+source .venv/bin/activate
+python -m pip install --require-hashes -r requirements-dev.lock
+python -m pip install --no-deps --no-build-isolation -e .
+cd examples/hello
+pyyaki dev
+```
+
+ブラウザで`http://127.0.0.1:8000`を開きます。あいさつ、想定内エラー、3秒待機中のUI操作を確認できます。ポート変更は`pyyaki dev --port 8001`、終了は`Ctrl+C`です。ファイル変更後は手動でサーバー再起動・ページ再読み込みを行ってください。
+
+実装済み: `App`、非同期コマンド登録、引数・戻り値検証、`AppError`/`FrameworkError`、ローカルASGI/WebSocket、SDKの`ready`/`invoke`、期限・取消・切断処理。試作のcapabilitiesは`["rpc"]`です。
+
+未実装: `Context`、イベント、起動・終了フック、自動再読込、Windows `run`/`build windows`。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
+
+テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザテストの手順と確認環境は[検証記録](docs/roadmap.md#2026-10-31-最初のmac向けweb試作)に記載しています。
+
+## 目指す使い方（全体の設計）
 
 RustやCargoをインストールせず、Python環境から次の操作を行える構成を目指します。
 
@@ -84,7 +105,7 @@ Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じ�
 
 特に、単一exeの初回展開時間、WebView2の容量と更新、native wheelのDLL依存、ネイティブCLIのpip配置、署名と企業の実行制限を検証します。署名してもDefender/SmartScreen/企業ポリシーによる制限が必ず解消するとは保証しません。
 
-開発機はMacで、ある程度開発が進んだ段階で手元のWindowsを使って確認します。最初のMac試作はCPython 3.14通常GIL版で、HTMLからPythonコマンドを呼び、結果・エラーを表示し、非同期処理中もUIが応答するところまでとする方針を2026-10-31に承認済みです。Windows確認へ移ったら、最初に単一exeからPythonを待たずに描画する最小試作を検証します。Windows固有の起動・配布方式は、その検証まで未確定です。詳しい順序は[ロードマップ](docs/roadmap.md)に記載しています。コード実装はまだ開始していません。
+開発機はMacで、ある程度開発が進んだ段階で手元のWindowsを使って確認します。最初のMac試作はCPython 3.14通常GIL版で、HTMLからPythonコマンドを呼び、結果・エラーを表示し、非同期処理中もUIが応答するところまでとする方針を2026-10-31に承認し、実装を開始しました。Windows確認へ移ったら、最初に単一exeからPythonを待たずに描画する最小試作を検証します。Windows固有の起動・配布方式は、その検証まで未確定です。詳しい順序は[ロードマップ](docs/roadmap.md)に記載しています。
 
 高速性と安定性を重視します。起動時間の計測に加え、GUIの応答性、Pythonのクラッシュ・終了処理、キャッシュ破損等を評価する設計です。性能は未測定で、RPC応答速度や長時間稼働の数値基準は今後の検討事項です。
 

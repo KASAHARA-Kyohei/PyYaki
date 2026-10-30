@@ -1,8 +1,18 @@
 # PyYaki 公開API設計
 
-状態: 初期設計案 / 作成: 2026-10-30 / 名称更新: 2026-10-31 / API・コード例は未実装
+状態: 初期設計案 + RPCの初期Web試作 / 作成: 2026-10-30 / 更新: 2026-10-31 / Windows経路は未実装
 
-本書は公開API、JSON契約、エラー、制限値の正本。例は想定利用を示すものであり、現在実行できるサンプルではない。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
+本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。実行可能なサンプルは`examples/hello`、本書のContextやイベントを使う例は未実装の設計例。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
+
+| 初期Web試作（2026-10-31） | 状態 |
+| --- | --- |
+| `App`、`@app.command`、型検証、`AppError`/`FrameworkError`、`app.asgi()` | 実装済み。ASGIは現状loopback限定の試作用 |
+| JS `ready`/`invoke`、`PyYakiError`、state/capabilities、期限・取消 | 実装済み。SDK/Python版は`0.1.0.dev0`で一致させる |
+| hello/welcome、call/result/error、cancel | WebSocket経路を実装。capabilitiesは`["rpc"]`のみ |
+| `Context`、イベント、`on`、起動・終了フック | 未実装。以下の例・`["rpc", "events"]`はMVP設計 |
+| Windowsブリッジ・内部ワーカー通信 | 未実装 |
+
+試作固有の制約: 接続初期化nonceは30秒・一度限りで、未使用nonceは全体256件を上限に古いものから失効。JSONの深さは64まで、1接続の要求ID追跡は4,096件までで、超過時は接続を閉じる。接続復帰はページの手動再読み込み。JSON本文1MiB、同時16要求、invoke既定30秒/最大120秒は設計値を使用。送信待ちは2秒で打ち切り、プロトコル違反・版不一致は接続を閉じる。これらの試作制約はMVPの最終採択ではなく、長時間稼働は未検証。
 
 ## 1. API設計原則
 
@@ -32,7 +42,7 @@ UIをPythonの巨大なHTML文字列やRustバイナリのソースへ埋め込�
 
 ### 2.1 静的設定の例
 
-以下は`pyproject.toml`内の設計例。実ファイルはまだ作成しない。
+以下はMVP全体の`pyproject.toml`設計例。初期試作の`examples/hello/pyproject.toml`はentry/ui-dir/ui-entryを使用し、window/build設定はまだ処理しない。
 
 ```toml
 [tool.pyyaki]
@@ -251,4 +261,4 @@ SDKは上記を`PyYakiError`としてrejectし、`code`、`message`、任意のJ
 - 2ブラウザ間のContext分離、外部origin/Host拒否、nonceの再利用拒否、未認証接続のタイムアウト。
 - Windowsでの大量`print()`、Pythonクラッシュ、親終了、無効プロキシ、待受ポート不在。
 
-これらは今後の実装時の試験項目であり、本設計作業で合格済みのテストではない。
+Windowsを含む全契約の試験は未完了。初期Web試作で確認した項目と実行環境は[検証記録](roadmap.md#2026-10-31-最初のmac向けweb試作)を参照し、未実装APIやWindowsの成功と取り違えない。
