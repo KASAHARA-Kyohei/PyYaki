@@ -53,6 +53,23 @@ function send(message) {
   socket.send(text);
 }
 
+function nativeSocket() {
+  const bridge = window.chrome.webview;
+  const transport = {
+    readyState: WebSocket.OPEN,
+    send(text) { window.ipc.postMessage(text); },
+    close() {
+      if (this.readyState === WebSocket.CLOSED) return;
+      this.readyState = WebSocket.CLOSED;
+      bridge.removeEventListener("message", receive);
+      this.onclose?.();
+    },
+  };
+  const receive = (event) => transport.onmessage?.({data: JSON.stringify(event.data)});
+  bridge.addEventListener("message", receive);
+  return transport;
+}
+
 function connect() {
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -68,54 +85,82 @@ function connect() {
       finish(new PyYakiError("TIMEOUT", "Connection timed out"));
       socket?.close();
     }, 10000);
-    fetch("/_pyyaki/session", { credentials: "same-origin", cache: "no-store", signal: abort.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Session initialization failed");
-        const { nonce } = await response.json();
-        if (settled) return;
+    const native = window.__PYYAKI_NATIVE__;
+    const mode = native ? "windows" : "web";
+    const attach = (nonce) => {
+      if (settled) return;
+      if (native) {
+        if (native.version !== VERSION || native.mode !== "windows" ||
+            location.origin !== "https://pyyaki.localhost" || window.top !== window ||
+            !window.chrome?.webview || typeof window.ipc?.postMessage !== "function") {
+          finish(new PyYakiError("PROTOCOL_MISMATCH", "Invalid native bootstrap"));
+          return;
+        }
+        socket = nativeSocket();
+      } else {
         const url = new URL("/_pyyaki/ws", location.href);
         url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
         socket = new WebSocket(url);
-        socket.onopen = () => send({ v: 1, type: "hello", client_version: VERSION, nonce });
-        socket.onmessage = ({ data }) => {
-          try {
-            if (typeof data !== "string" || new TextEncoder().encode(data).length > MAX_BYTES) {
-              throw new Error("Invalid message");
-            }
-            const message = JSON.parse(data);
-            checkJson(message);
-            if (message.v !== 1) throw new Error("Protocol mismatch");
-            if (!settled && message.type === "welcome") {
-              if (message.framework_version !== VERSION || message.mode !== "web" ||
-                  !Array.isArray(message.capabilities)) throw new Error("Version mismatch");
-              capabilities = Object.freeze([...message.capabilities]);
-              state = "ready";
-              finish();
-              resolve({ mode: message.mode, capabilities, protocolVersion: message.v });
-              return;
-            }
-            if (!settled || !["result", "error"].includes(message.type)) {
-              throw new Error("Unexpected message");
-            }
-            const call = pending.get(message.id);
-            if (!call) return; // Late response after cancellation or timeout.
-            if (message.type === "result") call.resolve(message.result);
-            else call.reject(new PyYakiError(
-              message.error.code, message.error.message, message.error.details,
-            ));
-          } catch {
-            finish(new PyYakiError("PROTOCOL_MISMATCH", "Invalid server message"));
-            fail("PROTOCOL_MISMATCH", "Invalid server message");
-            socket.close();
+      }
+      socket.onopen = () => send({ v: 1, type: "hello", client_version: VERSION,
+        ...(native ? {} : { nonce }) });
+      socket.onmessage = ({ data }) => {
+        try {
+          if (typeof data !== "string" || new TextEncoder().encode(data).length > MAX_BYTES) {
+            throw new Error("Invalid message");
           }
-        };
-        socket.onerror = () => finish(new PyYakiError("DISCONNECTED", "Connection failed"));
-        socket.onclose = () => {
-          finish(new PyYakiError("DISCONNECTED", "Connection closed"));
-          fail("DISCONNECTED", "Connection closed");
-        };
-      })
-      .catch(() => finish(new PyYakiError("DISCONNECTED", "Session initialization failed")));
+          const message = JSON.parse(data);
+          checkJson(message);
+          if (message.v !== 1) throw new Error("Protocol mismatch");
+          if (!settled && message.type === "welcome") {
+            if (message.framework_version !== VERSION || message.mode !== mode ||
+                !Array.isArray(message.capabilities)) throw new Error("Version mismatch");
+            capabilities = Object.freeze([...message.capabilities]);
+            state = "ready";
+            finish();
+            resolve({ mode: message.mode, capabilities, protocolVersion: message.v });
+            return;
+          }
+          if (!settled || !["result", "error"].includes(message.type)) {
+            throw new Error("Unexpected message");
+          }
+          const call = pending.get(message.id);
+          if (!call) return; // Late response after cancellation or timeout.
+          if (message.type === "result") call.resolve(message.result);
+          else call.reject(new PyYakiError(
+            message.error.code, message.error.message, message.error.details,
+          ));
+        } catch {
+          finish(new PyYakiError("PROTOCOL_MISMATCH", "Invalid server message"));
+          fail("PROTOCOL_MISMATCH", "Invalid server message");
+          socket.close();
+        }
+      };
+      socket.onerror = () => finish(new PyYakiError("DISCONNECTED", "Connection failed"));
+      socket.onclose = () => {
+        finish(new PyYakiError("DISCONNECTED", "Connection closed"));
+        fail("DISCONNECTED", "Connection closed");
+      };
+      if (native) {
+        // The native host starts Python only after this post-layout marker.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (socket.readyState !== WebSocket.OPEN) return;
+          send({ v: 1, type: "pyyaki_shell_ready" });
+          socket.onopen();
+        }));
+      }
+    };
+    if (native) {
+      attach();
+    } else {
+      fetch("/_pyyaki/session", { credentials: "same-origin", cache: "no-store", signal: abort.signal })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Session initialization failed");
+          attach((await response.json()).nonce);
+        })
+        .catch(() => finish(new PyYakiError("DISCONNECTED", "Session initialization failed")));
+    }
+
   });
 }
 

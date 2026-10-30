@@ -182,7 +182,7 @@ def test_duplicate_ids_close_connection(client):
 
 
 def test_prototype_request_history_is_bounded(client, monkeypatch):
-    monkeypatch.setattr("pyyaki.web.MAX_CALLS", 1)
+    monkeypatch.setattr("pyyaki._rpc.MAX_CALLS", 1)
     with connected(client) as (socket, _):
         call(socket)
         assert socket.receive_json()["type"] == "result"
