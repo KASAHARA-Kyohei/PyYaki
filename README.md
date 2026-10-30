@@ -4,7 +4,7 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 名称は「鯛焼き」にかけたものです。表示名を**PyYaki**、パッケージ・Python import・CLI・JavaScript SDKの識別子を**`pyyaki`**に統一します。
 
-**現在は最初のMac向けWeb試作です。ローカルでPythonコマンドを呼ぶ最小構成を実装しました。公開パッケージ、Windows GUI、単一exeビルドはまだありません。起動性能・長時間稼働・Windows互換性は未検証です。**
+**現在は初期試作です。Mac向けWeb経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査は通過しましたが、Windowsでのリンク・GUI実行は未確認です。公開パッケージ・単一exeビルドはなく、起動性能・長時間稼働も未検証です。**
 
 2026-10-31の名称調査では、[PyPIの`pyyaki`公式API](https://pypi.org/pypi/pyyaki/json)は404で、[GitHubの名前検索](https://github.com/search?q=pyyaki+in%3Aname&type=repositories)でも該当する公開リポジトリは見つかりませんでした。名称は採用しましたが、PyPIでの登録可能性を保証するものではなく、公開時に再確認します。
 
@@ -25,9 +25,15 @@ pyyaki dev
 
 実装済み: `App`、非同期コマンド登録、引数・戻り値検証、`AppError`/`FrameworkError`、ローカルASGI/WebSocket、SDKの`ready`/`invoke`、期限・取消・切断処理。試作のcapabilitiesは`["rpc"]`です。
 
-未実装: `Context`、イベント、起動・終了フック、自動再読込、Windows `run`/`build windows`。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
+未実装: `Context`、イベント、起動・終了フック、自動再読込、Windows `build windows`、ネイティブexeのpip配置。Python版CLIの`run`は未対応で、Windows開発用ホストは別のRust版exeを直接起動します。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
 
 テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザテストの手順と確認環境は[検証記録](docs/roadmap.md#2026-10-31-最初のmac向けweb試作)に記載しています。
+
+## Windows開発用ネイティブホスト
+
+`native/`にRust製の起動画面・WebView2ホストと、専用パイプ経由で同じPythonコマンドを呼ぶ実装を追加しました。HTTP/WebSocketサーバーを起動するコードは使用しません。Windowsでの起動・実測はこれからで、現時点の確認はMacの子プロセス試験とWindowsターゲットの型検査です。
+
+まだメンテナー向けの試作で、Rust/MSVCと開発用Python・既存WebView2が必要です。Windowsでのビルド・起動・確認項目は[native/README.md](native/README.md)を参照してください。Rust不要のpip導入や、Python/WebView2未導入端末向けの単一exeは後続作業です。
 
 ## 目指す使い方（全体の設計）
 

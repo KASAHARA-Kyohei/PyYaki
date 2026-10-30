@@ -8,3 +8,4 @@ build/
 dist/
 test-results/
 .DS_Store
+native/target/

@@ -1,8 +1,12 @@
 # PyYaki アーキテクチャ設計
 
-状態: 初期設計案 + 最初のMac向けWeb試作 / 技術調査日: 2026-10-30 / 更新: 2026-10-31 / Windows試作・ベンチマーク未実施
+状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-10-31 / Windows実行・ベンチマーク未実施
 
-初期試作では、Web経路の`src/pyyaki/web.py`と通信に依存しない`app.py`を実装した。FastAPI/Uvicorn、Pydantic TypeAdapterのstrict検証を試し、SDKのRPCだけを提供する。WebのContext・イベント・ライフサイクルフックと、本書のWindows構成は未実装。Webの基本動作を確認しても、Windows用のADRやMVP全体の採択とは扱わない。
+初期試作では、`web.py`と通信に依存しない`app.py`、共有セッション`_rpc.py`、匿名パイプの`worker.py`、Windows用Rustホスト`native/`を実装した。SDKのRPCだけを提供し、Context・イベント・ライフサイクルフックは未実装。MacのWeb/ワーカー試験とWindowsの型検査を行ったが、WindowsのGUI実行・ネイティブwheel・単一exeは未確認または未実装で、Windows用のADRやMVP全体の採択とは扱わない。
+
+開発用ホストはtao 0.34.8 / wry 0.53.5をCargo.lockで固定し、既存WebView2を使う。Python生成をHTMLマーカー後へ遅延し、STARTUPINFOEXの継承ハンドル許可リストとJob Objectを使うコードを実装した。wry既定のSmartScreen保護無効化引数は追加引数を空にして除外し、実際の効果・先行描画・ハンドル継承・企業環境との互換性はWindowsで確認する。
+
+2026-10-31のネイティブ実装時確認資料: [wry 0.53.5 API](https://docs.rs/wry/0.53.5/wry/struct.WebViewBuilder.html)、[wry Windows拡張](https://docs.rs/wry/0.53.5/wry/trait.WebViewBuilderExtWindows.html)、[RustのWindowsプロセス拡張](https://doc.rust-lang.org/std/os/windows/process/trait.CommandExt.html)。標準ライブラリの任意STARTUPINFOEX拡張は実験APIのため、stable Rustでは限定したWin32 FFIで実装する。各unsafe箇所に所有権・生存期間の根拠を記載した。
 
 2026-10-31の実装時確認資料: [FastAPI WebSockets](https://fastapi.tiangolo.com/advanced/websockets/)、[Pydantic Strict Mode](https://docs.pydantic.dev/latest/concepts/strict_mode/)、[Starlette Host検査](https://www.starlette.io/middleware/#trustedhostmiddleware)。本番Web向けの認証・公開ホスト設定はまだ実装せず、Hostは127.0.0.1/localhostに限定している。
 

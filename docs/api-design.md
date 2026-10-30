@@ -1,6 +1,6 @@
 # PyYaki 公開API設計
 
-状態: 初期設計案 + RPCの初期Web試作 / 作成: 2026-10-30 / 更新: 2026-10-31 / Windows経路は未実装
+状態: 初期設計案 + Web/ネイティブRPCのソース実装 / 作成: 2026-10-30 / 更新: 2026-10-31 / Windows実行は未確認
 
 本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。実行可能なサンプルは`examples/hello`、本書のContextやイベントを使う例は未実装の設計例。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
 
@@ -10,9 +10,11 @@
 | JS `ready`/`invoke`、`PyYakiError`、state/capabilities、期限・取消 | 実装済み。SDK/Python版は`0.1.0.dev0`で一致させる |
 | hello/welcome、call/result/error、cancel | WebSocket経路を実装。capabilitiesは`["rpc"]`のみ |
 | `Context`、イベント、`on`、起動・終了フック | 未実装。以下の例・`["rpc", "events"]`はMVP設計 |
-| Windowsブリッジ・内部ワーカー通信 | 未実装 |
+| Windowsブリッジ・内部ワーカー通信 | ソース実装済み。MacでSDK契約と実パイプのPython子プロセスを確認。Windows GUI/ハンドル継承の実行は未確認 |
 
 試作固有の制約: 接続初期化nonceは30秒・一度限りで、未使用nonceは全体256件を上限に古いものから失効。JSONの深さは64まで、1接続の要求ID追跡は4,096件までで、超過時は接続を閉じる。接続復帰はページの手動再読み込み。JSON本文1MiB、同時16要求、invoke既定30秒/最大120秒は設計値を使用。送信待ちは2秒で打ち切り、プロトコル違反・版不一致は接続を閉じる。これらの試作制約はMVPの最終採択ではなく、長時間稼働は未検証。
+
+ネイティブ試作ではページ再読み込み/遷移を許可せず、再接続はホストを閉じて再起動する。内部フレームは配送用の包みを含めて1MiB、UI→ホストとホスト→ワーカーのキューはそれぞれ32件。UI資産は同時16読込・各16MiBまで。超過時は明示エラーとしてホストを失敗状態にする試作上の制限で、MVPの採択は今後評価する。
 
 ## 1. API設計原則
 
@@ -211,7 +213,18 @@ IDは接続中に一意な最大128文字のASCII文字列。並行呼出しの�
 
 Windowsホストとワーカーには、公開メッセージとは別の制御メッセージとして`worker_hello / worker_welcome / dispatch / shutdown`を設ける案。worker_helloはnonce、ホスト版、プロトコル版を照合し、worker_welcomeはアプリ初期化完了後に返す。dispatchはホストが発行したセッション識別子と公開メッセージを包む。Webアダプターも同等の内部ディスパッチ関数を直接呼ぶ。
 
-この制御面は公開APIではないが版管理の対象とし、JSから制御typeや他セッションIDを投入できないようにする。詳細な内部JSONスキーマはG2で定義し、本書の公開契約を変更しない。
+この制御面は公開APIではないが版管理の対象とし、JSから制御typeや他セッションIDを投入できないようにする。初期試作で使う内部JSONスキーマを以下に示す。残る制御面はG2で定義し、本書の公開契約と区別する。
+
+初期ネイティブ試作で実装した内部スキーマ（各フレームのフィールドは以下に限定、`v`は整数1）:
+
+| type | 他のフィールド | 意味 |
+| --- | --- | --- |
+| `worker_hello` | `nonce`、`framework_version` | 64文字nonceと`0.1.0.dev0`をパイプ内で通知。ワーカーは照合後にだけアプリをimport |
+| `worker_welcome` | `nonce`、`framework_version` | import・登録完了後に同じnonce/版を返す。Rustは完全一致を確認 |
+| `dispatch` | `session_id`、`message` | ホスト発行の接続IDと公開JSON。ワーカーは接続途中のID変更を拒否し、JSへ制御面を公開しない |
+| `shutdown` | なし | 新規要求を停止し、協調的に終了 |
+
+ホストは同じトップページからの`{"v":1,"type":"pyyaki_shell_ready"}`だけを起動用制御マーカーとして別処理する。SDKがレイアウト後に送信し、ホストはその後にPythonを生成する。画面提示の保証はWindowsでの録画・トレースが必要。公開helloはWindowsではnonceなし、ワーカーが返す公開welcomeのmodeは`windows`、capabilitiesは`["rpc"]`とする。
 
 ## 6. エラーと制限値
 

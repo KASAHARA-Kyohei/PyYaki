@@ -1,10 +1,12 @@
 # PyYaki ビルド・配布設計
 
-状態: 初期設計案 + 初期Web試作のwheel生成確認 / 技術調査日: 2026-10-30 / 更新: 2026-10-31 / Windowsビルド・署名・実機検証は未実施
+状態: 初期設計案 + Web用wheel・Windows開発用ホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-10-31 / Windowsリンク・署名・実機検証は未実施
 
-現在実装したのはローカル開発用のpure Pythonパッケージ`0.1.0.dev0`だけ。`requirements-dev.lock`にMacのCPython 3.14向け開発依存とハッシュを固定し、`pyproject.toml`からeditable導入とwheelを生成する。Windows向けの`requirements-windows.lock`やランタイム資材はまだ作成していない。開発用lockをWindows配布の互換性証明に使わない。
+Pythonパッケージ`0.1.0.dev0`に加え、`native/`にWindows開発用Rustホストのソースを追加した。Pythonワーカーはwheelへ含まれるが、ネイティブexe・ランタイム資材はまだ含まない。`requirements-dev.lock`はMac向け開発依存、`native/Cargo.lock`はホストのRust依存とチェックサムを固定する。Windows向けPython lock・ネイティブwheel配置・単一exe組立は未実装。Macの開発用lockをWindows配布の互換性証明に使わない。
 
 初期試作の`pyyaki`はPythonのconsole scriptで、実装済みサブコマンドはloopback向け`dev`のみ。`run`/`build`は未実装エラーにする。これは以下に設計するWindowsネイティブCLIではなく、Pythonより先の描画を保証しない。試作wheelはJS SDKを含むが、Rustホスト・Pythonランタイム・WebView2は含まず、公開も行っていない。
+
+Windowsの開発用確認はRust版`pyyaki.exe run --project <path> --python <venv-python.exe>`を直接使う。[メンテナー向け手順](../native/README.md)では事前導入したRust/MSVCでWindows上でビルドし、開発venvと既存WebView2で実行する。Macで行ったWindowsターゲットの型検査は、exeの生成や起動成功ではない。アプリ利用者にRustを要求する正式配布へ方針変更したものではない。
 
 ## 1. 配布単位と成立条件
 
