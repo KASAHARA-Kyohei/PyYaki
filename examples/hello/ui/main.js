@@ -9,6 +9,13 @@ const commands = [...document.querySelectorAll("#greet, #wait, #fail")];
 let active = 0;
 let count = 0;
 
+const unsubscribeProgress = pyyaki.on("progress", ({ completed, total }) => {
+  const progress = document.querySelector("#progress");
+  progress.hidden = false;
+  progress.textContent = `Pythonからの進捗: ${completed} / ${total}`;
+});
+window.addEventListener("pagehide", unsubscribeProgress, { once: true });
+
 document.querySelector("#counter").addEventListener("click", () => {
   document.querySelector("#count").textContent = String(++count);
 });

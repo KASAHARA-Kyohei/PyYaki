@@ -31,7 +31,9 @@ def main():
             page.get_by_role("button", name="あいさつする").click()
             expect(page.locator("#result")).to_contain_text("こんにちは、鯛焼き🐟さん")
             expect(page.locator("#wait")).to_be_disabled()
+            expect(page.locator("#progress")).to_contain_text("Pythonからの進捗:")
             expect(page.locator("#result")).to_contain_text("3秒の処理が完了", timeout=5000)
+            expect(page.locator("#progress")).to_contain_text("3 / 3")
             expect(page.locator("#wait")).to_be_enabled()
 
             codes = page.evaluate("""async () => {
