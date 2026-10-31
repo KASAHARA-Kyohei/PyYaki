@@ -1,16 +1,16 @@
 # PyYaki 公開API設計
 
-状態: 初期設計案 + Web/ネイティブRPCのソース実装 / 作成: 2026-10-30 / 更新: 2026-10-31 / Windows実行は未確認
+状態: 共通API・Mac開発用ホストを実装、配布等は設計案 / 作成: 2026-10-30 / 更新: 2026-10-31 / Windows実行は未確認
 
 本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。Context・イベント・起動/終了フックも実装済みで、実行可能なサンプルは`examples/hello`。未対応のCLI・ビルド等は設計例として区別する。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
 
-| 初期Web試作（2026-10-31） | 状態 |
+| 実装範囲（2026-10-31） | 状態 |
 | --- | --- |
 | `App`、`@app.command`、型検証、`AppError`/`FrameworkError`、`app.asgi()` | 実装済み。ASGIは現状loopback限定の試作用 |
 | JS `ready`/`invoke`/`on`、`PyYakiError`、state/capabilities、期限・取消 | 実装済み。SDK/Python版は`0.1.0.dev0`で一致させる |
 | hello/welcome、call/result/error、cancel、event | WebSocketと専用パイプ経路を実装。capabilitiesは`["rpc", "events"]` |
 | `Context`、イベント、`on`、起動・終了フック | 共通処理として実装済み。Windows GUIの実機検証は未実施 |
-| Windowsブリッジ・内部ワーカー通信 | ソース実装済み。MacでSDK契約と実パイプのPython子プロセスを確認。Windows GUI/ハンドル継承の実行は未確認 |
+| Mac/Windowsブリッジ・内部ワーカー通信 | Macは実WKWebView・実パイプで確認。Windowsはソース・型検査・仮ブリッジの契約確認までで、GUI/ハンドル継承の実行は未確認 |
 
 試作固有の制約: 接続初期化nonceは30秒・一度限りで、未使用nonceは全体256件を上限に古いものから失効。JSONの深さは64まで、1接続の要求ID追跡は4,096件までで、超過時は接続を閉じる。接続復帰はページの手動再読み込み。JSON本文1MiB、同時16要求、invoke既定30秒/最大120秒は設計値を使用。送信待ちは2秒で打ち切り、プロトコル違反・版不一致は接続を閉じる。これらの試作制約はMVPの最終採択ではなく、長時間稼働は未検証。
 
@@ -46,7 +46,7 @@ UIをPythonの巨大なHTML文字列やRustバイナリのソースへ埋め込�
 
 ### 2.1 静的設定の例
 
-以下はMVP全体の`pyproject.toml`設計例。初期試作の`examples/hello/pyproject.toml`はentry/ui-dir/ui-entryを使用し、window/build設定はまだ処理しない。
+以下はMVP全体の`pyproject.toml`設計例。現在の読み取り範囲は後の表に示す。サンプルの`examples/hello/pyproject.toml`にはwindow設定がなく、ネイティブは既定値を使用する。
 
 ```toml
 [tool.pyyaki]
@@ -69,13 +69,21 @@ include = ["app.py", "domain/**", "ui/**"]
 webview2 = "fixed"
 ```
 
-`app-id`は配布者が管理する安定した識別子とし、キャッシュ・プロファイル・アプリデータの名前空間に使う。ここでは例示用の名称であり、プロジェクトの正式な配布者を示さない。
+| 設定 | 現在の実装 |
+| --- | --- |
+| `entry` | PythonのWeb CLI/ワーカーが読み取る。既定は`app:app` |
+| `ui-dir` / `ui-entry` | PythonとRustが読み取る。既定は`ui` / `index.html`。プロジェクト外への参照を拒否 |
+| `window.title` / `width` / `height` | Rustホストのみ読み取る。既定は`PyYaki` / 960 / 720の論理サイズ。幅320〜4,096、高さ240〜4,096の整数を許可 |
+| `app-id` / `name` / `version` | サンプルには記載されるが、現在はアプリ識別・タイトル・キャッシュ管理に使用しない |
+| `build.windows` | 未実装。設定しても単一exeビルドや資材同梱は有効にならない |
 
-`entry`はモジュールと`App`オブジェクトを表す。Rustは文字列として読み、HTML表示前にimportしない。パスはプロジェクトルート基準で、外への参照を拒否する。ビルドのPythonパッチ版、Rustホスト版、WebView2版とハッシュは、リリース側の資材マニフェストと解決結果に記録する。
+`app-id`は、将来は配布者が管理する安定した識別子としてキャッシュ・プロファイル・アプリデータの名前空間に使う設計。現在のネイティブ試作は起動ごとのランダムなinstanceを使用する。ここで示す識別子は例であり、正式な配布者を示さない。
+
+`entry`はモジュールと`App`オブジェクトを表す。現在のRustホストはUI/window設定を読み、HTMLマーカー後に生成するPythonワーカーがentryを読み取ってimportする。UIパスはプロジェクトルート基準で検証する。将来のビルドではPythonパッチ版、Rustホスト版、WebView2版とハッシュをリリース資材と解決結果に記録する。
 
 `include`はアプリ独自ファイルの指定。依存wheelの資産を自動推定して削除する設定ではない。`.env`、秘密鍵、開発用venv、VCS、キャッシュは既定で除外し、必要なデータは明示する。
 
-## 3. Python API案
+## 3. Python API
 
 ### 3.1 共通コマンド
 
@@ -93,7 +101,7 @@ async def greet(name: str, *, ctx: Context) -> dict[str, str]:
 asgi = app.asgi()
 ```
 
-同じファイルを`pyyaki run`がワーカーでimportし、`pyyaki dev`がASGI経由で使う。`asgi`の生成はサーバー起動、GUI表示、業務処理開始を行わない。ライフサイクル開始はホスト/ASGI lifespanが担当する。
+同じファイルを、現在はRustホストの`run --project ... --python ...`がワーカーでimportし、Python CLIの`pyyaki dev`がASGI経由で使う。統合CLIの`pyyaki run`は未対応。`asgi`の生成はサーバー起動、GUI表示、業務処理開始を行わない。ライフサイクル開始はホスト/ASGI lifespanが担当する。
 
 ### 3.2 公開するクラスとメソッド
 
@@ -126,11 +134,11 @@ MVPの引数・戻り値は`str`、`bool`、安全範囲の`int`、有限の`flo
 - 署名の`*args`、`**kwargs`、無注釈引数、Contextの誤った位置は起動時に拒否する。
 - 整数は`-(2^53-1)`〜`2^53-1`に限定。それ以上の整数、Decimal、日時、bytesはアプリが明示的に文字列等へ変換する。
 - NaN/Infinity、循環参照、JSのundefined/BigInt、任意クラスのインスタンスは拒否する。戻り値の不正は`SERIALIZATION_ERROR`とする。
-- Pydanticを検証実装の候補とするが、Pydantic独自モデルはMVPの公開契約に必須にしない。
+- 現在はPydanticのstrictなTypeAdapterで検証する。Pydantic独自モデルは公開コマンドの引数・戻り値として対応していない。
 
 Pythonコマンドは1つのasyncioイベントループで実行する。CPU処理や同期I/Oをそのループで長時間実行すると全セッションが遅くなる。自動的なプロセス移送はしない。アプリが明示的にスレッド等へ移した処理は、呼出し取消後も継続し得る。
 
-## 4. JavaScript API案
+## 4. JavaScript API
 
 ```javascript
 import { pyyaki } from "/_pyyaki/sdk.js";
@@ -161,20 +169,20 @@ Windows特有の機能は将来別名前空間で設計し、非対応時は`UNS
 
 `AbortSignal`または期限超過でSDKはPromiseを失敗させ、cancelをbest-effort送信する。Python側の協調的取消は可能だが、副作用の巻戻し、スレッド/ネイティブ関数の即時停止は保証しない。呼出し後に接続が切れた場合、処理が完了したか不明なため再送しない。
 
-## 5. 通信プロトコル案 v1
+## 5. 通信プロトコル v1
 
 ### 5.1 ハンドシェイク
 
 SDKは接続したらhelloを送信する。Webは取得した接続nonceを必須とし、Windowsの公開helloにはnonceを含めず、ホストが内部パイプの別nonceでワーカーを検証する。
 
 ```json
-{"v":1,"type":"hello","client_version":"0.1.0","nonce":"web-only-one-time-value"}
+{"v":1,"type":"hello","client_version":"0.1.0.dev0","nonce":"web-only-one-time-value"}
 ```
 
 Windowsではhelloの`nonce`を省略する。helloは接続につき1回だけ受け付ける。対応版とワーカーreadyの確認後にwelcomeを返す。
 
 ```json
-{"v":1,"type":"welcome","session_id":"opaque-session-id","mode":"windows","capabilities":["rpc","events"],"framework_version":"0.1.0","limits":{"max_message_bytes":1048576,"max_inflight":16,"default_timeout_ms":30000,"max_timeout_ms":120000}}
+{"v":1,"type":"welcome","session_id":"opaque-session-id","mode":"windows","capabilities":["rpc","events"],"framework_version":"0.1.0.dev0","limits":{"max_message_bytes":1048576,"max_inflight":16,"default_timeout_ms":30000,"max_timeout_ms":120000}}
 ```
 
 `session_id`は診断用にも使えるが、後続の呼出しでクライアントが指定する宛先には使わない。ホスト/サーバーが接続に結びつけたセッションで配送する。
@@ -215,7 +223,7 @@ IDは接続中に一意な最大128文字のASCII文字列。並行呼出しの�
 
 ### 5.4 内部ワーカー接続
 
-Windowsホストとワーカーには、公開メッセージとは別の制御メッセージとして`worker_hello / worker_welcome / dispatch / shutdown`を設ける案。worker_helloはnonce、ホスト版、プロトコル版を照合し、worker_welcomeはアプリ初期化完了後に返す。dispatchはホストが発行したセッション識別子と公開メッセージを包む。Webアダプターも同等の内部ディスパッチ関数を直接呼ぶ。
+Mac/Windowsホストとワーカーには、公開メッセージとは別の制御メッセージとして`worker_hello / worker_welcome / dispatch / shutdown`を実装している。worker_helloはnonce、ホスト版、プロトコル版を照合し、worker_welcomeはアプリ初期化完了後に返す。dispatchはホストが発行したセッション識別子と公開メッセージを包む。Webアダプターは同じConnection/ディスパッチャーを直接使う。
 
 この制御面は公開APIではないが版管理の対象とし、JSから制御typeや他セッションIDを投入できないようにする。初期試作で使う内部JSONスキーマを以下に示す。残る制御面はG2で定義し、本書の公開契約と区別する。
 
@@ -228,7 +236,7 @@ Windowsホストとワーカーには、公開メッセージとは別の制御�
 | `dispatch` | `session_id`、`message` | ホスト発行の接続IDと公開JSON。ワーカーは接続途中のID変更を拒否し、JSへ制御面を公開しない |
 | `shutdown` | なし | 新規要求を停止し、協調的に終了 |
 
-ホストは同じトップページからの`{"v":1,"type":"pyyaki_shell_ready"}`だけを起動用制御マーカーとして別処理する。SDKがレイアウト後に送信し、ホストはその後にPythonを生成する。画面提示の保証はWindowsでの録画・トレースが必要。公開helloはWindowsではnonceなし、ワーカーが返す公開welcomeのmodeは`windows`、capabilitiesは`["rpc", "events"]`とする。
+ホストは同じトップページからの`{"v":1,"type":"pyyaki_shell_ready"}`を起動用制御マーカーとして別処理する。SDKがレイアウト後に送信し、ホストはその後にPythonを生成する。画面提示の保証は録画・トレースが必要。ネイティブの公開helloはnonceなし、公開welcomeのmodeは`windows`または`macos`、capabilitiesは`["rpc", "events"]`とする。メンテナー用の明示フラグでのみ使う確認マーカーは[native/README.md](../native/README.md)を参照。
 
 ## 6. エラーと制限値
 
@@ -262,6 +270,8 @@ SDKは上記を`PyYakiError`としてrejectし、`code`、`message`、任意のJ
 | 接続/バックエンド準備 | SDK ready既定10,000ms。ホストのPython起動待ちも生成から10秒。展開時間とは区別 |
 | 正常終了待ち | shutdown通知から2,000msで打切り、必要なら子を終了 |
 
+現在の`ready({ timeoutMs })`は呼出元の待機時間を指定する。SDK内部の接続初期化は別に10秒で打ち切るため、この値を大きくしても接続初期化の期限は延長しない。
+
 巨大ファイル転送、バイナリストリーム、処理途中の任意ストリームはMVP対象外。大量イベントを出すアプリは集約頻度を制御する。制限値はG2/G4で測定し、変更時は両アダプターと全設計書を更新する。
 
 ## 7. Web公開と開発時更新
@@ -280,4 +290,4 @@ SDKは上記を`PyYakiError`としてrejectし、`code`、`message`、任意のJ
 - 2ブラウザ間のContext分離、外部origin/Host拒否、nonceの再利用拒否、未認証接続のタイムアウト。
 - Windowsでの大量`print()`、Pythonクラッシュ、親終了、無効プロキシ、待受ポート不在。
 
-Windowsを含む全契約の試験は未完了。初期Web試作で確認した項目と実行環境は[検証記録](roadmap.md#2026-10-31-最初のmac向けweb試作)を参照し、未実装APIやWindowsの成功と取り違えない。
+Windowsを含む全契約の試験は未完了。現在の実装・直近の確認結果は[ロードマップの現在地](roadmap.md#現在地と次の作業)、起動・連続試験の条件と結果は[Mac初期計測](performance-macos.md)を参照。過去の検証記録は各時点の範囲を示す。
