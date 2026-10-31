@@ -1,6 +1,22 @@
-# PyYaki Windows native host prototype
+# PyYaki native host prototype
 
-2026-10-31時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**Windowsでのリンク・GUI実行は未確認で、G1合格や単一exe配布の完成を意味しない。macOSのネイティブGUIは対象外。**
+2026-10-31時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**Windowsでのリンク・GUI実行は未確認で、G1合格や単一exe配布の完成を意味しない。macOS用の開発ホストも後述のとおり追加した。**
+
+## Macでの開発用確認
+
+利用者の依頼によりMac開発用ホストを追加した。tao/wry/WKWebView、同じ静的UI・SDK・Pythonワーカーを使用する。Rust 1.89以降とCPython 3.14の開発venvを用意し、リポジトリ直下で実行する。
+
+```console
+cargo run --manifest-path native/Cargo.toml --locked -- run --project examples/hello --python .venv/bin/python
+```
+
+MacのWebViewは`pyyaki://localhost/`から資産を取得し、HTTP/WebSocketサーバーは立てない。送信元と初回ナビゲーションを制限する。Rust→JSはJSONを二重シリアライズしてJSON.parseへ渡す固定スクリプトで配送する。SDK/Contextのmodeは`macos`。Pythonパスはvenvのシンボリックリンクを解決せず保持する。
+
+Windows専用処理を`process.rs`、Macを`process_macos.rs`に分け、イベントループ・資産配信・プロトコルは`host.rs`で共用。Macでは子プロセス専用のプロセスグループとCLOEXEC付き匿名パイプを使い、子のexec直前に必要な2fdだけを継承可能にする。終了時はshutdownを通知して最大2秒待ち、残るグループを回収する。Ctrl+C/SIGTERMも同じ終了経路を使う。SIGKILLなどホストを強制終了した場合の子プロセス回収は未保証で、正式配布前の課題。
+
+ログは`~/Library/Application Support/PyYaki/prototype/<instance>/`。正式なappバンドル・署名・ランタイム同梱は未対応。SDK 27とのリンクエラーが出るこの開発機では、インストール済みSDK 26.5を`SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk`で選択してビルドした。
+
+`--smoke-test`を末尾に追加すると、`examples/hello`専用の実WKWebView確認を行い、自動終了する。あいさつ・エラー・並行呼び出し・取消に成功すれば`native_smoke`のokがtrueとなり、終了コード0を返す。通常起動ではこの確認用スクリプト・終了通知は使用しない。
 
 ## Windowsでの開発用確認
 

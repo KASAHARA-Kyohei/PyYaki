@@ -167,3 +167,7 @@ python tests/browser_smoke.py
 - headless ChromiumでWeb経路の既存操作試験に合格。さらに仮のWebView2ブリッジで、描画マーカー→公開hello→結果/エラー表示の順序と、ネイティブ経路がHTTPセッション初期化やWebSocketを使わないことを確認。実際のWindows/WebView2試験とは区別する。
 
 未確認: WindowsでのMSVCリンク・GUI描画・起動順の画面提示・匿名ハンドル継承・Job Object・2秒終了待ち・ネットワーク/プロキシ/Defenderの実機挙動。未実装: ネイティブホストのpip配置、単一exe組立/展開、Python/Fixed Version WebView2同梱・署名。これらを後続のG1/G3で確認する。Web向けContext/イベント等も引き続き未実装。
+
+### 2026-10-31 macOS開発用ネイティブホスト
+
+利用者の追加依頼によりMacでのネイティブ開発を対象に追加した。WKWebViewと専用パイプで同じSDK・Pythonコマンドを利用する。実WKWebViewの`--smoke-test`で、あいさつ、想定内エラー、並行呼び出し、取消、正常終了が成功した。PythonテストはWindows/macOS両modeを含む62件に合格。Rust単体テスト5件、Mac/WindowsターゲットのClippyに合格。SIGTERMによる正常終了と回収も確認。GUIのAX自動取得はタイムアウトしたため、画面操作の自動テスト成功とは扱わない。実際の画面外観・操作、Windows実行、正式.app配布とSIGKILL時の回収は今後の確認事項。Mac実装によってWindowsのG1を合格扱いにしない。

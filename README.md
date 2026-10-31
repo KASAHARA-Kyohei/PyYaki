@@ -4,7 +4,7 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 名称は「鯛焼き」にかけたものです。表示名を**PyYaki**、パッケージ・Python import・CLI・JavaScript SDKの識別子を**`pyyaki`**に統一します。
 
-**現在は初期試作です。Mac向けWeb経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査は通過しましたが、Windowsでのリンク・GUI実行は未確認です。公開パッケージ・単一exeビルドはなく、起動性能・長時間稼働も未検証です。**
+**現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査は通過しましたが、Windowsでのリンク・GUI実行は未確認です。公開パッケージ・単一exeビルドはなく、起動性能・長時間稼働も未検証です。**
 
 2026-10-31の名称調査では、[PyPIの`pyyaki`公式API](https://pypi.org/pypi/pyyaki/json)は404で、[GitHubの名前検索](https://github.com/search?q=pyyaki+in%3Aname&type=repositories)でも該当する公開リポジトリは見つかりませんでした。名称は採用しましたが、PyPIでの登録可能性を保証するものではなく、公開時に再確認します。
 
@@ -30,6 +30,18 @@ pyyaki dev
 未実装: `Context`、イベント、起動・終了フック、自動再読込、Windows `build windows`、ネイティブexeのpip配置。Python版CLIの`run`は未対応で、Windows開発用ホストは別のRust版exeを直接起動します。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
 
 テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザテストの手順と確認環境は[検証記録](docs/roadmap.md#2026-10-31-最初のmac向けweb試作)に記載しています。
+
+## Macでネイティブ起動する
+
+開発用ホストはRustとWKWebViewを使います。リポジトリのルートから、上記のvenvを準備した状態で実行してください。
+
+```console
+cargo run --manifest-path native/Cargo.toml --locked -- run --project examples/hello --python .venv/bin/python
+```
+
+ブラウザではなくネイティブウィンドウを開き、同じUIとPythonコマンドを使います。終了はウィンドウを閉じるか、ターミナルのCtrl+Cです。実際のWKWebView経由のRPCは確認済みですが、appバンドルの正式配布・署名・長時間稼働は未対応または未検証です。[Macの詳しい手順](native/README.md#macでの開発用確認)も参照してください。
+
+この開発機ではSDKとリンカーの組合せの都合で、ビルド時に`SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk`を指定しています。すでにビルドしたものは`native/target/debug/pyyaki run --project examples/hello --python .venv/bin/python`で起動できます。
 
 ## Windows開発用ネイティブホスト
 

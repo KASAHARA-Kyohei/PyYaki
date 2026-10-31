@@ -10,6 +10,8 @@
 
 2026-10-31の実装時確認資料: [FastAPI WebSockets](https://fastapi.tiangolo.com/advanced/websockets/)、[Pydantic Strict Mode](https://docs.pydantic.dev/latest/concepts/strict_mode/)、[Starlette Host検査](https://www.starlette.io/middleware/#trustedhostmiddleware)。本番Web向けの認証・公開ホスト設定はまだ実装せず、Hostは127.0.0.1/localhostに限定している。
 
+macOS開発用ホストも利用者の依頼で追加。Windowsのtao/wryホストを`host.rs`として共用し、MacではWKWebView・専用プロセスグループ・POSIX匿名パイプを使用する。専用fdの継承、venvパス維持、JSON経由のJS配送を実装し、実WKWebViewからPythonコマンドを確認した。Macの起動画面はウィンドウタイトルで準備状態を示し、WindowsのGDI先行描画条件とは別に扱う。
+
 ## 1. 既存OSSとの比較
 
 最初に既存手段で要件を満たせるかを評価する。速度の優劣は未測定であり、下表は構造と公式に記載された機能の比較である。
@@ -211,5 +213,6 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-010 | ライセンス・商標・公開名 | 名称PyYaki/`pyyaki`は2026-10-31に採用済み。ライセンスはApache-2.0を提案し、MITも比較 | 名称調査はREADMEを参照。登録可否は公開時に再確認。ライセンスは権利者が選択し、公開前にLICENSEを追加 |
 | ADR-011 | 署名・来歴・更新 | 最終exeのアプリ配布者署名、SBOM、署名マニフェスト、手動更新 | G3/G4で署名後改変検出と企業環境評価。署名費用は別途判断 |
 | ADR-012 | native依存とDLL探索 | 対応wheel限定、通常のsite初期化と`.pth`は既定不使用 | G3で`.pth`依存wheelを含め確認し、必要な例外だけ宣言 |
+| ADR-013 | Mac開発用ホスト / Webのみ | 利用者の依頼でtao/wry/WKWebViewを試作実装。host.rs/RPCを共用し、macOSのプロセス管理とWebKit差異を保守 | 実WKWebViewのRPC・正常終了を確認。強制終了時の回収、長時間稼働、正式配布は未検証 |
 
 ゲートの定義は[roadmap.md](roadmap.md)を参照する。

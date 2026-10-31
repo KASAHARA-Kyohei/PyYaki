@@ -8,6 +8,8 @@ Pythonパッケージ`0.1.0.dev0`に加え、`native/`にWindows開発用Rustホ
 
 Windowsの開発用確認はRust版`pyyaki.exe run --project <path> --python <venv-python.exe>`を直接使う。[メンテナー向け手順](../native/README.md)では事前導入したRust/MSVCでWindows上でビルドし、開発venvと既存WebView2で実行する。Macで行ったWindowsターゲットの型検査は、exeの生成や起動成功ではない。アプリ利用者にRustを要求する正式配布へ方針変更したものではない。
 
+Mac向けは開発機でCargoビルドしたホストを直接実行する段階。依存は同じCargo.lockで固定し、Pythonは事前導入したvenvを使用する。正式な.app同梱配布、署名、notarization、Pythonランタイム同梱は未実装。Windows向け単一exe要件は維持する。
+
 ## 1. 配布単位と成立条件
 
 **配布先へ渡すアプリは依存ファイルを含む単一exeとする。** 利用者回答により必須であり、exeとフォルダーをまとめたZIPを最終成果物の代替にしない。

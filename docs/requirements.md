@@ -4,6 +4,8 @@
 
 Windows用Rustホスト、匿名パイプのPythonワーカー、共通SDKのネイティブ経路を追加した。Macで共通処理と実パイプの子プロセスを試験し、Windows GNUターゲットの型検査を行った範囲に限る。FR-03/04/07や単一exeのFR-08、WindowsのNFR-04等の受入条件は、Windows実行とG1以降の試験が終わるまで未達として扱う。[開発用確認手順](../native/README.md)と[検証記録](roadmap.md#2026-10-31-windows開発用ネイティブホスト)を参照。
 
+Macでは開発用WKWebViewホストを追加し、実ネイティブ経路のRPC確認に合格。正式配布、起動性能、長時間稼働、Windows実行の受入条件を満たしたとは扱わない。
+
 ## 1. 目的と用語
 
 PyYakiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから、WindowsデスクトップアプリとWebアプリを作るOSSフレームワークを目指す。
@@ -23,7 +25,7 @@ PyYakiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから�
 
 ## 2. 利用者と対象環境の提案
 
-2026-10-31に確認した開発体制は、主な開発機がMacで、ある程度開発が進んだ段階で手元のWindowsを使って動作確認するもの。手元のWindowsのOS版・CPU・検証用Pythonは未確認であり、下表のMVP候補に適合するかはWindows検証開始前に確認する。macOSでは共通Python処理・UI・Web経路を確認し、Windows専用の起動・通信・ビルド・配布の受入条件はWindows上で別途検証する。この開発体制はmacOSネイティブGUI対応を意味しない。
+2026-10-31に確認した開発体制は、主な開発機がMacで、ある程度開発が進んだ段階で手元のWindowsを使って動作確認するもの。手元のWindowsのOS版・CPU・検証用Pythonは未確認であり、下表のMVP候補に適合するかはWindows検証開始前に確認する。macOSでは共通Python処理・UI・Web経路を確認し、Windows専用の起動・通信・ビルド・配布の受入条件はWindows上で別途検証する。その後、利用者の追加依頼によりmacOSの開発用ネイティブGUIを実装する範囲へ拡張した。Macの正式配布は別途検討する。
 
 同日、最初の試作に使うPythonは**CPython 3.14通常GIL版の1 minorに限定する**方針を利用者が承認した。これは試作環境の選択であり、Windows配布ランタイムの互換性やMVPの対応環境の検証完了を意味しない。初期試作はMacのCPython 3.14.3（`Py_GIL_DISABLED=0`）で確認した。
 
@@ -33,7 +35,7 @@ PyYakiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから�
 | Windows利用者 | Windows 11 x64、標準ユーザー、ローカルディスク | Pythonの別途導入不要。Windows 10、ARM64、x86、Windows Serverは将来評価 |
 | Python | CPython 3.14通常GIL版を配布ランタイムの検証候補にする | 初期試作への使用は承認済み。配布パッチ版は配布前に固定。free-threaded版、PyPyはMVP対象外 |
 | Windowsビルド | Windows 11 x64 + 対応する開発用CPython | 他OSからのWindowsクロスビルドはMVP対象外 |
-| Web開発 | 対応CPython上のFastAPI/Uvicorn、主要なChromium系ブラウザ | macOS/LinuxはWeb開発だけを検証対象とする案。Safari/Firefoxは後続評価 |
+| Web開発 | 対応CPython上のFastAPI/Uvicorn、主要なChromium系ブラウザ | LinuxはWeb開発だけを検証対象とする案。macOSは別途、開発用ネイティブホストも追加。Safari/Firefoxは後続評価 |
 | Web実行 | Pythonサーバー + ブラウザ | ブラウザ内Python実行ではない。静的ホスティングだけでは動作しない |
 
 これはサポート保証ではなく、最初の実装・検証範囲の提案である。OS、Python、WebView2の正確な最低版はADR-007の検証後にサポート表へ固定する。
@@ -124,7 +126,7 @@ CPython 3.14通常GIL版を使い、HTMLから明示登録したPythonコマン�
 
 ## 7. MVP対象外
 
-- macOS/LinuxのネイティブGUI、Windows 10/ARM64/x86、他OSからのWindowsクロスビルド。
+- macOSの正式配布・LinuxのネイティブGUI、Windows 10/ARM64/x86、他OSからのWindowsクロスビルド。macOSの開発用ホストは利用者の追加依頼による対象。
 - ブラウザ内Python/WASM、サーバー不要のWeb実行、PWAの完全オフライン動作。
 - PythonによるUI DSL、独自ウィジェット体系、React/Vue等の統合ツールチェーン。
 - マルチウィンドウ、トレイ、通知、ネイティブファイルダイアログ、任意ローカルファイル公開、汎用シェルAPI。

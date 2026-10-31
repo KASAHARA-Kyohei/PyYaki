@@ -16,6 +16,8 @@
 
 ネイティブ試作ではページ再読み込み/遷移を許可せず、再接続はホストを閉じて再起動する。内部フレームは配送用の包みを含めて1MiB、UI→ホストとホスト→ワーカーのキューはそれぞれ32件。UI資産は同時16読込・各16MiBまで。超過時は明示エラーとしてホストを失敗状態にする試作上の制限で、MVPの採択は今後評価する。
 
+Mac開発用ホストも実装。公開helloはWindows同様nonceなし、welcomeのmodeは`macos`。`pyyaki://localhost/`とホストのブートストラップ情報から経路を選び、WebSocketへフォールバックしない。内部ワーカースキーマ・capabilities・制限値はWindows開発用ホストと共通。
+
 ## 1. API設計原則
 
 - 同じ`App`のコマンド登録をWindowsとWebの両アダプターが使う。
@@ -103,7 +105,7 @@ asgi = app.asgi()
 | `@app.on_shutdown` | 引数なしの非同期フック。終了時の資源解放。プロセス強制終了時の実行保証はない |
 | `app.asgi()` | 共通ディスパッチャーと静的資産を提供するASGIアプリを返す。MVPは1ワーカー運用 |
 | `Context.session_id` | 接続ごとの不透明な識別子。ログイン済みユーザーIDとして使わない |
-| `Context.mode` | `"windows"`または`"web"`。通常の業務コマンドに分岐を要求しない |
+| `Context.mode` | `"windows"`、`"macos"`または`"web"`。通常の業務コマンドに分岐を要求しない |
 | `Context.state` | 接続単位の辞書。切断時に破棄し、他セッションへ共有しない。永続化・複数ワーカー同期はない |
 | `await ctx.emit(name, payload)` | 同じ接続にイベントを送る。他セッションへのbroadcastはMVPで提供しない |
 | `FrameworkError` | フレームワーク起因のPython例外。`code`、`message`、任意のJSON `details`を参照できる |
