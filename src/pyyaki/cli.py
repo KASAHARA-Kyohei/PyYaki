@@ -4,7 +4,9 @@ import argparse
 import errno
 import importlib
 import socket
+import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 import uvicorn
@@ -20,9 +22,47 @@ def main() -> int:
     dev = commands.add_parser("dev", help="Start the local web prototype")
     dev.add_argument("--port", type=int, default=8000)
     commands.add_parser("run", help="Windows GUI (not implemented)")
-    build = commands.add_parser("build", help="Windows packaging (not implemented)")
-    build.add_argument("target", nargs="?", choices=["windows"])
+    build = commands.add_parser("build", help="Build a local application bundle")
+    build.add_argument("target", nargs="?", choices=["windows", "macos"])
+    build.add_argument("--project", type=Path, default=Path.cwd())
+    build.add_argument("--host", type=Path)
+    build.add_argument("--runtime", type=Path)
+    build.add_argument("--wheelhouse", type=Path)
+    build.add_argument("--framework-wheel", type=Path)
+    build.add_argument("--requirements", type=Path)
+    build.add_argument("--output", type=Path)
     args = parser.parse_args()
+    if args.command == "build" and args.target == "macos":
+        required = ("host", "runtime", "wheelhouse", "framework_wheel", "requirements")
+        if any(getattr(args, name) is None for name in required):
+            parser.error(
+                "build macos requires --host, --runtime, --wheelhouse, "
+                "--framework-wheel and --requirements"
+            )
+        from .build_macos import build as build_macos
+
+        try:
+            result = build_macos(
+                args.project,
+                args.host,
+                args.runtime,
+                args.wheelhouse,
+                args.framework_wheel,
+                args.requirements,
+                args.output,
+            )
+        except (
+            OSError,
+            ValueError,
+            TypeError,
+            AttributeError,
+            KeyError,
+            zipfile.BadZipFile,
+            subprocess.SubprocessError,
+        ) as exc:
+            parser.exit(1, f"pyyaki: cannot build macOS app: {exc}\n")
+        print(f"Built local macOS prototype (ad-hoc signed, not notarized): {result}")
+        return 0
     if args.command != "dev":
         parser.error("Windows run/build are not implemented in this prototype")
     if not 1 <= args.port <= 65535:
