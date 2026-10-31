@@ -16,7 +16,7 @@ Windows専用処理を`process.rs`、Macを`process_macos.rs`に分け、イベ�
 
 ログは`~/Library/Application Support/PyYaki/prototype/<instance>/`。正式なappバンドル・署名・ランタイム同梱は未対応。SDK 27とのリンクエラーが出るこの開発機では、インストール済みSDK 26.5を`SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk`で選択してビルドした。
 
-`--smoke-test`を末尾に追加すると、`examples/hello`専用の実WKWebView確認を行い、自動終了する。あいさつ・エラー・並行呼び出し・取消に成功すれば`native_smoke`のokがtrueとなり、終了コード0を返す。通常起動ではこの確認用スクリプト・終了通知は使用しない。
+`--smoke-test`を末尾に追加すると、`examples/hello`専用の実WKWebView確認を行い、自動終了する。あいさつ・エラー・並行呼び出し・進捗イベントの順序/購読解除・取消に成功すれば`native_smoke`のokがtrueとなり、終了コード0を返す。通常起動ではこの確認用スクリプト・終了通知は使用しない。
 
 ## Windowsでの開発用確認
 
@@ -50,8 +50,8 @@ Python版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exe�
 - 子プロセスは`CreateProcessW` + `STARTUPINFOEX`の継承ハンドル許可リストで生成し、Job Objectへ割り当ててから再開する。stdinはNUL、stdout/stderrはログ、RPCは各方向1本の別パイプ。
 - フレームは4バイトlittle-endian長 + UTF-8 JSON。サイズ上限1MiBは内部配送の包みも含むため、境界近くの公開メッセージは包みの分だけ小さくする必要がある。nonceはパイプ内だけで交換し、コマンドライン・環境変数へ入れない。
 - 内部`worker_hello/worker_welcome`で版・nonceを照合。以後は`dispatch`でホスト発行session_idと公開JSONを包む。公開helloにnonceは不要。`shutdown`で終了を要求する。スキーマは[API設計](../docs/api-design.md)を参照。
-- Windows/Webは同じ`_rpc.Connection`と`App.dispatch`を使用。capabilitiesは`["rpc"]`だけ。イベント・Context・フックは未実装。
-- UI→ホストの未処理キュー32件、ホスト→ワーカー32件、資産読込は同時16件・各16MiBを上限とする試作制約。超過は明示的な失敗にする。長時間稼働の採否は未評価。
+- Windows/Mac/Webは同じ`_rpc.Connection`と`App.dispatch`を使用。capabilitiesは`["rpc", "events"]`。接続単位のContext、64件のイベントキュー、起動・終了フックを共用する。起動フック完了後にworker_welcomeを返し、終了時はコマンド取消・Context破棄の後に終了フックを呼ぶ。
+- UI→ホストの未処理キュー32件、ホスト→ワーカー32件、ワーカー→GUIの受信待ち64件（イベント/応答の合計）、資産読込は同時16件・各16MiBを上限とする試作制約。超過は明示的な失敗にする。長時間稼働の採否は未評価。
 - wryの既定追加引数がSmartScreen保護を無効にする指定を含むため、追加引数を明示的に空にしている。OS・企業ポリシーやWebView2環境による実際の効果はWindowsで確認する。
 
 ## Macで実行できる検査

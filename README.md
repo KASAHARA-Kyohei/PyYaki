@@ -25,9 +25,9 @@ pyyaki dev
 
 起動できない場合、`pyproject.toml`が見つからなければプロジェクトのディレクトリで実行し、設定エラーの場合は表示されたファイルと項目を確認してください。ポートが使用中の場合は、使用しているプロセスを終了するか`--port`で別の番号を指定できます。アプリ読み込みに失敗した場合は、設定の`entry`と必要な依存を確認してください。
 
-実装済み: `App`、非同期コマンド登録、引数・戻り値検証、`AppError`/`FrameworkError`、ローカルASGI/WebSocket、SDKの`ready`/`invoke`、期限・取消・切断処理。試作のcapabilitiesは`["rpc"]`です。
+実装済み: `App`、非同期コマンド登録、引数・戻り値検証、`AppError`/`FrameworkError`、接続単位の`Context`、イベント、起動・終了フック、ローカルASGI/WebSocket、SDKの`ready`/`invoke`/`on`、期限・取消・切断処理。capabilitiesは`["rpc", "events"]`です。3秒の処理ではPythonから届く進捗を表示します。
 
-未実装: `Context`、イベント、起動・終了フック、自動再読込、Windows `build windows`、ネイティブexeのpip配置。Python版CLIの`run`は未対応で、Windows開発用ホストは別のRust版exeを直接起動します。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
+未実装: 自動再読込、Windows `build windows`、ネイティブexeのpip配置。Python版CLIの`run`は未対応で、Windows開発用ホストは別のRust版exeを直接起動します。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
 
 テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザテストの手順と確認環境は[検証記録](docs/roadmap.md#2026-10-31-最初のmac向けweb試作)に記載しています。
 

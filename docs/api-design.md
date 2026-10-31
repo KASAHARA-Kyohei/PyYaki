@@ -2,19 +2,19 @@
 
 状態: 初期設計案 + Web/ネイティブRPCのソース実装 / 作成: 2026-10-30 / 更新: 2026-10-31 / Windows実行は未確認
 
-本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。実行可能なサンプルは`examples/hello`、本書のContextやイベントを使う例は未実装の設計例。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
+本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。Context・イベント・起動/終了フックも実装済みで、実行可能なサンプルは`examples/hello`。未対応のCLI・ビルド等は設計例として区別する。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
 
 | 初期Web試作（2026-10-31） | 状態 |
 | --- | --- |
 | `App`、`@app.command`、型検証、`AppError`/`FrameworkError`、`app.asgi()` | 実装済み。ASGIは現状loopback限定の試作用 |
-| JS `ready`/`invoke`、`PyYakiError`、state/capabilities、期限・取消 | 実装済み。SDK/Python版は`0.1.0.dev0`で一致させる |
-| hello/welcome、call/result/error、cancel | WebSocket経路を実装。capabilitiesは`["rpc"]`のみ |
-| `Context`、イベント、`on`、起動・終了フック | 未実装。以下の例・`["rpc", "events"]`はMVP設計 |
+| JS `ready`/`invoke`/`on`、`PyYakiError`、state/capabilities、期限・取消 | 実装済み。SDK/Python版は`0.1.0.dev0`で一致させる |
+| hello/welcome、call/result/error、cancel、event | WebSocketと専用パイプ経路を実装。capabilitiesは`["rpc", "events"]` |
+| `Context`、イベント、`on`、起動・終了フック | 共通処理として実装済み。Windows GUIの実機検証は未実施 |
 | Windowsブリッジ・内部ワーカー通信 | ソース実装済み。MacでSDK契約と実パイプのPython子プロセスを確認。Windows GUI/ハンドル継承の実行は未確認 |
 
 試作固有の制約: 接続初期化nonceは30秒・一度限りで、未使用nonceは全体256件を上限に古いものから失効。JSONの深さは64まで、1接続の要求ID追跡は4,096件までで、超過時は接続を閉じる。接続復帰はページの手動再読み込み。JSON本文1MiB、同時16要求、invoke既定30秒/最大120秒は設計値を使用。送信待ちは2秒で打ち切り、プロトコル違反・版不一致は接続を閉じる。これらの試作制約はMVPの最終採択ではなく、長時間稼働は未検証。
 
-ネイティブ試作ではページ再読み込み/遷移を許可せず、再接続はホストを閉じて再起動する。内部フレームは配送用の包みを含めて1MiB、UI→ホストとホスト→ワーカーのキューはそれぞれ32件。UI資産は同時16読込・各16MiBまで。超過時は明示エラーとしてホストを失敗状態にする試作上の制限で、MVPの採択は今後評価する。
+ネイティブ試作ではページ再読み込み/遷移を許可せず、再接続はホストを閉じて再起動する。内部フレームは配送用の包みを含めて1MiB、UI→ホストとホスト→ワーカーのキューはそれぞれ32件、ワーカー→GUIの受信待ちはイベント/応答を合わせて64件。UI資産は同時16読込・各16MiBまで。超過時は明示エラーとしてホストを失敗状態にする試作上の制限で、MVPの採択は今後評価する。
 
 Mac開発用ホストも実装。公開helloはWindows同様nonceなし、welcomeのmodeは`macos`。`pyyaki://localhost/`とホストのブートストラップ情報から経路を選び、WebSocketへフォールバックしない。内部ワーカースキーマ・capabilities・制限値はWindows開発用ホストと共通。
 
@@ -111,9 +111,11 @@ asgi = app.asgi()
 | `FrameworkError` | フレームワーク起因のPython例外。`code`、`message`、任意のJSON `details`を参照できる |
 | `AppError(code, message, details=None)` | アプリが想定内の失敗を返す例外。`APP_`で始まるコードのみ使用可能 |
 
-`ctx`は型が`Context`で名前が`ctx`のkeyword-only引数としてフレームワークが注入する。JSONのparamsには含めない。引数なしのコマンドは`ctx`を省略できる。
+`ctx`は型が`Context`で名前が`ctx`のkeyword-only引数としてフレームワークが注入する。JSONのparamsには含めず、paramsからの`ctx`指定はVALIDATION_ERRORで拒否する。既定値は付けず、Contextが不要なコマンドは`ctx`を省略できる。
 
 `ctx.emit`はキュー超過で`FrameworkError(code="BUSY")`、不正なイベント形式/JSONで`SERIALIZATION_ERROR`、接続終了後は`DISCONNECTED`を送出する。コマンド内で未捕捉のFrameworkErrorは同じcodeで要求元へ返す。未知のPython例外は`INTERNAL_ERROR`へ変換する。
+
+起動フックは登録順、終了フックは逆順で実行する。ASGIオブジェクトの生成・ブラウザの接続ごとには実行せず、ワーカーまたはASGI lifespanの開始/終了ごとに実行する。同じAppのlifespanを同時に複数開始することは拒否する。ASGIサーバーではlifespanを有効にする。起動フックの失敗はready前の起動失敗とし、その場合も登録された終了フックを試みるため、終了フックは部分初期化にも対応する。終了フックの例外はログに残して次へ進み、終了フック全体には2秒の協調的な取消期限を置く。ネイティブホストの終了待ちも全体2秒であり、長い要求の後片付け等でフックの実行時間が短くなる場合がある。同期処理や取消を無視する処理・強制終了では、完了を保証しない。
 
 ### 3.3 型と検証
 
@@ -151,7 +153,7 @@ unsubscribe();
 | --- | --- |
 | `ready({ timeoutMs = 10000 } = {})` | welcome受信後に`{ mode, capabilities, protocolVersion }`を返すPromise。同時呼出しは同じ接続の状態を共有。失敗・切断はreject |
 | `invoke(name, params = {}, { timeoutMs = 30000, signal } = {})` | 結果JSONを返すPromise。ready前は`NOT_READY`、切断後は`DISCONNECTED`。暗黙のキュー待ち・再接続・再送をしない |
-| `on(name, callback)` | イベントのローカル購読を登録し、解除関数を返す。ready前にも登録可能。callback例外は他の購読を止めずSDKで報告 |
+| `on(name, callback)` | イベントのローカル購読を登録し、解除関数を返す。ready前にも登録可能。同期例外・Promiseの失敗は他の購読を止めずconsole.errorで報告。各購読には独立したJSONコピーを渡す。不正な名前・callbackはBAD_REQUEST。解除関数は繰り返し呼出し可能 |
 | `capabilities` | ready後の読み取り専用文字列配列。MVPは`["rpc", "events"]`。ready前は空 |
 | `state` | `connecting / ready / failed / disconnected`。画面の接続状態表示用 |
 
@@ -207,7 +209,7 @@ IDは接続中に一意な最大128文字のASCII文字列。並行呼出しの�
 {"v":1,"type":"cancel","id":"client-generated-unique-id"}
 ```
 
-イベントは接続内でseqを1から増やし、接続中の送信順を維持する。要求の最終応答と別のメッセージであり、SDKの購読の有無にかかわらず接続先へ送る。購読なしの場合SDKが破棄する。切断中のイベント再送、欠番の復元、永続化は行わない。
+イベントは接続内でseqを1から増やし、接続中のイベント送信順を維持する。`ctx.emit`は検証済みJSONのキュー投入で完了し、UIでの受信・処理完了を保証する通知ではない。イベントと要求の最終応答の到着順には依存しない。要求の最終応答と別のメッセージであり、SDKの購読の有無にかかわらず接続先へ送る。購読なしの場合SDKが破棄する。切断中のイベント再送、欠番の復元、永続化は行わない。
 
 取消要求は存在する同一接続のIDだけに作用する。未知または完了済みIDのcancelは無視し、別セッションの処理には届かない。
 
@@ -222,11 +224,11 @@ Windowsホストとワーカーには、公開メッセージとは別の制御�
 | type | 他のフィールド | 意味 |
 | --- | --- | --- |
 | `worker_hello` | `nonce`、`framework_version` | 64文字nonceと`0.1.0.dev0`をパイプ内で通知。ワーカーは照合後にだけアプリをimport |
-| `worker_welcome` | `nonce`、`framework_version` | import・登録完了後に同じnonce/版を返す。Rustは完全一致を確認 |
+| `worker_welcome` | `nonce`、`framework_version` | import・登録・起動フック完了後に同じnonce/版を返す。Rustは完全一致を確認 |
 | `dispatch` | `session_id`、`message` | ホスト発行の接続IDと公開JSON。ワーカーは接続途中のID変更を拒否し、JSへ制御面を公開しない |
 | `shutdown` | なし | 新規要求を停止し、協調的に終了 |
 
-ホストは同じトップページからの`{"v":1,"type":"pyyaki_shell_ready"}`だけを起動用制御マーカーとして別処理する。SDKがレイアウト後に送信し、ホストはその後にPythonを生成する。画面提示の保証はWindowsでの録画・トレースが必要。公開helloはWindowsではnonceなし、ワーカーが返す公開welcomeのmodeは`windows`、capabilitiesは`["rpc"]`とする。
+ホストは同じトップページからの`{"v":1,"type":"pyyaki_shell_ready"}`だけを起動用制御マーカーとして別処理する。SDKがレイアウト後に送信し、ホストはその後にPythonを生成する。画面提示の保証はWindowsでの録画・トレースが必要。公開helloはWindowsではnonceなし、ワーカーが返す公開welcomeのmodeは`windows`、capabilitiesは`["rpc", "events"]`とする。
 
 ## 6. エラーと制限値
 
