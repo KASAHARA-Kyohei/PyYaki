@@ -1,10 +1,12 @@
 # PyYaki
 
-Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、WindowsデスクトップアプリとWebアプリを開発するためのOSSフレームワーク構想です。
+Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、WindowsデスクトップアプリとWebアプリを開発するためのOSSフレームワークの初期試作です。
 
 名称は「鯛焼き」にかけたものです。表示名を**PyYaki**、パッケージ・Python import・CLI・JavaScript SDKの識別子を**`pyyaki`**に統一します。
 
 **現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査は通過しましたが、Windowsでのリンク・GUI実行は未確認です。公開パッケージ・単一exeビルドはありません。Macネイティブでは初期計測と5分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
+
+開発を再開するときは[開発ガイド](docs/development.md)、現在の実装と残作業は[ロードマップの現在地](docs/roadmap.md#現在地と次の作業)を参照してください。
 
 2026-10-31の名称調査では、[PyPIの`pyyaki`公式API](https://pypi.org/pypi/pyyaki/json)は404で、[GitHubの名前検索](https://github.com/search?q=pyyaki+in%3Aname&type=repositories)でも該当する公開リポジトリは見つかりませんでした。名称は採用しましたが、PyPIでの登録可能性を保証するものではなく、公開時に再確認します。
 
@@ -27,9 +29,9 @@ pyyaki dev
 
 実装済み: `App`、非同期コマンド登録、引数・戻り値検証、`AppError`/`FrameworkError`、接続単位の`Context`、イベント、起動・終了フック、ローカルASGI/WebSocket、SDKの`ready`/`invoke`/`on`、期限・取消・切断処理。capabilitiesは`["rpc", "events"]`です。3秒の処理ではPythonから届く進捗を表示します。
 
-未実装: 自動再読込、Windows `build windows`、ネイティブexeのpip配置。Python版CLIの`run`は未対応で、Windows開発用ホストは別のRust版exeを直接起動します。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
+未実装: 自動再読込、Windows `build windows`、ネイティブexeのpip配置。Python版CLIの`run`は未対応で、Mac/Windowsの開発用ホストは、別のRustバイナリを直接起動します。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
 
-テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザテストの手順と確認環境は[検証記録](docs/roadmap.md#2026-10-31-最初のmac向けweb試作)に記載しています。
+テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザ・ネイティブ検査の使い分けと、変更後の反映方法は[開発ガイド](docs/development.md#検証する)に記載しています。
 
 ## Macでネイティブ起動する
 
@@ -66,7 +68,7 @@ pyyaki build windows
 | `pyyaki run` | WindowsのネイティブGUIホストを直接起動 |
 | `pyyaki build windows` | Python・UI・依存・WebView2を含む単一のポータブルexeを生成 |
 
-基本構成で利用者にRust/Cargo/MSVC/Node.jsを要求しません。フレームワーク本体のメンテナーはRustのビルド環境を使用します。MVPの検証範囲はWindows 11 x64とCPython 3.14通常GIL版の組合せを提案しています。Windows向けビルドはWindows上で行う設計です。
+正式配布では利用者のRust/Cargo/MSVC/Node.js導入が不要な構成を目指します。現在のネイティブ試作は、メンテナーがRust/Cargoでビルドする段階です。MVPの検証範囲はWindows 11 x64とCPython 3.14通常GIL版の組合せを提案しています。Windows向けビルドはWindows上で行う設計です。
 
 「Pythonだけ」はRust等をアプリ開発者が書く必要をなくす方向性です。自由なUIはHTML/CSS/JavaScriptで編集します。PythonだけでUIを宣言するDSLはMVPに含みません。
 
@@ -85,7 +87,7 @@ my-app/
    └─ assets/
 ```
 
-Pythonの例（設計案）:
+Pythonの例（実装済みAPI。Windows実行は未確認）:
 
 ```python
 from pyyaki import App
@@ -99,7 +101,7 @@ async def greet(name: str) -> dict[str, str]:
 asgi = app.asgi()
 ```
 
-JavaScriptの例（設計案）:
+JavaScriptの例（実装済みAPI）:
 
 ```javascript
 import { pyyaki } from "/_pyyaki/sdk.js";
@@ -129,7 +131,7 @@ Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じ�
 
 高速性と安定性を重視します。起動時間の計測に加え、GUIの応答性、Pythonのクラッシュ・終了処理、キャッシュ破損等を評価する設計です。Mac開発用ホストの起動・RPC・5分の連続稼働・Python障害時の結果を[初期計測](docs/performance-macos.md)に記録しています。Windowsの性能と長時間稼働の数値基準は今後の検討事項です。
 
-## 設計文書
+## 文書
 
 | 文書 | 内容 |
 | --- | --- |
@@ -138,7 +140,9 @@ Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じ�
 | [アーキテクチャ](docs/architecture.md) | 既存OSS比較、技術選定、起動順、IPC、リスク、ADR候補 |
 | [API設計](docs/api-design.md) | Python/JavaScript API、通信契約、エラー、制限値 |
 | [ビルド・配布設計](docs/build-system.md) | pip導入、単一exe、ランタイム、署名、更新、依存管理 |
-| [ロードマップ](docs/roadmap.md) | 技術検証ゲート、実装順序、公開条件 |
+| [ロードマップ](docs/roadmap.md) | 現在地、技術検証ゲート、実装順序、公開条件 |
+| [開発ガイド](docs/development.md) | 作業再開、起動、変更の反映、検査、問題の切り分け |
+| [Mac初期計測](docs/performance-macos.md) | 起動・RPC・5分の連続試験と測定上の限界 |
 
 ## ライセンス
 

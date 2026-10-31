@@ -4,7 +4,7 @@
 
 - 日本語で簡潔かつ丁寧に回答する。
 - 不明確な点があれば推測で要件を確定せず、必ず質問する。回答待ちでも依存しない調査は進めてよい。
-- 2026-10-31に利用者が実装開始を依頼し、続いてネイティブ実装を依頼した。Mac向けWeb・ネイティブ試作に加え、Windows開発用Rustホストと専用パイプのPythonワーカーを実装する段階。完成条件は`docs/requirements.md`、Windowsでの確認手順は`native/README.md`を正とし、Macの試験・Windows向け型検査・Windows実機検証を区別する。
+- 2026-10-31に利用者が実装開始を依頼し、続いてネイティブ実装を依頼した。共通API、Mac向けWeb・ネイティブ試作、Windows開発用Rustホストと専用パイプのPythonワーカーを実装済み。現在地と残作業は`docs/roadmap.md`、開発・再確認の手順は`docs/development.md`を参照する。完成条件は`docs/requirements.md`、Windowsでの確認手順は`native/README.md`を正とし、Macの試験・Windows向け型検査・Windows実機検証を区別する。
 - Markdown内のAPI・CLI・設定例は、実装済みの範囲と未実装の設計例を区別して説明する。
 - 作業した変更は目的ごとに適切な粒度へ分けてコミットする。利用者の既存変更を混ぜたり、無断で取り消したりしない。
 
@@ -30,7 +30,10 @@
 | `docs/architecture.md` | OSS比較、プロセス構成、起動順、信頼境界、リスク、ADR候補 |
 | `docs/api-design.md` | 公開API、通信メッセージ、エラー、制限値 |
 | `docs/build-system.md` | wheel、ランタイム、依存解決、成果物、署名、更新、ライセンス管理 |
-| `docs/roadmap.md` | 段階、検証ゲート、実装順序、文書レビュー記録 |
+| `docs/roadmap.md` | 現在地、段階、検証ゲート、実装順序、文書レビュー記録 |
+| `docs/development.md` | 作業再開、開発・検査の手順、変更の反映、問題の切り分け |
+| `docs/performance-macos.md` | Macの実測条件・結果・限界。目標や受入条件はrequirementsを参照 |
+| `native/README.md` | 開発用ホストのビルド・起動・Windows確認・診断の手順 |
 | `README.md` | 現在の状態、概要、文書への案内、想定利用方法 |
 
 - 変更時は関連する全設計書とREADMEを確認し、用語・CLI・制限値・対応環境・状態を揃える。
