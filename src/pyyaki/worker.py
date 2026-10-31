@@ -81,7 +81,7 @@ class PipeTransport:
         )
 
 
-async def run(read_fd: int, write_fd: int, root: Path) -> None:
+async def run(read_fd: int, write_fd: int, root: Path, mode: str = "windows") -> None:
     hello = await asyncio.to_thread(read_frame, read_fd)
     envelope(hello, {"v", "type", "nonce", "framework_version"})
     if (
@@ -118,7 +118,7 @@ async def run(read_fd: int, write_fd: int, root: Path) -> None:
             "v": 1,
             "type": "welcome",
             "session_id": transport.session_id or secrets.token_hex(16),
-            "mode": "windows",
+            "mode": mode,
             "capabilities": ["rpc"],
             "framework_version": __version__,
             "limits": {
@@ -137,6 +137,7 @@ def main() -> int:
     parser.add_argument("--read-handle", type=int, required=True)
     parser.add_argument("--write-handle", type=int, required=True)
     parser.add_argument("--project", type=Path, required=True)
+    parser.add_argument("--mode", choices=["windows", "macos"], default="windows")
     args = parser.parse_args()
     read_fd, write_fd = args.read_handle, args.write_handle
     if os.name == "nt":
@@ -145,7 +146,7 @@ def main() -> int:
         read_fd = msvcrt.open_osfhandle(read_fd, os.O_RDONLY | os.O_BINARY)
         write_fd = msvcrt.open_osfhandle(write_fd, os.O_WRONLY | os.O_BINARY)
     try:
-        asyncio.run(run(read_fd, write_fd, args.project))
+        asyncio.run(run(read_fd, write_fd, args.project, args.mode))
         return 0
     except EOFError, BrokenPipeError:
         return 0

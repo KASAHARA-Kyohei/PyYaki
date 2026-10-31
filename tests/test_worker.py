@@ -65,7 +65,7 @@ def receive(fd, timeout=5):
 
 
 @contextlib.contextmanager
-def worker(project, tmp_path):
+def worker(project, tmp_path, mode="windows"):
     child_read, write = os.pipe()
     read, child_write = os.pipe()
     with (tmp_path / "worker.log").open("w+b") as log:
@@ -75,6 +75,8 @@ def worker(project, tmp_path):
                 "-I",
                 "-m",
                 "pyyaki.worker",
+                "--mode",
+                mode,
                 "--project",
                 str(project),
                 "--read-handle",
@@ -101,7 +103,7 @@ def worker(project, tmp_path):
             os.close(read)
 
 
-def initialize(read, write):
+def initialize(read, write, mode="windows"):
     write_frame(
         write, {"v": 1, "type": "worker_hello", "nonce": "a" * 64, "framework_version": __version__}
     )
@@ -113,7 +115,7 @@ def initialize(read, write):
     }
     dispatch(write, {"v": 1, "type": "hello", "client_version": __version__})
     welcome = receive(read)
-    assert welcome["message"]["mode"] == "windows"
+    assert welcome["message"]["mode"] == mode
 
 
 def dispatch(write, message, session="host-issued-session"):
@@ -134,9 +136,10 @@ def call(write, request_id, method, params=None, timeout=30000):
     )
 
 
-def test_native_rpc_concurrency_errors_cancel_and_logs(project, tmp_path):
-    with worker(project, tmp_path) as (process, read, write, log):
-        initialize(read, write)
+@pytest.mark.parametrize("mode", ["windows", "macos"])
+def test_native_rpc_concurrency_errors_cancel_and_logs(project, tmp_path, mode):
+    with worker(project, tmp_path, mode) as (process, read, write, log):
+        initialize(read, write, mode)
         call(write, "slow", "wait")
         call(write, "fast", "echo", {"name": "鯛焼き🐟"})
         reply = receive(read)["message"]

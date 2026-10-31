@@ -54,19 +54,21 @@ function send(message) {
 }
 
 function nativeSocket() {
-  const bridge = window.chrome.webview;
+  const mac = window.__PYYAKI_NATIVE__.mode === "macos";
+  const bridge = mac ? window : window.chrome.webview;
+  const eventName = mac ? "__pyyaki_message__" : "message";
   const transport = {
     readyState: WebSocket.OPEN,
     send(text) { window.ipc.postMessage(text); },
     close() {
       if (this.readyState === WebSocket.CLOSED) return;
       this.readyState = WebSocket.CLOSED;
-      bridge.removeEventListener("message", receive);
+      bridge.removeEventListener(eventName, receive);
       this.onclose?.();
     },
   };
   const receive = (event) => transport.onmessage?.({data: JSON.stringify(event.data)});
-  bridge.addEventListener("message", receive);
+  bridge.addEventListener(eventName, receive);
   return transport;
 }
 
@@ -86,13 +88,15 @@ function connect() {
       socket?.close();
     }, 10000);
     const native = window.__PYYAKI_NATIVE__;
-    const mode = native ? "windows" : "web";
+    const mode = native ? native.mode : "web";
     const attach = (nonce) => {
       if (settled) return;
       if (native) {
-        if (native.version !== VERSION || native.mode !== "windows" ||
-            location.origin !== "https://pyyaki.localhost" || window.top !== window ||
-            !window.chrome?.webview || typeof window.ipc?.postMessage !== "function") {
+        if (native.version !== VERSION || !["windows", "macos"].includes(native.mode) ||
+            (native.mode === "windows" ? location.origin !== "https://pyyaki.localhost" :
+              !location.href.startsWith("pyyaki://localhost/")) || window.top !== window ||
+            (native.mode === "windows" && !window.chrome?.webview) ||
+            typeof window.ipc?.postMessage !== "function") {
           finish(new PyYakiError("PROTOCOL_MISMATCH", "Invalid native bootstrap"));
           return;
         }
@@ -190,7 +194,8 @@ async function invoke(name, params = {}, { timeoutMs = 30000, signal } = {}) {
   }
   if (signal?.aborted) throw new PyYakiError("CANCELLED", "Command cancelled");
   if (pending.size >= 16) throw new PyYakiError("BUSY", "Too many concurrent commands");
-  const id = crypto.randomUUID();
+  const id = typeof crypto.randomUUID === "function" ? crypto.randomUUID() :
+    [...crypto.getRandomValues(new Uint8Array(16))].map(x => x.toString(16).padStart(2, "0")).join("");
   return new Promise((resolve, reject) => {
     const finish = (callback, value) => {
       if (!pending.delete(id)) return;

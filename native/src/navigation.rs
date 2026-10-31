@@ -18,8 +18,8 @@ mod tests {
         let gate = NavigationGate::default();
         assert!(!gate.allow("https://evil.example/"));
         assert!(!gate.allow("https://pyyaki.localhost.evil.example/"));
-        assert!(gate.allow("https://pyyaki.localhost/"));
-        assert!(!gate.allow("https://pyyaki.localhost/"));
+        assert!(gate.allow(&format!("{ORIGIN}/")));
+        assert!(!gate.allow(&format!("{ORIGIN}/")));
         assert!(!gate.allow("https://pyyaki.localhost/other.html"));
     }
 }
