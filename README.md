@@ -4,7 +4,7 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 名称は「鯛焼き」にかけたものです。表示名を**PyYaki**、パッケージ・Python import・CLI・JavaScript SDKの識別子を**`pyyaki`**に統一します。
 
-**現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査は通過しましたが、Windowsでのリンク・GUI実行は未確認です。公開パッケージ・単一exeビルドはなく、起動性能・長時間稼働も未検証です。**
+**現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査は通過しましたが、Windowsでのリンク・GUI実行は未確認です。公開パッケージ・単一exeビルドはありません。Macネイティブでは初期計測と5分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
 
 2026-10-31の名称調査では、[PyPIの`pyyaki`公式API](https://pypi.org/pypi/pyyaki/json)は404で、[GitHubの名前検索](https://github.com/search?q=pyyaki+in%3Aname&type=repositories)でも該当する公開リポジトリは見つかりませんでした。名称は採用しましたが、PyPIでの登録可能性を保証するものではなく、公開時に再確認します。
 
@@ -127,7 +127,7 @@ Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じ�
 
 開発機はMacで、ある程度開発が進んだ段階で手元のWindowsを使って確認します。最初のMac試作はCPython 3.14通常GIL版で、HTMLからPythonコマンドを呼び、結果・エラーを表示し、非同期処理中もUIが応答するところまでとする方針を2026-10-31に承認し、実装を開始しました。Windows確認へ移ったら、最初に単一exeからPythonを待たずに描画する最小試作を検証します。Windows固有の起動・配布方式は、その検証まで未確定です。詳しい順序は[ロードマップ](docs/roadmap.md)に記載しています。
 
-高速性と安定性を重視します。起動時間の計測に加え、GUIの応答性、Pythonのクラッシュ・終了処理、キャッシュ破損等を評価する設計です。性能は未測定で、RPC応答速度や長時間稼働の数値基準は今後の検討事項です。
+高速性と安定性を重視します。起動時間の計測に加え、GUIの応答性、Pythonのクラッシュ・終了処理、キャッシュ破損等を評価する設計です。Mac開発用ホストの起動・RPC・5分の連続稼働・Python障害時の結果を[初期計測](docs/performance-macos.md)に記録しています。Windowsの性能と長時間稼働の数値基準は今後の検討事項です。
 
 ## 設計文書
 

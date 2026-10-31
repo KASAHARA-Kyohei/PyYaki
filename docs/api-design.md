@@ -251,6 +251,8 @@ Windowsホストとワーカーには、公開メッセージとは別の制御�
 
 SDKは上記を`PyYakiError`としてrejectし、`code`、`message`、任意のJSON `details`を提供する。Pythonのトレースバック、絶対パス、秘密情報は本番応答へ含めない。プロトコル破損など要求IDを復元できない場合は接続を閉じ、保留要求を`DISCONNECTED`で失敗させる。
 
+ネイティブホストがバックエンド障害を検出した場合は、予約した内部DOMイベント`__pyyaki_backend_failed__`でSDKへ通知する。SDKはready待ち・保留invokeを`BACKEND_FAILED`で失敗させ、購読とブリッジのリスナーを解放してstateをfailedにする。要求ごとの期限を待つ動作にはしない。これはWebSocketの公開メッセージtypeではなく、アプリから発行する公開APIでもない。通常起動でのホスト障害は終了コード1として扱い、ウィンドウは原因表示と閉じる操作のため維持する。
+
 | 制限 | MVP提案値 |
 | --- | --- |
 | 最大メッセージ | UTF-8 JSON本文で1,048,576 bytes。WebSocket・パイプ・WebViewの各入口で検査 |

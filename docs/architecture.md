@@ -1,6 +1,6 @@
 # PyYaki アーキテクチャ設計
 
-状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-10-31 / Windows実行・ベンチマーク未実施
+状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-10-31 / Windows実行・Windowsベンチマーク未実施
 
 初期試作では、`web.py`と通信に依存しない`app.py`、共有セッション`_rpc.py`、匿名パイプの`worker.py`、Windows用Rustホスト`native/`を実装した。RPC、接続単位のContext、順序付きイベントとSDK購読、起動・終了フックを提供する。MacのWeb/ワーカー試験とWindowsの型検査を行ったが、WindowsのGUI実行・ネイティブwheel・単一exeは未確認または未実装で、Windows用のADRやMVP全体の採択とは扱わない。
 
@@ -161,6 +161,8 @@ wryのカスタムプロトコルを初期候補とする。`pyyaki://localhost/
 
 ### 5.4 終了と子プロセス
 
+Macでは`waitid(WNOWAIT)`で子を回収せずに監視し、PIDを保持したままDropで専用プロセスグループを終了してから回収する。2026-10-31の実機試験で、一時停止時にもwaitidから通知が返ることを再現したため、PIDの有無に加えて`CLD_EXITED/CLD_KILLED/CLD_DUMPED`を照合する。一時停止を終了と誤判定しない。バックエンド障害の検出時はSDKの保留要求を`BACKEND_FAILED`で解放し、原因を画面へ表示する。
+
 RustはPythonをWindows Job Objectで管理する案。通常終了ではshutdownを通知し、2秒を上限に停止を待ってから子プロセスを終了する。クラッシュ時はパイプEOFとJob Objectで孤児を防ぐ。WebView2の終了・プロファイル解放も追跡する。管理ソフトが既にJob Objectへ入れている環境での挙動は要検証。
 
 ## 6. 信頼境界
@@ -211,10 +213,10 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-006 | Evergreen / Fixed Version | 配布exeはFixed Version同梱。開発runは既存Evergreenまたは明示したFixed Version | G1/G3で未導入・オフライン・標準権限を確認。再配布条件を確認 |
 | ADR-007 | OS/CPU/Python対応範囲 | 初期試作はCPython 3.14通常GIL版の1 minorに限定。複数版対応を後回しにして検証範囲を絞るため、2026-10-31に利用者が承認。同日Macの3.14.3で初期Web試作を確認。Windows 11 x64と配布Pythonの組合せは候補のまま | G1でWindows検証用の版を固定し、G3でnative wheel代表群を確認。配布互換性不成立なら方式・対応範囲への影響を記録して再検討 |
 | ADR-008 | FastAPI / Starlette、通信契約 | FastAPI/Uvicorn + WebSocket、共通JSON契約。Python側依存を許容 | G2でWindows/Webの契約試験とセッション分離に合格 |
-| ADR-009 | 起動予算と計測法 | requirements.mdの暫定値と4指標の計測。初回/再起動を分離 | G1で実測し、G4で再現可能な測定報告を公開 |
+| ADR-009 | 起動予算と計測法 | requirements.mdの暫定値と4指標の計測。初回/再起動を分離 | Mac補助測定は[初期報告](performance-macos.md)へ記録。WindowsのG1で4指標を実測し、G4で再現可能な測定報告を公開 |
 | ADR-010 | ライセンス・商標・公開名 | 名称PyYaki/`pyyaki`は2026-10-31に採用済み。ライセンスはApache-2.0を提案し、MITも比較 | 名称調査はREADMEを参照。登録可否は公開時に再確認。ライセンスは権利者が選択し、公開前にLICENSEを追加 |
 | ADR-011 | 署名・来歴・更新 | 最終exeのアプリ配布者署名、SBOM、署名マニフェスト、手動更新 | G3/G4で署名後改変検出と企業環境評価。署名費用は別途判断 |
 | ADR-012 | native依存とDLL探索 | 対応wheel限定、通常のsite初期化と`.pth`は既定不使用 | G3で`.pth`依存wheelを含め確認し、必要な例外だけ宣言 |
-| ADR-013 | Mac開発用ホスト / Webのみ | 利用者の依頼でtao/wry/WKWebViewを試作実装。host.rs/RPCを共用し、macOSのプロセス管理とWebKit差異を保守 | 実WKWebViewのRPC・正常終了を確認。強制終了時の回収、長時間稼働、正式配布は未検証 |
+| ADR-013 | Mac開発用ホスト / Webのみ | 利用者の依頼でtao/wry/WKWebViewを試作実装。host.rs/RPCを共用し、macOSのプロセス管理とWebKit差異を保守 | 実WKWebViewのRPC・正常終了・Python停止/クラッシュ時の挙動を確認。ホストSIGKILL時の回収、時間単位の稼働、正式配布は未検証 |
 
 ゲートの定義は[roadmap.md](roadmap.md)を参照する。

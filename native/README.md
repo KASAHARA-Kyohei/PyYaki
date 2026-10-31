@@ -18,6 +18,21 @@ Windows専用処理を`process.rs`、Macを`process_macos.rs`に分け、イベ�
 
 `--smoke-test`を末尾に追加すると、`examples/hello`専用の実WKWebView確認を行い、自動終了する。あいさつ・エラー・並行呼び出し・進捗イベントの順序/購読解除・取消に成功すれば`native_smoke`のokがtrueとなり、終了コード0を返す。通常起動ではこの確認用スクリプト・終了通知は使用しない。
 
+## Macの速度・安定性を計測する
+
+メンテナー用の測定器はrelease版ホストと実WKWebViewを使う。リポジトリ直下で実行する。この開発機では前述の`SDKROOT`指定もビルド時に必要。
+
+```console
+cargo build --manifest-path native/Cargo.toml --release --locked
+.venv/bin/python tests/diagnostics_macos.py --duration 300 --startup-runs 10
+```
+
+起動10回、5秒のPython起動遅延、一時停止/再開、クラッシュ、終了時の待機、5分の連続稼働を順に確認する。`test-results/diagnostics-<UTC日時>/`に専用アプリ・raw標本・メモリスナップショット・結果JSON・ログを保存する。既存の出力先は上書きしない。時間を変える場合は`--duration <秒>`、出力先は`--output <新規ディレクトリ>`で指定する。
+
+`--diagnostics`はこの専用アプリが使うRustホストのメンテナー用フラグで、`--smoke-test`と併用しない。明示した場合だけ、内部`pyyaki_diagnostic`マーカーをstderrへ出力し、専用アプリの結果で自動終了する。通常起動や公開SDKには計測・障害注入APIを追加しない。停止/強制終了はPython測定器が親子関係を照合した自分の子に対してだけ行う。
+
+通知時刻には配送遅延が含まれ、画面の実提示時間ではない。毎回新規プロファイルを使うがOSキャッシュは制御しない。RSSはホストと検出できた子だけを対象とし、帰属不明のWebKit XPCは含まない。[定義と限界](../docs/requirements.md#54-mac開発用ホストの補助測定)、[初期結果](../docs/performance-macos.md)を参照。
+
 ## Windowsでの開発用確認
 
 以下はフレームワークのメンテナー向け。Windows x64、CPython 3.14通常GIL版、利用可能なWebView2 Runtimeと、Rust 1.89以降・MSVCビルド環境を事前に用意する。アプリ利用者向けのRust不要wheel配布は未実装であり、この手順を正式なアプリ導入手順にはしない。ランタイムを自動ダウンロード・インストールする処理はない。
