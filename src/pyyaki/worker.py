@@ -4,7 +4,6 @@ import argparse
 import asyncio
 import importlib
 import os
-import secrets
 import struct
 import sys
 from pathlib import Path
@@ -97,39 +96,40 @@ async def run(read_fd: int, write_fd: int, root: Path, mode: str = "windows") ->
     app = getattr(importlib.import_module(module), name)
     if not isinstance(app, App):
         raise TypeError("entry must refer to a pyyaki.App")
-    await asyncio.to_thread(
-        write_frame,
-        write_fd,
-        {
-            "v": 1,
-            "type": "worker_welcome",
-            "nonce": hello["nonce"],
-            "framework_version": __version__,
-        },
-    )
-    transport = PipeTransport(read_fd, write_fd)
-    public_hello = decode(await transport.receive_text())
-    envelope(public_hello, {"v", "type", "client_version"})
-    if public_hello["type"] != "hello" or public_hello["client_version"] != __version__:
-        raise FrameworkError("PROTOCOL_MISMATCH", "Invalid SDK handshake")
-    connection = Connection(app, transport)
-    await connection.send(
-        {
-            "v": 1,
-            "type": "welcome",
-            "session_id": transport.session_id or secrets.token_hex(16),
-            "mode": mode,
-            "capabilities": ["rpc"],
-            "framework_version": __version__,
-            "limits": {
-                "max_message_bytes": MAX_MESSAGE_BYTES,
-                "max_inflight": MAX_INFLIGHT,
-                "default_timeout_ms": 30000,
-                "max_timeout_ms": 120000,
+    async with app._lifespan():
+        await asyncio.to_thread(
+            write_frame,
+            write_fd,
+            {
+                "v": 1,
+                "type": "worker_welcome",
+                "nonce": hello["nonce"],
+                "framework_version": __version__,
             },
-        }
-    )
-    await connection.run()
+        )
+        transport = PipeTransport(read_fd, write_fd)
+        public_hello = decode(await transport.receive_text())
+        envelope(public_hello, {"v", "type", "client_version"})
+        if public_hello["type"] != "hello" or public_hello["client_version"] != __version__:
+            raise FrameworkError("PROTOCOL_MISMATCH", "Invalid SDK handshake")
+        connection = Connection(app, transport, transport.session_id, mode)
+        await connection.send(
+            {
+                "v": 1,
+                "type": "welcome",
+                "session_id": connection.context.session_id,
+                "mode": mode,
+                "capabilities": ["rpc", "events"],
+                "framework_version": __version__,
+                "limits": {
+                    "max_message_bytes": MAX_MESSAGE_BYTES,
+                    "max_inflight": MAX_INFLIGHT,
+                    "default_timeout_ms": 30000,
+                    "max_timeout_ms": 120000,
+                },
+            }
+        )
+        await connection.run()
 
 
 def main() -> int:

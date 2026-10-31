@@ -15,10 +15,30 @@ let socket;
 let connection;
 let capabilities = Object.freeze([]);
 const pending = new Map();
+const subscriptions = new Map();
+const validEventName = (name) => typeof name === "string" &&
+  name.length <= 64 && /^[a-z]/.test(name) && !/[^a-z0-9_.-]/.test(name) &&
+  !name.startsWith("pyyaki");
+
+function on(name, callback) {
+  if (!validEventName(name) || typeof callback !== "function") {
+    throw new PyYakiError("BAD_REQUEST", "Invalid event subscription");
+  }
+  // Each registration can be removed independently, including duplicate callbacks.
+  const subscription = { callback };
+  if (!subscriptions.has(name)) subscriptions.set(name, new Set());
+  subscriptions.get(name).add(subscription);
+  return () => {
+    const listeners = subscriptions.get(name);
+    listeners?.delete(subscription);
+    if (listeners?.size === 0) subscriptions.delete(name);
+  };
+}
 
 function fail(code, message) {
   state = code === "DISCONNECTED" ? "disconnected" : "failed";
   capabilities = Object.freeze([]);
+  subscriptions.clear();
   for (const call of [...pending.values()]) call.reject(new PyYakiError(code, message));
 }
 
@@ -75,6 +95,7 @@ function nativeSocket() {
 function connect() {
   return new Promise((resolve, reject) => {
     let settled = false;
+    let sequence = 0;
     const abort = new AbortController();
     const finish = (error) => {
       if (settled) return;
@@ -123,6 +144,25 @@ function connect() {
             state = "ready";
             finish();
             resolve({ mode: message.mode, capabilities, protocolVersion: message.v });
+            return;
+          }
+          if (state === "ready" && message.type === "event") {
+            if (!capabilities.includes("events") || !validEventName(message.name) ||
+                !Object.hasOwn(message, "payload") || !Number.isSafeInteger(message.seq) ||
+                message.seq !== sequence + 1 ||
+                Object.keys(message).sort().join() !== "name,payload,seq,type,v") {
+              throw new Error("Invalid event");
+            }
+            sequence = message.seq;
+            for (const { callback } of [...(subscriptions.get(message.name) ?? [])]) {
+              try {
+                // A listener must not mutate another listener's JSON payload.
+                const result = callback(structuredClone(message.payload));
+                Promise.resolve(result).catch(error => {
+                  console.error("PyYaki event callback failed", error);
+                });
+              } catch (error) { console.error("PyYaki event callback failed", error); }
+            }
             return;
           }
           if (!settled || !["result", "error"].includes(message.type)) {
@@ -220,7 +260,7 @@ async function invoke(name, params = {}, { timeoutMs = 30000, signal } = {}) {
 }
 
 export const pyyaki = Object.freeze({
-  ready, invoke,
+  ready, invoke, on,
   get state() { return state; },
   get capabilities() { return capabilities; },
 });

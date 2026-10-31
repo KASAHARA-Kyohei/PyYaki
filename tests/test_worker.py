@@ -26,8 +26,22 @@ def project(tmp_path):
     (root / "pyproject.toml").write_text('[tool.pyyaki]\nentry="app:app"\n')
     (root / "app.py").write_text("""import asyncio
 import os
-from pyyaki import App, AppError
+from pathlib import Path
+from pyyaki import App, AppError, Context
 app = App()
+@app.on_startup
+async def startup():
+    await asyncio.sleep(0.02)
+    Path("lifecycle.txt").write_text("started")
+@app.on_shutdown
+async def shutdown():
+    Path("lifecycle.txt").write_text("stopped")
+@app.command("visit")
+async def visit(*, ctx: Context) -> dict[str, str]:
+    ctx.state["visits"] = ctx.state.get("visits", 0) + 1
+    await ctx.emit("visited", {"count": ctx.state["visits"]})
+    await ctx.emit("visited", {"count": ctx.state["visits"]})
+    return {"session": ctx.session_id, "mode": ctx.mode}
 @app.command("echo")
 async def echo(name: str) -> str:
     print("Python print stays outside RPC", flush=True)
@@ -85,6 +99,7 @@ def worker(project, tmp_path, mode="windows"):
                 str(child_write),
             ],
             pass_fds=(child_read, child_write),
+            cwd=project,
             stdin=subprocess.DEVNULL,
             stdout=log,
             stderr=log,
@@ -116,6 +131,7 @@ def initialize(read, write, mode="windows"):
     dispatch(write, {"v": 1, "type": "hello", "client_version": __version__})
     welcome = receive(read)
     assert welcome["message"]["mode"] == mode
+    assert welcome["message"]["capabilities"] == ["rpc", "events"]
 
 
 def dispatch(write, message, session="host-issued-session"):
@@ -169,6 +185,55 @@ def test_wrong_worker_version_rejected_before_import(project, tmp_path):
         assert process.wait(timeout=3) == 1
         log.seek(0)
         assert b"APP_SHOULD_NOT_IMPORT" not in log.read()
+
+
+@pytest.mark.parametrize("mode", ["windows", "macos"])
+def test_native_context_events_and_lifecycle(project, tmp_path, mode):
+    with worker(project, tmp_path, mode) as (process, read, write, _):
+        initialize(read, write, mode)
+        assert (project / "lifecycle.txt").read_text() == "started"
+        for count in (1, 2):
+            call(write, str(count), "visit")
+            messages = [receive(read)["message"] for _ in range(3)]
+            events = [m for m in messages if m["type"] == "event"]
+            assert [event["seq"] for event in events] == [count * 2 - 1, count * 2]
+            assert all(event["payload"] == {"count": count} for event in events)
+            reply = next(m for m in messages if m["type"] == "result")
+            assert reply["result"] == {"mode": mode, "session": "host-issued-session"}
+        write_frame(write, {"v": 1, "type": "shutdown"})
+        assert process.wait(timeout=3) == 0
+        assert (project / "lifecycle.txt").read_text() == "stopped"
+
+
+def test_startup_failure_never_sends_worker_welcome_and_runs_cleanup(project, tmp_path):
+    with (project / "app.py").open("a") as file:
+        file.write(
+            "\n@app.on_startup\nasync def fail_startup():\n"
+            '    raise RuntimeError("startup failed")\n'
+        )
+    with worker(project, tmp_path) as (process, read, write, log):
+        write_frame(
+            write,
+            {"v": 1, "type": "worker_hello", "nonce": "a" * 64, "framework_version": __version__},
+        )
+        assert process.wait(timeout=3) == 1
+        with pytest.raises(EOFError):
+            receive(read)
+        assert (project / "lifecycle.txt").read_text() == "stopped"
+        log.seek(0)
+        assert b"startup failed" in log.read()
+
+
+def test_shutdown_before_sdk_hello_still_runs_cleanup(project, tmp_path):
+    with worker(project, tmp_path) as (process, read, write, _):
+        write_frame(
+            write,
+            {"v": 1, "type": "worker_hello", "nonce": "a" * 64, "framework_version": __version__},
+        )
+        assert receive(read)["type"] == "worker_welcome"
+        write_frame(write, {"v": 1, "type": "shutdown"})
+        assert process.wait(timeout=3) == 0
+        assert (project / "lifecycle.txt").read_text() == "stopped"
 
 
 def test_native_session_switch_is_rejected(project, tmp_path):

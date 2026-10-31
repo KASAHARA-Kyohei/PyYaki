@@ -40,18 +40,31 @@ use wry::{WebContext, WebView, WebViewBuilder, http::Response};
 use wry::{WebViewBuilderExtWindows, WebViewExtWindows};
 
 enum HostEvent {
-    Ipc(IpcMessage),
+    Ipc(QueuedMessage<String>),
     Spawned(Worker),
     BackendReady,
-    Reply(Value),
+    Reply(QueuedMessage<Value>),
     Failed(String),
 }
 
-struct IpcMessage {
-    text: String,
+struct QueuedMessage<T> {
+    value: T,
     count: Arc<AtomicUsize>,
 }
-impl Drop for IpcMessage {
+impl<T> QueuedMessage<T> {
+    fn new(value: T, count: &Arc<AtomicUsize>, limit: usize) -> Result<Self, &'static str> {
+        count
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
+                (count < limit).then_some(count + 1)
+            })
+            .map_err(|_| "Native message queue limit exceeded")?;
+        Ok(Self {
+            value,
+            count: count.clone(),
+        })
+    }
+}
+impl<T> Drop for QueuedMessage<T> {
     fn drop(&mut self) {
         self.count.fetch_sub(1, Ordering::AcqRel);
     }
@@ -169,8 +182,9 @@ fn start_backend(
             proxy
                 .send_event(HostEvent::BackendReady)
                 .map_err(|_| "GUI closed")?;
+            let pending_replies = Arc::new(AtomicUsize::new(0));
             loop {
-                let frame = framing::read(&mut reader)?;
+                let mut frame = framing::read(&mut reader)?;
                 if frame.get("v") != Some(&json!(1))
                     || frame.get("type") != Some(&json!("dispatch"))
                     || frame.get("session_id") != Some(&json!(session))
@@ -179,7 +193,11 @@ fn start_backend(
                     return Err("Invalid worker dispatch frame".into());
                 }
                 proxy
-                    .send_event(HostEvent::Reply(frame["message"].clone()))
+                    .send_event(HostEvent::Reply(QueuedMessage::new(
+                        frame["message"].take(),
+                        &pending_replies,
+                        64,
+                    )?))
                     .map_err(|_| "GUI closed")?;
             }
         })();
@@ -306,18 +324,9 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                                 if request.uri().to_string() == format!("{ORIGIN}/")
                                     && request.body().len() <= MAX_MESSAGE_BYTES
                                 {
-                                    if ipc_count
-                                        .fetch_update(
-                                            Ordering::AcqRel,
-                                            Ordering::Acquire,
-                                            |count| (count < 32).then_some(count + 1),
-                                        )
-                                        .is_ok()
+                                    if let Ok(message) =
+                                        QueuedMessage::new(request.body().clone(), &ipc_count, 32)
                                     {
-                                        let message = IpcMessage {
-                                            text: request.body().clone(),
-                                            count: ipc_count.clone(),
-                                        };
                                         let _ = ipc_proxy.send_event(HostEvent::Ipc(message));
                                     } else if !ipc_overflow.swap(true, Ordering::AcqRel) {
                                         let _ = ipc_proxy.send_event(HostEvent::Failed(
@@ -380,7 +389,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                 Event::UserEvent(HostEvent::Ipc(mut incoming))
                     if !failed && shutdown_at.is_none() =>
                 {
-                    let text = std::mem::take(&mut incoming.text);
+                    let text = std::mem::take(&mut incoming.value);
                     drop(incoming);
                     let message: Value = serde_json::from_str(&text)?;
                     if smoke_test && message.get("type") == Some(&json!("pyyaki_smoke_done")) {
@@ -447,7 +456,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                 }
                 Event::UserEvent(HostEvent::Reply(message)) if !failed && shutdown_at.is_none() => {
                     if let Some(view) = &view {
-                        post(view, &message)?;
+                        post(view, &message.value)?;
                     }
                 }
                 Event::UserEvent(HostEvent::Failed(message))
@@ -561,4 +570,24 @@ fn instance_base() -> Result<PathBuf, Box<dyn Error>> {
         PathBuf::from(std::env::var_os("HOME").ok_or("HOME is missing")?)
             .join("Library/Application Support"),
     )
+}
+
+#[cfg(test)]
+mod queue_tests {
+    use super::*;
+
+    #[test]
+    fn queue_capacity_is_released_when_messages_are_dropped() {
+        let count = Arc::new(AtomicUsize::new(0));
+        let first = QueuedMessage::new("first", &count, 2).unwrap();
+        let second = QueuedMessage::new("second", &count, 2).unwrap();
+        assert!(QueuedMessage::new("overflow", &count, 2).is_err());
+        assert_eq!(count.load(Ordering::Acquire), 2);
+        // EventLoopProxy may drop a message on either the producer or GUI thread.
+        thread::spawn(move || drop(first)).join().unwrap();
+        let replacement = QueuedMessage::new("replacement", &count, 2).unwrap();
+        drop(second);
+        drop(replacement);
+        assert_eq!(count.load(Ordering::Acquire), 0);
+    }
 }

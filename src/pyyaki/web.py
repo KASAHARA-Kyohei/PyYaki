@@ -75,7 +75,12 @@ def expected_origin(connection) -> str:
 
 
 def create_asgi(app: App, config: Config) -> FastAPI:
-    server = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    @contextlib.asynccontextmanager
+    async def lifespan(server):
+        async with app._lifespan():
+            yield
+
+    server = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     nonces = Nonces()
     server.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"], www_redirect=False
@@ -132,14 +137,14 @@ def create_asgi(app: App, config: Config) -> FastAPI:
             ):
                 await socket.close(code=1008)
                 return
-            connection = Connection(app, socket)
+            connection = Connection(app, socket, secrets.token_urlsafe(24), "web")
             await connection.send(
                 {
                     "v": 1,
                     "type": "welcome",
-                    "session_id": secrets.token_urlsafe(24),
+                    "session_id": connection.context.session_id,
                     "mode": "web",
-                    "capabilities": ["rpc"],
+                    "capabilities": ["rpc", "events"],
                     "framework_version": __version__,
                     "limits": {
                         "max_message_bytes": MAX_MESSAGE_BYTES,

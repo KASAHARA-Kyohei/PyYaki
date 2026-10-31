@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from pyyaki import App, AppError, __version__
+from pyyaki import App, AppError, Context, __version__
 from pyyaki.config import Config
 from pyyaki.web import COOKIE, Nonces, create_asgi
 
@@ -24,6 +24,24 @@ def client(tmp_path):
     (ui / "escape.html").symlink_to(tmp_path / "private.html")
     app = App()
     started, cancelled = threading.Event(), threading.Event()
+    contexts = []
+    hooks = []
+
+    @app.on_startup
+    async def startup():
+        hooks.append("startup")
+
+    @app.on_shutdown
+    async def shutdown():
+        hooks.append("shutdown")
+
+    @app.command("visit")
+    async def visit(value: str, *, ctx: Context) -> dict[str, str]:
+        assert hooks == ["startup"]
+        contexts.append(ctx)
+        ctx.state["visits"] = ctx.state.get("visits", 0) + 1
+        await ctx.emit("visited", {"value": value, "visits": str(ctx.state["visits"])})
+        return {"session": ctx.session_id, "mode": ctx.mode, "visits": str(ctx.state["visits"])}
 
     @app.command("echo")
     async def echo(value: str) -> str:
@@ -54,7 +72,10 @@ def client(tmp_path):
     with TestClient(create_asgi(app, config), base_url=ORIGIN) as instance:
         instance.started = started
         instance.cancelled = cancelled
+        instance.contexts = contexts
+        instance.hooks = hooks
         yield instance
+    assert hooks == ["startup", "shutdown"]
 
 
 def nonce(client):
@@ -71,7 +92,7 @@ def connected(client):
     with client.websocket_connect(WS_URL, headers={"origin": ORIGIN}) as socket:
         socket.send_json({"v": 1, "type": "hello", "client_version": __version__, "nonce": token})
         welcome = socket.receive_json()
-        assert welcome["capabilities"] == ["rpc"]
+        assert welcome["capabilities"] == ["rpc", "events"]
         yield socket, welcome
 
 
@@ -105,6 +126,37 @@ def test_rpc_errors_and_recovery(client):
             assert socket.receive_json()["error"]["code"] == code
         call(socket, "after-error")
         assert socket.receive_json()["result"] == "鯛焼き🐟"
+
+
+def test_context_and_events_are_connection_local(client):
+    def visit(socket, identifier, welcome, expected):
+        call(socket, identifier, "visit", {"value": "鯛焼き🐟"})
+        messages = [socket.receive_json(), socket.receive_json()]
+        event = next(message for message in messages if message["type"] == "event")
+        result = next(message for message in messages if message["type"] == "result")
+        assert event == {
+            "v": 1,
+            "type": "event",
+            "name": "visited",
+            "seq": expected,
+            "payload": {"value": "鯛焼き🐟", "visits": str(expected)},
+        }
+        assert result["result"] == {
+            "session": welcome["session_id"],
+            "mode": "web",
+            "visits": str(expected),
+        }
+
+    with connected(client) as (first, one), connected(client) as (second, two):
+        visit(first, "1", one, 1)
+        visit(first, "2", one, 2)
+        visit(second, "1", two, 1)
+        # A forged ctx must not replace the host's connection context.
+        call(first, "forged", "visit", {"value": "bad", "ctx": {"session_id": two["session_id"]}})
+        assert first.receive_json()["error"]["code"] == "VALIDATION_ERROR"
+    assert all(not ctx.state for ctx in client.contexts)
+    with connected(client) as (fresh, welcome):
+        visit(fresh, "1", welcome, 1)
 
 
 def test_slow_command_does_not_block_other_calls(client):
