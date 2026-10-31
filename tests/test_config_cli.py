@@ -1,3 +1,4 @@
+import errno
 import json
 import os
 import signal
@@ -12,6 +13,7 @@ import pytest
 from websockets.sync.client import connect
 
 from pyyaki import __version__
+from pyyaki import cli as cli_module
 from pyyaki.config import load_config
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,10 +40,10 @@ def test_config_rejects_unsafe_paths_and_entries(tmp_path, settings):
         load_config(tmp_path)
 
 
-def cli(*arguments):
+def cli(*arguments, cwd=ROOT / "examples/hello"):
     return subprocess.run(
         [sys.executable, "-m", "pyyaki.cli", *arguments],
-        cwd=ROOT / "examples/hello",
+        cwd=cwd,
         text=True,
         capture_output=True,
         timeout=10,
@@ -63,7 +65,68 @@ def test_cli_port_conflict_has_explanation():
         listener.listen()
         result = cli("dev", "--port", str(listener.getsockname()[1]))
         assert result.returncode != 0
-        assert "cannot open project or listen" in result.stderr
+        assert f"port {listener.getsockname()[1]} is already in use" in result.stderr
+        assert "pyyaki dev --port 8001" in result.stderr
+
+
+def test_cli_missing_project_file_explains_where_to_run(tmp_path):
+    result = cli("dev", cwd=tmp_path)
+    assert result.returncode == 1
+    assert str(tmp_path / "pyproject.toml") in result.stderr
+    assert "project configuration not found" in result.stderr
+    assert "project directory" in result.stderr
+    assert "port" not in result.stderr
+
+
+def test_cli_invalid_project_configuration_identifies_file(tmp_path):
+    (tmp_path / "pyproject.toml").write_text("[tool.pyyaki\n")
+    result = cli("dev", cwd=tmp_path)
+    assert result.returncode == 1
+    assert "invalid project configuration" in result.stderr
+    assert str(tmp_path / "pyproject.toml") in result.stderr
+
+
+def test_cli_application_io_failure_is_not_reported_as_port_problem(tmp_path):
+    (tmp_path / "pyproject.toml").write_text('[tool.pyyaki]\nentry="app:app"\n')
+    (tmp_path / "ui").mkdir()
+    (tmp_path / "ui/index.html").write_text("<h1>hello</h1>")
+    (tmp_path / "app.py").write_text('open("nonexistent-business-file")\n')
+    result = cli("dev", cwd=tmp_path)
+    assert result.returncode == 1
+    assert "cannot load application 'app:app'" in result.stderr
+    assert "nonexistent-business-file" in result.stderr
+    assert "already in use" not in result.stderr
+
+
+def test_cli_other_bind_failure_is_not_reported_as_port_conflict(monkeypatch, capsys):
+    monkeypatch.chdir(ROOT / "examples/hello")
+    monkeypatch.setattr(sys, "argv", ["pyyaki", "dev"])
+
+    def deny_bind(self, address):
+        raise OSError(errno.EACCES, "permission denied")
+
+    monkeypatch.setattr(socket.socket, "bind", deny_bind)
+    with pytest.raises(SystemExit) as error:
+        cli_module.main()
+    assert error.value.code == 1
+    stderr = capsys.readouterr().err
+    assert "cannot listen on 127.0.0.1:8000" in stderr
+    assert "permission denied" in stderr
+    assert "already in use" not in stderr
+
+
+def test_cli_suggests_a_different_port_when_8001_is_in_use(monkeypatch, capsys):
+    monkeypatch.chdir(ROOT / "examples/hello")
+    monkeypatch.setattr(sys, "argv", ["pyyaki", "dev", "--port", "8001"])
+
+    def busy_bind(self, address):
+        raise OSError(errno.EADDRINUSE, "address already in use")
+
+    monkeypatch.setattr(socket.socket, "bind", busy_bind)
+    with pytest.raises(SystemExit) as error:
+        cli_module.main()
+    assert error.value.code == 1
+    assert "pyyaki dev --port 8002" in capsys.readouterr().err
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX SIGINT behavior")
