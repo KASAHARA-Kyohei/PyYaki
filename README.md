@@ -4,7 +4,7 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 名称は「鯛焼き」にかけたものです。表示名を**PyYaki**、パッケージ・Python import・CLI・JavaScript SDKの識別子を**`pyyaki`**に統一します。
 
-**現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査は通過しましたが、Windowsでのリンク・GUI実行は未確認です。公開パッケージ・単一exeビルドはありません。Macネイティブでは初期計測と5分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
+**現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査は通過しましたが、Windowsでのリンク・GUI実行は未確認です。公開パッケージ・Windows単一exeビルドはありません。MacはPython同梱`.app`のローカル生成試作を追加しました。Macネイティブでは初期計測と5分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
 
 開発を再開するときは[開発ガイド](docs/development.md)、現在の実装と残作業は[ロードマップの現在地](docs/roadmap.md#現在地と次の作業)を参照してください。
 
@@ -29,6 +29,8 @@ pyyaki dev
 
 実装済み: `App`、非同期コマンド登録、引数・戻り値検証、`AppError`/`FrameworkError`、接続単位の`Context`、イベント、起動・終了フック、ローカルASGI/WebSocket、SDKの`ready`/`invoke`/`on`、期限・取消・切断処理。capabilitiesは`["rpc", "events"]`です。3秒の処理ではPythonから届く進捗を表示します。
 
+Mac向け`build macos`は、準備済みのホスト・standalone Python・wheelから`.app`を生成するローカル試作として実装済みです。[生成手順](docs/macos-build.md)を参照してください。
+
 未実装: 自動再読込、Windows `build windows`、ネイティブexeのpip配置。Python版CLIの`run`は未対応で、Mac/Windowsの開発用ホストは、別のRustバイナリを直接起動します。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
 
 テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザ・ネイティブ検査の使い分けと、変更後の反映方法は[開発ガイド](docs/development.md#検証する)に記載しています。
@@ -41,7 +43,7 @@ pyyaki dev
 cargo run --manifest-path native/Cargo.toml --locked -- run --project examples/hello --python .venv/bin/python
 ```
 
-ブラウザではなくネイティブウィンドウを開き、同じUIとPythonコマンドを使います。終了はウィンドウを閉じるか、ターミナルのCtrl+Cです。実際のWKWebView経由のRPCは確認済みですが、appバンドルの正式配布・署名・長時間稼働は未対応または未検証です。[Macの詳しい手順](native/README.md#macでの開発用確認)も参照してください。
+ブラウザではなくネイティブウィンドウを開き、同じUIとPythonコマンドを使います。終了はウィンドウを閉じるか、ターミナルのCtrl+Cです。実際のWKWebView経由のRPCは確認済みですが、appバンドルの正式配布・Developer ID署名/公証・長時間稼働は未対応または未検証です。[Macの詳しい手順](native/README.md#macでの開発用確認)も参照してください。
 
 この開発機ではSDKとリンカーの組合せの都合で、ビルド時に`SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk`を指定しています。すでにビルドしたものは`native/target/debug/pyyaki run --project examples/hello --python .venv/bin/python`で起動できます。
 
@@ -143,6 +145,7 @@ Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じ�
 | [ロードマップ](docs/roadmap.md) | 現在地、技術検証ゲート、実装順序、公開条件 |
 | [開発ガイド](docs/development.md) | 作業再開、起動、変更の反映、検査、問題の切り分け |
 | [Mac初期計測](docs/performance-macos.md) | 起動・RPC・5分の連続試験と測定上の限界 |
+| [Mac .app生成](docs/macos-build.md) | Python同梱bundleのローカル生成手順・入力と制限 |
 
 ## ライセンス
 

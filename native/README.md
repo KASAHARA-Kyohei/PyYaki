@@ -16,7 +16,7 @@ MacのWebViewは`pyyaki://localhost/`から資産を取得し、HTTP/WebSocket�
 
 Windows専用処理を`process.rs`、Macを`process_macos.rs`に分け、イベントループ・資産配信・プロトコルは`host.rs`で共用。Macでは子プロセス専用のプロセスグループとCLOEXEC付き匿名パイプを使い、子のexec直前に必要な2fdだけを継承可能にする。終了時はshutdownを通知して最大2秒待ち、残るグループを回収する。Ctrl+C/SIGTERMも同じ終了経路を使う。SIGKILLなどホストを強制終了した場合の子プロセス回収は未保証で、正式配布前の課題。
 
-ログは`~/Library/Application Support/PyYaki/prototype/<instance>/`。正式なappバンドル・署名・ランタイム同梱は未対応。SDK 27とのリンクエラーが出るこの開発機では、インストール済みSDK 26.5を`SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk`で選択してビルドした。
+ログは`~/Library/Application Support/PyYaki/prototype/<instance>/`。Python同梱.appのローカル生成試作は[専用手順](../docs/macos-build.md)を参照。Developer ID署名/公証・他Macへの正式配布は未対応。SDK 27とのリンクエラーが出るこの開発機では、インストール済みSDK 26.5を`SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk`で選択してビルドした。
 
 `--smoke-test`を末尾に追加すると、`examples/hello`専用の実WKWebView確認を行い、自動終了する。あいさつ・エラー・並行呼び出し・進捗イベントの順序/購読解除・取消に成功すれば`native_smoke`のokがtrueとなり、終了コード0を返す。通常起動ではこの確認用スクリプト・終了通知は使用しない。
 
@@ -36,6 +36,18 @@ cargo build --manifest-path native/Cargo.toml --release --locked
 通知時刻には配送遅延が含まれ、画面の実提示時間ではない。毎回新規プロファイルを使うがOSキャッシュは制御しない。RSSはホストと検出できた子だけを対象とし、帰属不明のWebKit XPCは含まない。[定義と限界](../docs/requirements.md#54-mac開発用ホストの補助測定)、[初期結果](../docs/performance-macos.md)を参照。
 
 ## Windowsでの開発用確認
+
+利用者からWindows 11、CPUはx64の見込み、Python/Rustはこれから導入すると回答を得た。CPUとツールの実測は未確認。Windowsの単一exe実装を作り込む前に、以下の既存ホストのMSVCビルドと起動を確認する。
+
+[MicrosoftのRust環境手順](https://learn.microsoft.com/en-us/windows/dev-environment/rust/setup)に従い、MSVC Build Toolsの「C++によるデスクトップ開発」（MSVC x64/x86とWindows SDKを含む）、RustのMSVCツールチェーン、CPython 3.14通常GIL版を用意する。導入後にPowerShellを開き直し、次を確認する。
+
+```powershell
+Get-CimInstance Win32_Processor | Select-Object Name, Architecture
+py -3.14 --version
+rustc -vV
+```
+
+[Architectureは9がx64、12がARM64](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-processor)。Rustのhostが`x86_64-pc-windows-msvc`であることを確認する。異なる場合は対応候補を確定せず、結果を共有して検証環境を確認する。
 
 以下はフレームワークのメンテナー向け。Windows x64、CPython 3.14通常GIL版、利用可能なWebView2 Runtimeと、Rust 1.89以降・MSVCビルド環境を事前に用意する。アプリ利用者向けのRust不要wheel配布は未実装であり、この手順を正式なアプリ導入手順にはしない。ランタイムを自動ダウンロード・インストールする処理はない。
 

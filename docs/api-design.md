@@ -74,8 +74,9 @@ webview2 = "fixed"
 | `entry` | PythonのWeb CLI/ワーカーが読み取る。既定は`app:app` |
 | `ui-dir` / `ui-entry` | PythonとRustが読み取る。既定は`ui` / `index.html`。プロジェクト外への参照を拒否 |
 | `window.title` / `width` / `height` | Rustホストのみ読み取る。既定は`PyYaki` / 960 / 720の論理サイズ。幅320〜4,096、高さ240〜4,096の整数を許可 |
-| `app-id` / `name` / `version` | サンプルには記載されるが、現在はアプリ識別・タイトル・キャッシュ管理に使用しない |
+| `app-id` / `name` / `version` | 開発用ホストは直接使用しない。Macのbuildはbundle識別子・表示名・版へ使用し、window.title未指定ならnameを設定する。キャッシュは起動ごとのinstance方式 |
 | `build.windows` | 未実装。設定しても単一exeビルドや資材同梱は有効にならない |
+| `build.macos.include` | .appローカル生成のプロジェクト相対glob配列。[詳細](macos-build.md#設定と制限)を参照 |
 
 `app-id`は、将来は配布者が管理する安定した識別子としてキャッシュ・プロファイル・アプリデータの名前空間に使う設計。現在のネイティブ試作は起動ごとのランダムなinstanceを使用する。ここで示す識別子は例であり、正式な配布者を示さない。
 

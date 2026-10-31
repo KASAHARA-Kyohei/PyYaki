@@ -25,7 +25,7 @@ PyYakiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから�
 
 ## 2. 利用者と対象環境の提案
 
-2026-10-31に確認した開発体制は、主な開発機がMacで、ある程度開発が進んだ段階で手元のWindowsを使って動作確認するもの。手元のWindowsのOS版・CPU・検証用Pythonは未確認であり、下表のMVP候補に適合するかはWindows検証開始前に確認する。macOSでは共通Python処理・UI・Web経路を確認し、Windows専用の起動・通信・ビルド・配布の受入条件はWindows上で別途検証する。その後、利用者の追加依頼によりmacOSの開発用ネイティブGUIを実装する範囲へ拡張した。Macの正式配布は別途検討する。
+2026-10-31に確認した開発体制は、主な開発機がMacで、ある程度開発が進んだ段階で手元のWindowsを使って動作確認するもの。手元のWindowsのOS版・CPU・検証用Pythonは未確認であり、下表のMVP候補に適合するかはWindows検証開始前に確認する。macOSでは共通Python処理・UI・Web経路を確認し、Windows専用の起動・通信・ビルド・配布の受入条件はWindows上で別途検証する。その後、利用者の追加依頼によりmacOSの開発用ネイティブGUIを実装する範囲へ拡張した。MacのPython同梱.app生成はその後の追加依頼でローカル試作を実装した。Developer ID署名/公証や第三者への正式配布は別途検討する。
 
 同日、最初の試作に使うPythonは**CPython 3.14通常GIL版の1 minorに限定する**方針を利用者が承認した。これは試作環境の選択であり、Windows配布ランタイムの互換性やMVPの対応環境の検証完了を意味しない。初期試作はMacのCPython 3.14.3（`Py_GIL_DISABLED=0`）で確認した。
 

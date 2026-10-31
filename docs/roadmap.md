@@ -11,12 +11,12 @@
 | 領域 | 現在地 | 残る確認・実装 |
 | --- | --- | --- |
 | 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れを実装。MacのPython/ブラウザで確認 | 自動再読込、本番Web運用、長時間/高負荷の評価 |
-| Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分の連続試験、Python遅延/停止/クラッシュ・終了処理を確認 | 時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
+| Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分の連続試験、Python遅延/停止/クラッシュ・終了処理を確認。Python同梱.appのローカル生成と再配置も確認 | 時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
 | Windowsネイティブ | ソース実装、GNUターゲットの型検査/Clippy、仮ブリッジのSDK契約確認まで | 実機でのMSVCリンク、GUI、画面提示の順序、ハンドル継承、Job Object、ネットワーク/企業環境 |
-| 導入 / 配布 | 開発用Python CLIは`dev`のみ。Rustホストを直接起動する段階 | Rust不要のネイティブCLI配置、`build windows`、ランタイム同梱、単一exe組立/展開/署名 |
+| 導入 / 配布 | 開発用CLIは`dev`とMacの`build macos`試作。実行はRustホスト直接起動または生成.app | Rust不要のネイティブCLI配置、`build windows`、ランタイム同梱、単一exe組立/展開/署名 |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
 
-直近の実行記録はPython 75件、Rust 7件、Web/仮ブリッジのブラウザ確認、実WKWebViewの診断15ケース。性能の条件と限界は[Mac初期計測](performance-macos.md)を正とし、これらをWindowsのG1/G2合格とは扱わない。
+直近の実行記録はPython 80件、Rust 9件、Web/仮ブリッジのブラウザ確認、実WKWebViewの診断15ケース。性能の条件と限界は[Mac初期計測](performance-macos.md)を正とし、これらをWindowsのG1/G2合格とは扱わない。
 
 次の推奨作業はWindows実機検証。まず手元のWindowsのOS・CPU・検証用Pythonを確認し、既存ホストをビルド・起動してから、G1の最小単一exe検証へ進む。配布方式に依存する作り込みは、その結果を反映して行う。これは推奨順序であり、実装開始や検証環境の条件を新たに承認した記録ではない。
 
@@ -220,3 +220,14 @@ python tests/browser_smoke.py
 READMEと本書に現在の実装・検証範囲への案内を追加し、`docs/development.md`に作業再開、起動、変更反映、検査、ログの確認をまとめた。API文書は実装済みのwindow設定・プロトコル版・Python/JS API・内部制御面をコードと照合し、将来の配布設計と区別した。新しい要件・性能基準・ライセンスの採用は行っていない。
 
 確認範囲はMarkdown 10ファイル。ローカルリンク/見出し参照67件、要件ID22件・ADR13件の参照、コードフェンス・末尾空白に問題なし。Python例2件・TOML例1件・JSON例7件の構文解析に合格した。文書だけの変更として実装テストや5分試験は再実行していない。
+
+
+### 2026-10-31 Mac .app生成のローカル試作とWindows検証準備
+
+利用者からWindows/Macの実行アプリ生成を依頼された。Windows実機で確認可能、Windows 11、CPUはx64の見込み、Python/Rustはこれから導入するとの回答を得た。Windowsは既存ホストのMSVCリンク・GUI実行を先に確認し、その後にG1の単一exe最小試作へ進む。実機結果はまだ受け取っていない。
+
+独立して検証できるMacは、`build macos`で明示した事前取得資材からPython同梱.appを生成するローカル試作を追加した。SDK版/CPU/パス/ハッシュ固定入力を検査し、アプリ設定はentry/UI/windowだけを生成する。依存の取得をビルドへ暗黙に混ぜず、wheelhouseから配置する。アドホック署名後の生成物とファイルハッシュをレポートへ残す。
+
+M2/macOS 27.0.1で生成したhello.appを別の場所へ移し、元のruntimeとプロジェクトのコピーを一時的に隠し、無効なPYTHONHOME/PYTHONPATH・システム用PATH・別cwdで実WKWebViewスモークに合格。起動後の署名とmanifestのファイルハッシュも確認した。これはPython未導入のクリーンMacや第三者への正式配布の検証ではない。入力・出力・再実行・未対応範囲は[Mac .app生成](macos-build.md)を参照。
+
+Python 80件、Rust 9件のテストとMac/WindowsターゲットのClippyで確認。Windows単一exe、資材の公開・ネイティブwheel配置、Developer ID署名・公証、再配布条件の正式確認は未完了として残す。

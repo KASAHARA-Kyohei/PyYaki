@@ -4,15 +4,15 @@
 
 Pythonパッケージ`0.1.0.dev0`に加え、`native/`にWindows開発用Rustホストのソースを追加した。Pythonワーカーはwheelへ含まれるが、ネイティブexe・ランタイム資材はまだ含まない。`requirements-dev.lock`はMac向け開発依存、`native/Cargo.lock`はホストのRust依存とチェックサムを固定する。Windows向けPython lock・ネイティブwheel配置・単一exe組立は未実装。Macの開発用lockをWindows配布の互換性証明に使わない。
 
-初期試作の`pyyaki`はPythonのconsole scriptで、実装済みサブコマンドはloopback向け`dev`のみ。`run`/`build`は未実装エラーにする。これは以下に設計するWindowsネイティブCLIではなく、Pythonより先の描画を保証しない。試作wheelはJS SDKを含むが、Rustホスト・Pythonランタイム・WebView2は含まず、公開も行っていない。
+初期試作の`pyyaki`はPythonのconsole scriptで、実装済みはloopback向け`dev`と、Macの準備済み資材から生成する`build macos`のローカル試作。`run`/`build windows`は未実装エラーにする。これは以下に設計するWindowsネイティブCLIではなく、Pythonより先の描画を保証しない。試作wheelはJS SDKを含むが、Rustホスト・Pythonランタイム・WebView2は含まず、公開も行っていない。
 
 Windowsの開発用確認はRust版`pyyaki.exe run --project <path> --python <venv-python.exe>`を直接使う。[メンテナー向け手順](../native/README.md)では事前導入したRust/MSVCでWindows上でビルドし、開発venvと既存WebView2で実行する。Macで行ったWindowsターゲットの型検査は、exeの生成や起動成功ではない。アプリ利用者にRustを要求する正式配布へ方針変更したものではない。
 
-Mac向けは開発機でCargoビルドしたホストを直接実行する段階。開発時のSDK再ビルド・変更反映は[開発ガイド](development.md#変更する場所と反映方法)、診断releaseビルドの実行結果は[Mac初期計測](performance-macos.md)を参照する。依存は同じCargo.lockで固定し、Pythonは事前導入したvenvを使用する。正式な.app同梱配布、署名、notarization、Pythonランタイム同梱は未実装。Windows向け単一exe要件は維持する。
+Mac向けは開発機でCargoビルドしたホストを直接実行する段階。開発時のSDK再ビルド・変更反映は[開発ガイド](development.md#変更する場所と反映方法)、診断releaseビルドの実行結果は[Mac初期計測](performance-macos.md)を参照する。依存は同じCargo.lockで固定し、Pythonは事前導入したvenvを使用する。Python同梱.appのローカル生成を追加した。準備済み資材・ハッシュ固定wheelからオフラインで組み立て、アドホック署名と再配置を検証する。[入力・生成手順・限界](macos-build.md)を参照。Developer ID署名、notarization、第三者への正式配布は未対応。Windows向け単一exe要件は維持する。
 
 ## 1. 配布単位と成立条件
 
-**配布先へ渡すアプリは依存ファイルを含む単一exeとする。** 利用者回答により必須であり、exeとフォルダーをまとめたZIPを最終成果物の代替にしない。
+**Windowsで配布先へ渡すアプリは依存ファイルを含む単一exeとする。** 利用者回答により必須であり、exeとフォルダーをまとめたZIPを最終成果物の代替にしない。
 
 推奨案は、ビルド済みRustホストへPython、アプリ、UI、依存パッケージ、Fixed Version WebView2を格納し、起動時にユーザー専用キャッシュへ展開する方式。Python DLL、`.pyd`、WebView2の実行ファイル等をディスクへ配置する設計であり、単一ファイルのまま完全インメモリで動作する構想とは区別する。
 
@@ -35,7 +35,7 @@ Mac向けは開発機でCargoビルドしたホストを直接実行する段階
 
 - `pyyaki`: 共通Pythonディスパッチャー、Webアダプター、JS SDK、ビルド機能。
 - Windows x64の`pyyaki` wheelには、同じ版のビルド済みネイティブ`pyyaki.exe`と汎用GUIホストの資材を同梱する。
-- 非Windowsのpure Python wheelはWeb開発用Python CLIを提供し、`run`/`build windows`は未対応と明確にエラーにする。
+- 非Windowsのpure Python wheelはWeb開発用Python CLIを提供し、`run`/`build windows`は未対応と明確にエラーにする。Macでは明示した事前取得資材を使う`build macos`試作も提供するが、ホスト資材はまだwheelへ同梱しない。
 - Python、WebView2、アプリ固有依存の大きなアーカイブは基本wheelへすべて詰めず、バージョン固定の資材キャッシュからビルド時に取得する案。`pip install`時に任意URLから実行ファイルを取得・実行しない。
 - Windows wheelはPython ABIへ直接リンクしない実行ファイルを含むため、`py3-none-win_amd64`をタグ候補とする。`Requires-Python`とCPython判定は別途設定する。タグと実際の対応Pythonの一致をG1で検証する。
 

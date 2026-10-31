@@ -218,5 +218,8 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-011 | 署名・来歴・更新 | 最終exeのアプリ配布者署名、SBOM、署名マニフェスト、手動更新 | G3/G4で署名後改変検出と企業環境評価。署名費用は別途判断 |
 | ADR-012 | native依存とDLL探索 | 対応wheel限定、通常のsite初期化と`.pth`は既定不使用 | G3で`.pth`依存wheelを含め確認し、必要な例外だけ宣言 |
 | ADR-013 | Mac開発用ホスト / Webのみ | 利用者の依頼でtao/wry/WKWebViewを試作実装。host.rs/RPCを共用し、macOSのプロセス管理とWebKit差異を保守 | 実WKWebViewのRPC・正常終了・Python停止/クラッシュ時の挙動を確認。ホストSIGKILL時の回収、時間単位の稼働、正式配布は未検証 |
+| ADR-014 | MacのPython同梱 / PyInstaller / frameworkコピー | ローカル試作はpython-build-standalone + ハッシュ固定wheel + 既存Rustホスト。Rust不要の生成を事前取得資材から行うが、資材配布は別途必要 | M2で移動後のRPCと署名を確認。他Mac、Developer ID署名/公証、ライセンス・来歴の正式確認は後続。詳細は[Mac .app生成](macos-build.md) |
+
+2026-10-31のMac同梱方式比較（Windowsの配布方式の採択とは別）: [PyInstaller](https://pyinstaller.org/en/stable/operating-mode.html)はPythonと依存の収集を再利用できる一方、動的import・データの収集指定が必要。Python.orgのframework型をそのままvenvからコピーする方法は再配置確認が別途必要。[python-build-standalone](https://gregoryszorc.com/docs/python-build-standalone/main/running.html)はinstall_onlyの事前ビルドとライセンスファイルを提供し、既存Rustホストの後段ワーカーとして使えるため、Macローカル試作ではこちらを採用して再配置を確認した。全依存・OS・配布署名の互換性や法的な再配布確認は未完了。
 
 ゲートの定義は[roadmap.md](roadmap.md)を参照する。

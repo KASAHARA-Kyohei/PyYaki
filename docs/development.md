@@ -27,7 +27,7 @@ Macネイティブはリポジトリのルートから、ビルド済みのRust�
 ./native/target/debug/pyyaki run --project examples/hello --python .venv/bin/python
 ```
 
-ウィンドウを閉じるかCtrl+Cで終了する。Python版CLIの`pyyaki run`は未対応。Windowsの開発用コマンドは[native/README.md](../native/README.md#windowsでの開発用確認)を参照する。
+ウィンドウを閉じるかCtrl+Cで終了する。Python版CLIの`pyyaki run`は未対応。MacのPython同梱.appローカル生成は[専用手順](macos-build.md)を参照する。Windowsの開発用コマンドは[native/README.md](../native/README.md#windowsでの開発用確認)を参照する。
 
 未ビルド、Rust/SDKを変更した、またはSDKのJSを変更した場合は、先に次を実行する。
 
