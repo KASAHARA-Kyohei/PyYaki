@@ -1,5 +1,7 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
+#[cfg(target_os = "macos")]
+mod bundle;
 #[cfg(any(windows, target_os = "macos"))]
 mod host;
 #[cfg(windows)]

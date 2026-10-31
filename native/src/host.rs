@@ -252,13 +252,34 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     }
     let started_at = Instant::now();
     let mut args = std::env::args_os().skip(1);
-    if args.next().as_deref() != Some(std::ffi::OsStr::new("run")) {
+    let first = args.next();
+    if first.as_deref() == Some(std::ffi::OsStr::new("--version")) {
+        println!("PyYaki native host {VERSION}");
+        return Ok(());
+    }
+    #[cfg(target_os = "macos")]
+    let packaged = if first.is_none()
+        || matches!(
+            first.as_deref().and_then(|s| s.to_str()),
+            Some("--smoke-test" | "--diagnostics")
+        ) {
+        Some(crate::bundle::paths(&std::env::current_exe()?)?)
+    } else {
+        None
+    };
+    #[cfg(not(target_os = "macos"))]
+    let packaged: Option<(PathBuf, PathBuf)> = None;
+    if first.as_deref() != Some(std::ffi::OsStr::new("run")) && packaged.is_none() {
         return Err("Usage: pyyaki run --project <project> --python <venv-python>".into());
     }
-    let mut root = std::env::current_dir()?;
-    let mut python = None;
-    let mut smoke_test = false;
-    let mut diagnostics = false;
+    let mut smoke_test =
+        packaged.is_some() && first.as_deref() == Some(std::ffi::OsStr::new("--smoke-test"));
+    let mut diagnostics =
+        packaged.is_some() && first.as_deref() == Some(std::ffi::OsStr::new("--diagnostics"));
+    let (mut root, mut python) = match packaged {
+        Some((root, python)) => (root, Some(python)),
+        None => (std::env::current_dir()?, None),
+    };
     while let Some(arg) = args.next() {
         match arg.to_str() {
             Some("--smoke-test") => smoke_test = true,

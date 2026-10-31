@@ -25,7 +25,15 @@ impl Worker {
         let log = File::create_new(log)?;
         let mut command = Command::new(python);
         command
-            .args(["-I", "-m", "pyyaki.worker", "--mode", "macos", "--project"])
+            .args([
+                "-I",
+                "-B",
+                "-m",
+                "pyyaki.worker",
+                "--mode",
+                "macos",
+                "--project",
+            ])
             .arg(project)
             .arg("--read-handle")
             .arg(input.to_string())
