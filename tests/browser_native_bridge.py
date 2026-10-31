@@ -62,6 +62,7 @@ def main():
                   framework_version: '0.1.0.dev0', session_id: 'host-issued',
                 });
                 if (message.type === 'call') {
+                  if (message.method === 'hang') return;
                   if (message.method === 'fail') reply({v: 1, type: 'error', id: message.id,
                     error: {code: 'APP_NATIVE', message: 'Native test error'}});
                   else reply({v: 1, type: 'result', id: message.id,
@@ -136,6 +137,26 @@ def main():
                 "closed": True,
             }, outcome
             assert len(reports) == 2, reports
+            assert not errors, errors
+            page.goto("https://pyyaki.localhost/sdk-test.html")
+            page.wait_for_load_state("networkidle")
+            failure = page.evaluate("""async () => {
+              const { pyyaki } = await import('/_pyyaki/sdk.js');
+              await pyyaki.ready();
+              const pending = pyyaki.invoke('hang').catch(error => error.code);
+              window.dispatchEvent(new Event('__pyyaki_backend_failed__'));
+              return {code: await pending, state: pyyaki.state, caps: pyyaki.capabilities};
+            }""")
+            assert failure == {"code": "BACKEND_FAILED", "state": "failed", "caps": []}, failure
+            page.goto("https://pyyaki.localhost/sdk-test.html")
+            page.wait_for_load_state("networkidle")
+            failure = page.evaluate("""async () => {
+              const { pyyaki } = await import('/_pyyaki/sdk.js');
+              const ready = pyyaki.ready().catch(error => error.code);
+              window.dispatchEvent(new Event('__pyyaki_backend_failed__'));
+              return {code: await ready, state: pyyaki.state};
+            }""")
+            assert failure == {"code": "BACKEND_FAILED", "state": "failed"}, failure
             assert not errors, errors
             print("Native SDK bridge passed: events, unsubscribe, callback isolation, no HTTP/WS.")
         finally:

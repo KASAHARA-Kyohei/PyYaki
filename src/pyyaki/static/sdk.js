@@ -84,11 +84,18 @@ function nativeSocket() {
       if (this.readyState === WebSocket.CLOSED) return;
       this.readyState = WebSocket.CLOSED;
       bridge.removeEventListener(eventName, receive);
+      window.removeEventListener("__pyyaki_backend_failed__", backendFailed);
       this.onclose?.();
     },
   };
   const receive = (event) => transport.onmessage?.({data: JSON.stringify(event.data)});
+  const backendFailed = () => {
+    if (transport.readyState === WebSocket.CLOSED) return;
+    transport.onfailure?.(new PyYakiError("BACKEND_FAILED", "Python backend failed"));
+    transport.close();
+  };
   bridge.addEventListener(eventName, receive);
+  window.addEventListener("__pyyaki_backend_failed__", backendFailed);
   return transport;
 }
 
@@ -181,7 +188,9 @@ function connect() {
         }
       };
       socket.onerror = () => finish(new PyYakiError("DISCONNECTED", "Connection failed"));
+      socket.onfailure = (error) => { finish(error); fail(error.code, error.message); };
       socket.onclose = () => {
+        if (state === "failed") return;
         finish(new PyYakiError("DISCONNECTED", "Connection closed"));
         fail("DISCONNECTED", "Connection closed");
       };

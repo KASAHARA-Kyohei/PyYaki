@@ -224,6 +224,18 @@ fn send(sender: &SyncSender<String>, session: &str, public: &str) -> Result<(), 
         .map_err(|_| "Worker input queue is full or disconnected".into())
 }
 
+fn diagnostic(enabled: bool, started: Instant, phase: &str, data: Value) {
+    if enabled {
+        eprintln!(
+            "pyyaki_diagnostic={}",
+            json!({
+                "phase": phase, "host_elapsed_ms": started.elapsed().as_secs_f64() * 1000.0,
+                "data": data,
+            })
+        );
+    }
+}
+
 #[cfg(target_os = "macos")]
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 #[cfg(target_os = "macos")]
@@ -246,9 +258,11 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let mut root = std::env::current_dir()?;
     let mut python = None;
     let mut smoke_test = false;
+    let mut diagnostics = false;
     while let Some(arg) = args.next() {
         match arg.to_str() {
             Some("--smoke-test") => smoke_test = true,
+            Some("--diagnostics") => diagnostics = true,
             Some("--project") => root = PathBuf::from(args.next().ok_or("Missing project path")?),
             Some("--python") => {
                 python = Some(std::path::absolute(PathBuf::from(
@@ -257,6 +271,9 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             }
             _ => return Err("Unknown native argument".into()),
         }
+    }
+    if smoke_test && diagnostics {
+        return Err("Choose either --smoke-test or --diagnostics".into());
     }
     let python = python.ok_or("Specify --python with the installed PyYaki development venv")?;
     let config = Arc::new(Config::load(&root)?);
@@ -302,6 +319,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                         "host_elapsed/native_draw={:?}",
                         started_at.elapsed()
                     );
+                    diagnostic(diagnostics, started_at, "native_draw", Value::Null);
                     let protocol_config = config.clone();
                     let navigation = NavigationGate::default();
                     let ipc_proxy = proxy.clone();
@@ -386,13 +404,45 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     view = Some(new_view);
                     deadline = Some(Instant::now() + Duration::from_secs(10));
                 }
-                Event::UserEvent(HostEvent::Ipc(mut incoming))
-                    if !failed && shutdown_at.is_none() =>
-                {
+                Event::UserEvent(HostEvent::Ipc(mut incoming)) if shutdown_at.is_none() => {
                     let text = std::mem::take(&mut incoming.value);
                     drop(incoming);
                     let message: Value = serde_json::from_str(&text)?;
-                    if smoke_test && message.get("type") == Some(&json!("pyyaki_smoke_done")) {
+                    if diagnostics && message.get("type") == Some(&json!("pyyaki_diagnostic")) {
+                        if message.get("v") != Some(&json!(1))
+                            || !matches!(
+                                message.get("phase").and_then(Value::as_str),
+                                Some(
+                                    "ready"
+                                        | "interactive"
+                                        | "fault_ready"
+                                        | "paused_timeout"
+                                        | "result"
+                                )
+                            )
+                            || message.as_object().is_none_or(|object| object.len() != 4)
+                            || message.get("data").is_none()
+                        {
+                            return Err("Invalid diagnostic marker".into());
+                        }
+                        let phase = message["phase"].as_str().unwrap();
+                        diagnostic(true, started_at, phase, message["data"].clone());
+                        if phase == "result" {
+                            exit_code = if message["data"]["ok"] == json!(true) {
+                                0
+                            } else {
+                                1
+                            };
+                            closing.store(true, Ordering::Release);
+                            if let Some(sender) = &input {
+                                let _ = sender.try_send(r#"{"v":1,"type":"shutdown"}"#.into());
+                            }
+                            shutdown_at = Some(Instant::now() + Duration::from_secs(2));
+                        }
+                    } else if failed {
+                        return Ok(());
+                    } else if smoke_test && message.get("type") == Some(&json!("pyyaki_smoke_done"))
+                    {
                         exit_code = if message.get("ok") == Some(&json!(true)) {
                             0
                         } else {
@@ -412,6 +462,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                             "host_elapsed/shell_marker={:?}",
                             started_at.elapsed()
                         );
+                        diagnostic(diagnostics, started_at, "shell_marker", Value::Null);
                         let (sender, receiver) = mpsc::sync_channel(32);
                         input = Some(sender);
                         deadline = Some(Instant::now() + Duration::from_secs(10));
@@ -447,6 +498,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     }
                 }
                 Event::UserEvent(HostEvent::BackendReady) if !failed && shutdown_at.is_none() => {
+                    diagnostic(diagnostics, started_at, "backend_ready", Value::Null);
                     window.set_title(&config.window.title);
                     backend_ready = true;
                     deadline = None;
@@ -500,10 +552,17 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         })();
         if let Err(error) = result {
             failed = true;
+            exit_code = 1;
             deadline = None;
             closing.store(true, Ordering::Release);
             worker.take();
             input.take();
+            diagnostic(
+                diagnostics,
+                started_at,
+                "backend_failed",
+                json!({"message": error.to_string()}),
+            );
             if let Some(view) = &view {
                 let _ = show_view_error(view, &error.to_string());
             }
@@ -533,7 +592,7 @@ fn post(view: &WebView, value: &Value) -> Result<(), Box<dyn Error>> {
 }
 fn show_view_error(view: &WebView, message: &str) -> Result<(), Box<dyn Error>> {
     let message = serde_json::to_string(message)?;
-    view.evaluate_script(&format!("document.body.replaceChildren();const error=document.createElement('pre');error.textContent={message};document.body.append(error);"))?;
+    view.evaluate_script(&format!("window.dispatchEvent(new Event('__pyyaki_backend_failed__'));document.body.replaceChildren();const error=document.createElement('pre');error.textContent={message};document.body.append(error);"))?;
     Ok(())
 }
 #[cfg(windows)]
