@@ -2,6 +2,8 @@
 
 実施日: 2026-11-03（日本時間）。既存ホストの検証であり、Windows単一exe生成やG1/G2全体の合格判定ではない。手順の正は[native/README.md](../native/README.md)、現在地は[ロードマップ](roadmap.md#現在地と次の作業)、受入条件は[要件定義](requirements.md)を参照する。
 
+GitHubで共有する短い要約は[引き継ぎメモ](handoffs/windows-2026-11-03.md)を参照する。
+
 ## 環境と準備
 
 | 項目 | 確認結果 |
