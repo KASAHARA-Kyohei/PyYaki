@@ -65,6 +65,8 @@ with tarfile.open(archive) as stream:
 
 隣に生成する`Hello PyYaki.build.json`へ、ホスト/wheel/lockのハッシュと生成ファイルのSHA-256・サイズ・内部symlinkを記録する。これは実行時に読む入力ではなく、ビルドの確認用レポート。既存の`.app`やレポートは上書きしない。ビルド中のstagingは失敗時にも破棄する。
 
+起動通知の内部契約を変更した場合（2026-11-04の計測追加等）は、Rustホストとframework wheelの両方を同じソースから再生成する。既存.app内のホスト・ワーカーは自動更新されない。
+
 ## 設定と制限
 
 - `tool.pyyaki.name`、reverse-DNS形式の`app-id`、3つの数値からなる`version`をbundleメタデータに使う。window.title未指定時はnameを使う。開発用ホストがnameを直接読む動作とは区別する。

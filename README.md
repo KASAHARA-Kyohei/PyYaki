@@ -6,6 +6,8 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 **現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査に加え、2026-11-03にWindows 11 x64でMSVCビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認しました。[失敗・未確認事項](docs/validation-windows.md)が残り、G1/G2全体は未完了です。公開パッケージ・Windows単一exeビルドはありません。MacはPython同梱`.app`のローカル生成試作を追加しました。Macネイティブでは初期計測と5分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
 
+起動期限やPython起動失敗は[段階ログ・障害画面・反復検証の手順](docs/startup-diagnostics.md)で切り分けられます。新しい計測と表示のWindows実機再検証は未実施です。
+
 開発を再開するときは[開発ガイド](docs/development.md)、現在の実装と残作業は[ロードマップの現在地](docs/roadmap.md#現在地と次の作業)を参照してください。
 
 2026-10-31の名称調査では、[PyPIの`pyyaki`公式API](https://pypi.org/pypi/pyyaki/json)は404で、[GitHubの名前検索](https://github.com/search?q=pyyaki+in%3Aname&type=repositories)でも該当する公開リポジトリは見つかりませんでした。名称は採用しましたが、PyPIでの登録可能性を保証するものではなく、公開時に再確認します。

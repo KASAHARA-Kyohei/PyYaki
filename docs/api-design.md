@@ -1,6 +1,6 @@
 # PyYaki 公開API設計
 
-状態: 共通API・Mac開発用ホストを実装、配布等は設計案 / 作成: 2026-10-30 / 更新: 2026-11-03 / Windows開発用ホストの主要動作を実機確認
+状態: 共通API・Mac開発用ホストを実装、配布等は設計案 / 作成: 2026-10-30 / 更新: 2026-11-04 / Windows開発用ホストの主要動作を実機確認
 
 本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。Context・イベント・起動/終了フックも実装済みで、実行可能なサンプルは`examples/hello`。未対応のCLI・ビルド等は設計例として区別する。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
 
@@ -224,7 +224,7 @@ IDは接続中に一意な最大128文字のASCII文字列。並行呼出しの�
 
 ### 5.4 内部ワーカー接続
 
-Mac/Windowsホストとワーカーには、公開メッセージとは別の制御メッセージとして`worker_hello / worker_welcome / dispatch / shutdown`を実装している。worker_helloはnonce、ホスト版、プロトコル版を照合し、worker_welcomeはアプリ初期化完了後に返す。dispatchはホストが発行したセッション識別子と公開メッセージを包む。Webアダプターは同じConnection/ディスパッチャーを直接使う。
+Mac/Windowsホストとワーカーには、公開メッセージとは別の制御メッセージとして`worker_hello / worker_progress / worker_welcome / worker_failed / dispatch / shutdown`を実装している。worker_helloはnonce、ホスト版、プロトコル版を照合し、worker_welcomeはアプリ初期化完了後に返す。dispatchはホストが発行したセッション識別子と公開メッセージを包む。Webアダプターは同じConnection/ディスパッチャーを直接使う。
 
 この制御面は公開APIではないが版管理の対象とし、JSから制御typeや他セッションIDを投入できないようにする。初期試作で使う内部JSONスキーマを以下に示す。残る制御面はG2で定義し、本書の公開契約と区別する。
 
@@ -233,11 +233,15 @@ Mac/Windowsホストとワーカーには、公開メッセージとは別の制
 | type | 他のフィールド | 意味 |
 | --- | --- | --- |
 | `worker_hello` | `nonce`、`framework_version` | 64文字nonceと`0.1.0.dev0`をパイプ内で通知。ワーカーは照合後にだけアプリをimport |
-| `worker_welcome` | `nonce`、`framework_version` | import・登録・起動フック完了後に同じnonce/版を返す。Rustは完全一致を確認 |
+| `worker_progress` | `nonce`、`framework_version`、`phase`、`worker_elapsed_ms` | 起動の6段階を固定順で通知。Rustは同じnonce/版と、有限・非負・単調な経過時間を検査 |
+| `worker_welcome` | `nonce`、`framework_version` | import・登録・起動フック完了後に同じnonce/版を返す。Rustは6段階完了後の完全一致を確認 |
+| `worker_failed` | `nonce`、`framework_version`、`phase`、`worker_elapsed_ms`、`error_type`、`message` | 通常例外をログ保存後に通知。phaseは直近の起動段階、welcome後は`connection`。例外名は1〜128文字、メッセージは最大1,024文字 |
 | `dispatch` | `session_id`、`message` | ホスト発行の接続IDと公開JSON。ワーカーは接続途中のID変更を拒否し、JSへ制御面を公開しない |
 | `shutdown` | なし | 新規要求を停止し、協調的に終了 |
 
 ホストは同じトップページからの`{"v":1,"type":"pyyaki_shell_ready"}`を起動用制御マーカーとして別処理する。SDKがレイアウト後に送信し、ホストはその後にPythonを生成する。画面提示の保証は録画・トレースが必要。ネイティブの公開helloはnonceなし、公開welcomeのmodeは`windows`または`macos`、capabilitiesは`["rpc", "events"]`とする。メンテナー用の明示フラグでのみ使う確認マーカーは[native/README.md](../native/README.md)を参照。
+
+2026-11-04に追加した起動段階は`worker_entered → config_loaded → app_import_started → app_imported → startup_hooks_started → startup_hooks_completed`。通知の繰返し・逆順・追加フィールドを拒否し、公開SDKへ中継しない。SDKからホストへの`{"v":1,"type":"pyyaki_connect_started"}`と`{"v":1,"type":"pyyaki_connect_timeout"}`も内部専用で、接続開始と内部10秒期限を記録する。期限通知時は障害画面とワーカー回収へ進む。呼出し単位のready待機期限とは区別する。記録の基準時刻・再検証方法は[起動の切り分け](startup-diagnostics.md)を参照。開発中の内部契約変更なので、ホストとワーカーを同じソースから更新する。
 
 ## 6. エラーと制限値
 

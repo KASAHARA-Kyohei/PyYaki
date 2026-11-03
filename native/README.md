@@ -1,6 +1,6 @@
 # PyYaki native host prototype
 
-2026-11-03時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**2026-11-03にWindows 11 x64のMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認した。G1/G2全体や単一exe配布は未完了。失敗・未確認事項は[Windows実機記録](../docs/validation-windows.md)を参照する。**
+2026-11-04時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**2026-11-03にWindows 11 x64のMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認した。G1/G2全体や単一exe配布は未完了。失敗・未確認事項は[Windows実機記録](../docs/validation-windows.md)を参照する。**
 
 共通APIの現在地は[ロードマップ](../docs/roadmap.md#現在地と次の作業)、SDK変更時の再ビルドや検査の使い分けは[開発ガイド](../docs/development.md)を参照する。
 
@@ -74,13 +74,17 @@ Python版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exe�
 
 同じinstance内の`host.log`にはホスト内の経過時間とエラーを記録する。外部`CreateProcess`前のt0とは異なり、`T_native`等の性能目標の達成証拠には使わない。プロファイル・ログは試作時点では自動削除しない。終了後に対象instanceを削除でき、業務データ保存先には使用しない。
 
+## 起動期限の再確認
+
+2026-11-04に起動段階ログ・障害画面・反復検証器を追加した。ホストとワーカーを同じソースから更新し、[起動の切り分け](../docs/startup-diagnostics.md)に従って通常/import遅延/起動フック遅延を確認する。新しいコードのWindows実機再検証は未実施で、以前の初回失敗の解消とは扱わない。
+
 ## 通信と制限
 
 - UIとSDKは`pyyaki://localhost/`をWebView2内部で解決する。Windowsの合成originは`https://pyyaki.localhost`。Rustはトップページの送信元と本文サイズを確認し、SDKはホストのブートストラップ情報から経路を選ぶ。
 - UIの二重`requestAnimationFrame`マーカー受信後にだけPythonを起動する。SDKの`ready()`を使わないUIではマーカーが届かず、10秒で初期化エラーになる。
 - 子プロセスは`CreateProcessW` + `STARTUPINFOEX`の継承ハンドル許可リストで生成し、Job Objectへ割り当ててから再開する。stdinはNUL、stdout/stderrはログ、RPCは各方向1本の別パイプ。
 - フレームは4バイトlittle-endian長 + UTF-8 JSON。サイズ上限1MiBは内部配送の包みも含むため、境界近くの公開メッセージは包みの分だけ小さくする必要がある。nonceはパイプ内だけで交換し、コマンドライン・環境変数へ入れない。
-- 内部`worker_hello/worker_welcome`で版・nonceを照合。以後は`dispatch`でホスト発行session_idと公開JSONを包む。公開helloにnonceは不要。`shutdown`で終了を要求する。スキーマは[API設計](../docs/api-design.md)を参照。
+- 内部`worker_hello/worker_progress/worker_welcome/worker_failed`で版・nonceと起動の進行・通常例外を照合。以後は`dispatch`でホスト発行session_idと公開JSONを包む。公開helloにnonceは不要。`shutdown`で終了を要求する。スキーマは[API設計](../docs/api-design.md)を参照。
 - Windows/Mac/Webは同じ`_rpc.Connection`と`App.dispatch`を使用。capabilitiesは`["rpc", "events"]`。接続単位のContext、64件のイベントキュー、起動・終了フックを共用する。起動フック完了後にworker_welcomeを返し、終了時はコマンド取消・Context破棄の後に終了フックを呼ぶ。
 - UI→ホストの未処理キュー32件、ホスト→ワーカー32件、ワーカー→GUIの受信待ち64件（イベント/応答の合計）、資産読込は同時16件・各16MiBを上限とする試作制約。超過は明示的な失敗にする。長時間稼働の採否は未評価。
 - wryの既定追加引数がSmartScreen保護を無効にする指定を含むため、追加引数を明示的に空にしている。OS・企業ポリシーやWebView2環境による実際の効果はWindowsで確認する。

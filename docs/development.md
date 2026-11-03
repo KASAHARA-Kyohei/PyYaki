@@ -1,6 +1,6 @@
 # 開発と動作確認
 
-更新: 2026-11-03。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
+更新: 2026-11-04。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
 
 ## 最初に確認すること
 
@@ -48,7 +48,9 @@ cargo build --manifest-path native/Cargo.toml --locked
 | ウィンドウ / プロセス / 資産配信 | `native/src/` | Rustの再ビルドと再起動 |
 | 専用スモーク確認 | `native/smoke.js` | Rustの再ビルド後、`--smoke-test`で起動 |
 
-SDKはネイティブホストへコンパイル時に埋め込まれる。Pythonや利用者UIはホスト生成時に同梱しない開発方式なので、Python/UIだけの変更でRustの再ビルドは不要。自動再読込は未実装で、ネイティブのページ再読み込み・別ページへの遷移も許可していない。
+SDKと`native/failure.js`・`native/failure.css`はネイティブホストへコンパイル時に埋め込まれる。Pythonや利用者UIはホスト生成時に同梱しない開発方式なので、Python/UIだけの変更でRustの再ビルドは不要。自動再読込は未実装で、ネイティブのページ再読み込み・別ページへの遷移も許可していない。
+
+ワーカーの内部契約を変更した場合も、対応するRustホストを再ビルドする。2026-11-04の起動通知追加はこの変更に該当する。
 
 新しいコマンドは`@app.command`で非同期関数として明示登録し、必要なら`*, ctx: Context`を宣言する。イベント・フックの使い方は[Python API](api-design.md#3-python-api)と[JavaScript API](api-design.md#4-javascript-api)を参照。UIはHTML/CSS/JSの独立ファイルへ置き、Pythonの文字列へ埋め込まない。
 
@@ -103,7 +105,7 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 | ポートが使用中 | Webの`--port`を変更。ネイティブのRPCはHTTP/WebSocket待受を使わない |
 | コマンドが見つからない / 型検証で失敗 | `entry`と登録名、名前付きparams、型注釈を確認。ContextはJSONから渡さない |
 | ネイティブにJS変更が反映されない | SDK変更ならRustホストを再ビルド。通常のUI変更ならホストを再起動 |
-| ready失敗 / BACKEND_FAILED | entry・依存・起動フックを確認。Macのホスト/ワーカーログは`~/Library/Application Support/PyYaki/prototype/<instance>/` |
+| ready失敗 / BACKEND_FAILED | [段階ログ・反復検証](startup-diagnostics.md)で切り分け、entry・依存・起動フックを確認。Macのホスト/ワーカーログは`~/Library/Application Support/PyYaki/prototype/<instance>/` |
 | 呼び出しを重ねた後に切断 | 現在は1接続で累積4,096要求の上限がある。Webはページ再読込、ネイティブはホスト再起動で新しい接続にする |
 
 ログとプロファイルは試作では自動削除しない。ブラウザ画像、診断のraw標本、生成物は`test-results/`等のGit管理外へ保存する。起動/終了フックはワーカーまたはASGI lifespanごとに実行し、ブラウザの接続単位の状態はContextへ置く。取消は協調的で、同期CPU処理や取消を無視する処理の停止・巻戻しを保証しない。
@@ -112,4 +114,6 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 
 2026-11-03にWindows 11 x64のMSVC releaseビルドと実WebView2の主要動作を確認した。[実機記録](validation-windows.md)に端末のPythonパス、既定Rustを変えない`+1.89.0`指定、実行コマンド、失敗と残課題を記載している。`pip install`の完了後、`python -I -c "import pyyaki"`も確認してからホストを起動する。
 
-Python検査はWindowsで67件成功・14件スキップ。symlink作成がWinError 1314ならリンク専用2件だけをスキップし、他のWeb検査は実行する。既存のPOSIXワーカー等12件もWindows対象外。権限やOS設定を変えて回避しない。
+当日のPython検査はWindowsで67件成功・14件スキップ。symlink作成がWinError 1314ならリンク専用2件だけをスキップし、他のWeb検査は実行する。当日はPOSIXワーカー等12件もWindows対象外だった。新規検査を含む更新版の件数は再実行で確認する。権限やOS設定を変えて回避しない。
+
+起動期限の再現確認には[起動の切り分け](startup-diagnostics.md)の`tests/startup_probe.py`を使う。新しい計測・障害画面はMacで確認した段階で、Windowsでの解消は再検証が必要。以前の実機記録を更新版の合格証拠にしない。

@@ -32,6 +32,7 @@
 | `docs/build-system.md` | wheel、ランタイム、依存解決、成果物、署名、更新、ライセンス管理 |
 | `docs/roadmap.md` | 現在地、段階、検証ゲート、実装順序、文書レビュー記録 |
 | `docs/development.md` | 作業再開、開発・検査の手順、変更の反映、問題の切り分け |
+| `docs/startup-diagnostics.md` | 起動段階ログ、障害画面、Mac/Windows反復検証の手順と限界 |
 | `docs/performance-macos.md` | Macの実測条件・結果・限界。目標や受入条件はrequirementsを参照 |
 | `docs/macos-build.md` | Mac .app試作の資材・生成・再配置検証・未対応範囲 |
 | `native/README.md` | 開発用ホストのビルド・起動・Windows確認・診断の手順 |
