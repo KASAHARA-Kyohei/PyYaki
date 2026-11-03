@@ -1,8 +1,8 @@
 # PyYaki アーキテクチャ設計
 
-状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-10-31 / Windows実行・Windowsベンチマーク未実施
+状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-03 / Windows既存ホストの実機確認済み・Windowsベンチマーク未実施
 
-初期試作では、`web.py`と通信に依存しない`app.py`、共有セッション`_rpc.py`、匿名パイプの`worker.py`、Windows用Rustホスト`native/`を実装した。RPC、接続単位のContext、順序付きイベントとSDK購読、起動・終了フックを提供する。MacのWeb/ワーカー試験とWindowsの型検査を行ったが、WindowsのGUI実行・ネイティブwheel・単一exeは未確認または未実装で、Windows用のADRやMVP全体の採択とは扱わない。
+初期試作では、`web.py`と通信に依存しない`app.py`、共有セッション`_rpc.py`、匿名パイプの`worker.py`、Windows用Rustホスト`native/`を実装した。RPC、接続単位のContext、順序付きイベントとSDK購読、起動・終了フックを提供する。MacのWeb/ワーカー試験とWindowsの型検査に加え、WindowsのGUI/RPCと通常終了・ホスト強制終了時のPython回収を2026-11-03に[実機確認](validation-windows.md)した。ネイティブwheel・単一exe・ネットワーク/企業環境は未確認または未実装で、Windows用のADRやMVP全体の採択とは扱わない。
 
 開発用ホストはtao 0.34.8 / wry 0.53.5をCargo.lockで固定し、既存WebView2を使う。Python生成をHTMLマーカー後へ遅延し、STARTUPINFOEXの継承ハンドル許可リストとJob Objectを使うコードを実装した。wry既定のSmartScreen保護無効化引数は追加引数を空にして除外し、実際の効果・先行描画・ハンドル継承・企業環境との互換性はWindowsで確認する。
 

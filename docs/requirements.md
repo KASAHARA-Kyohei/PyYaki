@@ -1,8 +1,8 @@
 # PyYaki 要件定義
 
-状態: 初期設計案 + Web試作・Windows開発用ホストのソース実装 / 作成・技術調査日: 2026-10-30 / 更新: 2026-10-31 / Windows実行未確認・Windows性能未測定
+状態: 初期設計案 + Web試作・Windows開発用ホストのソース実装 / 作成・技術調査日: 2026-10-30 / 更新: 2026-11-03 / Windows既存ホストの主要動作確認済み・Windows性能未測定
 
-Windows用Rustホスト、匿名パイプのPythonワーカー、共通SDKのネイティブ経路を追加した。Macで共通処理と実パイプの子プロセスを試験し、Windows GNUターゲットの型検査を行った範囲に限る。FR-03/04/07や単一exeのFR-08、WindowsのNFR-04等の受入条件は、Windows実行とG1以降の試験が終わるまで未達として扱う。[開発用確認手順](../native/README.md)と[検証記録](roadmap.md#2026-10-31-windows開発用ネイティブホスト)を参照。
+Windows用Rustホスト、匿名パイプのPythonワーカー、共通SDKのネイティブ経路を追加した。Macで共通処理と実パイプの子プロセスを試験し、Windows GNUターゲットの型検査に加え、2026-11-03にWindows 11 x64のMSVCビルド・実WebView2の主要動作・Python回収を確認した。[実機記録](validation-windows.md)の未確認事項も参照する。FR-03/04/07や単一exeのFR-08、WindowsのNFR-04等の受入条件は、既存ホストの部分確認に留まり、G1以降の残る試験が終わるまで未達として扱う。[開発用確認手順](../native/README.md)と[検証記録](roadmap.md#2026-10-31-windows開発用ネイティブホスト)を参照。
 
 Macでは開発用WKWebViewホストを追加し、実ネイティブ経路のRPC確認、起動・RPCの補助測定、5分の連続試験を実施した。現在地は[ロードマップ](roadmap.md#現在地と次の作業)、測定条件は5.4と[計測報告](performance-macos.md)を参照。正式配布、Windowsの起動性能、時間単位の稼働、Windows実行の受入条件は引き続き未達として扱う。
 
@@ -25,7 +25,7 @@ PyYakiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから�
 
 ## 2. 利用者と対象環境の提案
 
-2026-10-31に確認した開発体制は、主な開発機がMacで、ある程度開発が進んだ段階で手元のWindowsを使って動作確認するもの。手元のWindowsのOS版・CPU・検証用Pythonは未確認であり、下表のMVP候補に適合するかはWindows検証開始前に確認する。macOSでは共通Python処理・UI・Web経路を確認し、Windows専用の起動・通信・ビルド・配布の受入条件はWindows上で別途検証する。その後、利用者の追加依頼によりmacOSの開発用ネイティブGUIを実装する範囲へ拡張した。MacのPython同梱.app生成はその後の追加依頼でローカル試作を実装した。Developer ID署名/公証や第三者への正式配布は別途検討する。
+2026-10-31に確認した開発体制は、主な開発機がMacで、ある程度開発が進んだ段階で手元のWindowsを使って動作確認するもの。当時はWindowsのOS版・CPU・検証用Pythonが未確認だった。2026-11-03にWindows 11 Pro x64とCPython 3.14.10通常GIL版で既存ホストを実機確認したが、下表の対応範囲や配布互換性の一括採択ではない。macOSでは共通Python処理・UI・Web経路を確認し、Windows専用の起動・通信・ビルド・配布の受入条件はWindows上で別途検証する。その後、利用者の追加依頼によりmacOSの開発用ネイティブGUIを実装する範囲へ拡張した。MacのPython同梱.app生成はその後の追加依頼でローカル試作を実装した。Developer ID署名/公証や第三者への正式配布は別途検討する。
 
 同日、最初の試作に使うPythonは**CPython 3.14通常GIL版の1 minorに限定する**方針を利用者が承認した。これは試作環境の選択であり、Windows配布ランタイムの互換性やMVPの対応環境の検証完了を意味しない。初期試作はMacのCPython 3.14.3（`Py_GIL_DISABLED=0`）で確認した。
 

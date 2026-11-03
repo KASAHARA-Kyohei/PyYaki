@@ -1,6 +1,6 @@
 # PyYaki 公開API設計
 
-状態: 共通API・Mac開発用ホストを実装、配布等は設計案 / 作成: 2026-10-30 / 更新: 2026-10-31 / Windows実行は未確認
+状態: 共通API・Mac開発用ホストを実装、配布等は設計案 / 作成: 2026-10-30 / 更新: 2026-11-03 / Windows開発用ホストの主要動作を実機確認
 
 本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。Context・イベント・起動/終了フックも実装済みで、実行可能なサンプルは`examples/hello`。未対応のCLI・ビルド等は設計例として区別する。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
 
@@ -9,8 +9,8 @@
 | `App`、`@app.command`、型検証、`AppError`/`FrameworkError`、`app.asgi()` | 実装済み。ASGIは現状loopback限定の試作用 |
 | JS `ready`/`invoke`/`on`、`PyYakiError`、state/capabilities、期限・取消 | 実装済み。SDK/Python版は`0.1.0.dev0`で一致させる |
 | hello/welcome、call/result/error、cancel、event | WebSocketと専用パイプ経路を実装。capabilitiesは`["rpc", "events"]` |
-| `Context`、イベント、`on`、起動・終了フック | 共通処理として実装済み。Windows GUIの実機検証は未実施 |
-| Mac/Windowsブリッジ・内部ワーカー通信 | Macは実WKWebView・実パイプで確認。Windowsはソース・型検査・仮ブリッジの契約確認までで、GUI/ハンドル継承の実行は未確認 |
+| `Context`、イベント、`on`、起動・終了フック | 共通処理として実装済み。Windows実WebView2のイベント・取消・終了フックも確認 |
+| Mac/Windowsブリッジ・内部ワーカー通信 | Macは実WKWebView・実パイプで確認。WindowsもMSVCビルド・実WebView2のRPC・Python回収を確認。不要ハンドル非継承の負例等は未確認。[実機記録](validation-windows.md)を参照 |
 
 試作固有の制約: 接続初期化nonceは30秒・一度限りで、未使用nonceは全体256件を上限に古いものから失効。JSONの深さは64まで、1接続の要求ID追跡は4,096件までで、超過時は接続を閉じる。接続復帰はページの手動再読み込み。JSON本文1MiB、同時16要求、invoke既定30秒/最大120秒は設計値を使用。送信待ちは2秒で打ち切り、プロトコル違反・版不一致は接続を閉じる。これらの試作制約はMVPの最終採択ではなく、長時間稼働は未検証。
 

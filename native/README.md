@@ -1,6 +1,6 @@
 # PyYaki native host prototype
 
-2026-10-31時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**Windowsでのリンク・GUI実行は未確認で、G1合格や単一exe配布の完成を意味しない。macOS用の開発ホストも後述のとおり追加した。**
+2026-11-03時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**2026-11-03にWindows 11 x64のMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認した。G1/G2全体や単一exe配布は未完了。失敗・未確認事項は[Windows実機記録](../docs/validation-windows.md)を参照する。**
 
 共通APIの現在地は[ロードマップ](../docs/roadmap.md#現在地と次の作業)、SDK変更時の再ビルドや検査の使い分けは[開発ガイド](../docs/development.md)を参照する。
 
@@ -18,7 +18,7 @@ Windows専用処理を`process.rs`、Macを`process_macos.rs`に分け、イベ�
 
 ログは`~/Library/Application Support/PyYaki/prototype/<instance>/`。Python同梱.appのローカル生成試作は[専用手順](../docs/macos-build.md)を参照。Developer ID署名/公証・他Macへの正式配布は未対応。SDK 27とのリンクエラーが出るこの開発機では、インストール済みSDK 26.5を`SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk`で選択してビルドした。
 
-`--smoke-test`を末尾に追加すると、`examples/hello`専用の実WKWebView確認を行い、自動終了する。あいさつ・エラー・並行呼び出し・進捗イベントの順序/購読解除・取消に成功すれば`native_smoke`のokがtrueとなり、終了コード0を返す。通常起動ではこの確認用スクリプト・終了通知は使用しない。
+`--smoke-test`を末尾に追加すると、`examples/hello`専用の実WebView確認（MacはWKWebView、WindowsはWebView2）を行い、自動終了する。あいさつ・エラー・並行呼び出し・進捗イベントの順序/購読解除・取消に成功すれば`native_smoke`のokがtrueとなり、終了コード0を返す。通常起動ではこの確認用スクリプト・終了通知は使用しない。
 
 ## Macの速度・安定性を計測する
 
@@ -37,7 +37,7 @@ cargo build --manifest-path native/Cargo.toml --release --locked
 
 ## Windowsでの開発用確認
 
-利用者からWindows 11、CPUはx64の見込み、Python/Rustはこれから導入すると回答を得た。CPUとツールの実測は未確認。Windowsの単一exe実装を作り込む前に、以下の既存ホストのMSVCビルドと起動を確認する。
+2026-11-03にWindows 11 Pro 25H2 / Intel Core i5-8250U x64、CPython 3.14.10通常GIL版、Rust 1.89.0 MSVC、既存MSVCとWebView2でビルド・起動を確認した。詳細は[実機記録](../docs/validation-windows.md)。以下は開発用の汎用手順で、Windows単一exe生成は未実装。
 
 [MicrosoftのRust環境手順](https://learn.microsoft.com/en-us/windows/dev-environment/rust/setup)に従い、MSVC Build Toolsの「C++によるデスクトップ開発」（MSVC x64/x86とWindows SDKを含む）、RustのMSVCツールチェーン、CPython 3.14通常GIL版を用意する。導入後にPowerShellを開き直し、次を確認する。
 
@@ -48,6 +48,8 @@ rustc -vV
 ```
 
 [Architectureは9がx64、12がARM64](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-processor)。Rustのhostが`x86_64-pc-windows-msvc`であることを確認する。異なる場合は対応候補を確定せず、結果を共有して検証環境を確認する。
+
+この端末は`py` launcherがなくPythonの絶対パスを使い、既定Rust 1.84.1を維持して`cargo +1.89.0`で検証した。手順中の`py -3.14`や`cargo`は環境に合わせて選択する。`pip install`は完了とimport成功を確認してからホストを起動する。実スモークは起動引数末尾へ`--smoke-test`を追加する。
 
 以下はフレームワークのメンテナー向け。Windows x64、CPython 3.14通常GIL版、利用可能なWebView2 Runtimeと、Rust 1.89以降・MSVCビルド環境を事前に用意する。アプリ利用者向けのRust不要wheel配布は未実装であり、この手順を正式なアプリ導入手順にはしない。ランタイムを自動ダウンロード・インストールする処理はない。
 
@@ -65,7 +67,7 @@ Python版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exe�
 確認項目:
 
 1. Rust起動画面 → HTML → Python接続済みの順に進み、あいさつ・エラー・3秒待機中のUI操作が動く。
-2. アプリのimport前に意図的な5秒遅延を入れても、起動画面・HTMLと閉じる操作が先に動く。描画マーカーは画面提示の証明ではないため、録画等でも確認する。
+2. アプリのimport前に意図的な5秒遅延を入れ、起動画面・HTMLと閉じる操作が先に動く。描画マーカーは画面提示の証明ではないため、録画等でも確認する。
 3. Pythonのimport失敗・終了・期限超過で原因を表示し、閉じるとワーカーを回収する。通常終了待ちは最大2秒で、Job Objectへの割当失敗はエラーにする。
 4. `stdout`への大量出力がRPCを壊さず、`%LOCALAPPDATA%\PyYaki\prototype\<instance>\worker.log`へ記録される。
 5. 外部・別ページへの遷移、新規ウィンドウ、ダウンロード、iframeからの操作を拒否する。無効プロキシ・ネットワーク切断下のUI/RPCと、HTTP/WebSocket待受がないことを実機トレースで確認する。
