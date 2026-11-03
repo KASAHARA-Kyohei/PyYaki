@@ -65,6 +65,11 @@ def test_cli_port_conflict_has_explanation():
         listener.listen()
         result = cli("dev", "--port", str(listener.getsockname()[1]))
         assert result.returncode != 0
+        if sys.platform == "win32" and "[WinError 10013]" in result.stderr:
+            # Windows may report an exclusive/occupied socket as access denied.
+            # Do not misclassify every access denial as EADDRINUSE in the CLI.
+            assert f"cannot listen on 127.0.0.1:{listener.getsockname()[1]}" in result.stderr
+            return
         assert f"port {listener.getsockname()[1]} is already in use" in result.stderr
         assert "pyyaki dev --port 8001" in result.stderr
 

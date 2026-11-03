@@ -18,18 +18,18 @@ def test_asset_selection_excludes_secrets_and_development_files(tmp_path):
         collect(tmp_path, ["ui/.env"])
 
 
-def test_external_assets_and_nonrelocatable_runtime_links_are_rejected(tmp_path):
+def test_external_assets_and_nonrelocatable_runtime_links_are_rejected(tmp_path, symlink):
     root = tmp_path / "project"
     root.mkdir()
     (tmp_path / "secret.py").write_text("private")
-    (root / "app.py").symlink_to(tmp_path / "secret.py")
+    symlink(root / "app.py", tmp_path / "secret.py")
     with pytest.raises(ValueError, match="escapes"):
         collect(root, ["app.py"])
     with pytest.raises(ValueError, match="Non-relocatable"):
         check_tree(root)
     (root / "app.py").unlink()
     (root / "real.py").write_text("allowed")
-    (root / "alias.py").symlink_to("real.py")
+    symlink(root / "alias.py", "real.py")
     check_tree(root)
     with pytest.raises(ValueError, match="regular files"):
         collect(root, ["alias.py"])

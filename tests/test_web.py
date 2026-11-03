@@ -21,7 +21,6 @@ def client(tmp_path):
     (ui / "index.html").write_text("<!doctype html><h1>Hello</h1>")
     (ui / ".env").write_text("SECRET=hidden")
     (tmp_path / "private.html").write_text("hidden")
-    (ui / "escape.html").symlink_to(tmp_path / "private.html")
     app = App()
     started, cancelled = threading.Event(), threading.Event()
     contexts = []
@@ -306,5 +305,10 @@ def test_assets_and_security_headers(client):
     assert "script-src 'self'" in response.headers["content-security-policy"]
     assert response.headers["x-content-type-options"] == "nosniff"
     assert client.get("/_pyyaki/sdk.js").status_code == 200
-    for path in ["/.env", "/%2e%2e/private.html", "/escape.html", "/_pyyaki/unknown", "/a%5cb"]:
+    for path in ["/.env", "/%2e%2e/private.html", "/_pyyaki/unknown", "/a%5cb"]:
         assert client.get(path).status_code == 404
+
+
+def test_assets_reject_external_symlink(client, tmp_path, symlink):
+    symlink(tmp_path / "ui/escape.html", tmp_path / "private.html")
+    assert client.get("/escape.html").status_code == 404
