@@ -1,5 +1,6 @@
 use crate::process::Worker;
 use pyyaki_host::navigation::NavigationGate;
+use pyyaki_host::startup::{Startup, Update};
 use pyyaki_host::{MAX_MESSAGE_BYTES, ORIGIN, VERSION, assets, config::Config, framing};
 use serde_json::{Value, json};
 use std::{
@@ -8,7 +9,7 @@ use std::{
     io::Write,
     path::PathBuf,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, AtomicUsize, Ordering},
         mpsc::{self, SyncSender},
     },
@@ -43,8 +44,39 @@ enum HostEvent {
     Ipc(QueuedMessage<String>),
     Spawned(Worker),
     BackendReady,
+    StartupPhase(&'static str),
     Reply(QueuedMessage<Value>),
     Failed(String),
+}
+
+struct StartupLog {
+    file: Mutex<fs::File>,
+    started: Instant,
+    diagnostics: bool,
+}
+
+struct BackendPaths {
+    python: PathBuf,
+    root: PathBuf,
+    log: PathBuf,
+}
+
+impl StartupLog {
+    fn mark(&self, phase: &str, data: Value) {
+        let record = json!({"phase":phase,
+            "host_elapsed_ms":self.started.elapsed().as_secs_f64() * 1000.0,"data":data});
+        self.line(&format!("pyyaki_startup={record}"));
+        if self.diagnostics {
+            eprintln!("pyyaki_diagnostic={record}");
+        }
+    }
+
+    fn line(&self, text: &str) {
+        if let Ok(mut file) = self.file.lock() {
+            let _ = writeln!(file, "{text}");
+            let _ = file.flush();
+        }
+    }
 }
 
 struct QueuedMessage<T> {
@@ -138,17 +170,19 @@ fn post(view: &WebView, value: &Value) -> Result<(), Box<dyn Error>> {
 }
 
 fn start_backend(
-    python: PathBuf,
-    root: PathBuf,
-    log: PathBuf,
+    paths: BackendPaths,
     session: String,
     receiver: mpsc::Receiver<String>,
     proxy: EventLoopProxy<HostEvent>,
     closing: Arc<AtomicBool>,
+    trace: Arc<StartupLog>,
 ) {
     thread::spawn(move || {
+        let mut stage = "python_spawn";
         let result = (|| -> Result<(), Box<dyn Error>> {
-            let worker = Worker::spawn(&python, &root, &log)?;
+            trace.mark("python_spawn_started", Value::Null);
+            let worker = Worker::spawn(&paths.python, &paths.root, &paths.log)?;
+            trace.mark("python_spawned", Value::Null);
             if closing.load(Ordering::Acquire) {
                 return Ok(());
             }
@@ -158,17 +192,28 @@ fn start_backend(
                 .send_event(HostEvent::Spawned(worker))
                 .map_err(|_| "GUI closed")?;
             let nonce = token()?;
+            stage = "worker_handshake";
             framing::write(
                 &mut writer,
                 &json!({"v":1,"type":"worker_hello", "nonce":nonce,
                 "framework_version":VERSION}),
             )?;
-            let welcome = framing::read(&mut reader)?;
-            if welcome
-                != json!({"v":1,"type":"worker_welcome", "nonce":nonce,"framework_version":VERSION})
-            {
-                return Err("Worker handshake or framework version mismatch".into());
+            let mut startup = Startup::default();
+            loop {
+                match startup.accept(framing::read(&mut reader)?, &nonce)? {
+                    Update::Progress { phase, elapsed_ms } => {
+                        stage = phase;
+                        trace.mark(phase, json!({"worker_elapsed_ms":elapsed_ms}));
+                        proxy
+                            .send_event(HostEvent::StartupPhase(phase))
+                            .map_err(|_| "GUI closed")?;
+                    }
+                    Update::Ready => break,
+                    Update::Failed(message) => return Err(message.into()),
+                }
             }
+            stage = "connection";
+            trace.mark("worker_welcome", Value::Null);
             let writer_proxy = proxy.clone();
             thread::spawn(move || {
                 for text in receiver {
@@ -185,6 +230,12 @@ fn start_backend(
             let pending_replies = Arc::new(AtomicUsize::new(0));
             loop {
                 let mut frame = framing::read(&mut reader)?;
+                if frame.get("type") == Some(&json!("worker_failed")) {
+                    return match startup.accept(frame, &nonce)? {
+                        Update::Failed(message) => Err(message.into()),
+                        _ => Err("Invalid worker failure frame".into()),
+                    };
+                }
                 if frame.get("v") != Some(&json!(1))
                     || frame.get("type") != Some(&json!("dispatch"))
                     || frame.get("session_id") != Some(&json!(session))
@@ -204,9 +255,12 @@ fn start_backend(
         if let Err(error) = result
             && !closing.load(Ordering::Acquire)
         {
+            trace.mark(
+                "worker_failed",
+                json!({"stage":stage,"message":error.to_string()}),
+            );
             let _ = proxy.send_event(HostEvent::Failed(format!(
-                "{error}. Worker log: {}",
-                log.display()
+                "Python backend failed during {stage}: {error}"
             )));
         }
     });
@@ -302,10 +356,16 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let instance = instance_base()?;
     let instance = instance.join("PyYaki").join("prototype").join(&session);
     fs::create_dir_all(&instance)?;
-    let mut host_log = fs::OpenOptions::new()
+    let host_log = fs::OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(instance.join("host.log"))?;
+    let trace = Arc::new(StartupLog {
+        file: Mutex::new(host_log),
+        started: started_at,
+        diagnostics,
+    });
+    trace.mark("host_started", json!({"pid":std::process::id()}));
     let event_loop = EventLoopBuilder::<HostEvent>::with_user_event().build();
     let window = WindowBuilder::new()
         .with_title(&config.window.title)
@@ -319,8 +379,10 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let mut input: Option<SyncSender<String>> = None;
     let mut pending_hello: Option<String> = None;
     let mut started = false;
+    let mut sdk_connect_started = false;
     let mut backend_ready = false;
     let mut failed = false;
+    let mut last_worker_phase = "ui_initialization";
     let mut deadline: Option<Instant> = None;
     let mut shutdown_at: Option<Instant> = None;
     let mut exit_code = 0;
@@ -335,18 +397,15 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     if failed {
                         return Ok(());
                     }
-                    let _ = writeln!(
-                        host_log,
-                        "host_elapsed/native_draw={:?}",
-                        started_at.elapsed()
-                    );
-                    diagnostic(diagnostics, started_at, "native_draw", Value::Null);
+                    trace.mark("native_draw", Value::Null);
                     let protocol_config = config.clone();
                     let navigation = NavigationGate::default();
                     let ipc_proxy = proxy.clone();
                     let ipc_count = Arc::new(AtomicUsize::new(0));
                     let ipc_overflow = AtomicBool::new(false);
                     let active_assets = Arc::new(AtomicUsize::new(0));
+                    let asset_trace = trace.clone();
+                    let seen_assets = AtomicUsize::new(0);
                     let new_view =
                         platform_builder(WebViewBuilder::new_with_web_context(&mut context))
                             .with_devtools(false)
@@ -377,6 +436,18 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                             .with_asynchronous_custom_protocol(
                                 "pyyaki".into(),
                                 move |_, request, responder| {
+                                    let traced_asset = match request.uri().path() {
+                                        "/" => Some(("document", 1)),
+                                        "/_pyyaki/sdk.js" => Some(("sdk", 2)),
+                                        _ => None,
+                                    }
+                                    .filter(|(_, bit)| {
+                                        seen_assets.fetch_or(*bit, Ordering::AcqRel) & bit == 0
+                                    })
+                                    .map(|(asset, _)| asset);
+                                    if let Some(asset) = traced_asset {
+                                        asset_trace.mark("asset_requested", json!({"asset":asset}));
+                                    }
                                     if active_assets.fetch_add(1, Ordering::AcqRel) >= 16 {
                                         active_assets.fetch_sub(1, Ordering::AcqRel);
                                         responder.respond(
@@ -389,6 +460,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                                     }
                                     let active = active_assets.clone();
                                     let config = protocol_config.clone();
+                                    let trace = asset_trace.clone();
                                     thread::spawn(move || {
                                         let response = if request.method() == "GET"
                                             && request.uri().scheme_str() == Some("pyyaki")
@@ -406,6 +478,13 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                                             Ok((body, mime)) => (200, body, mime),
                                             Err(_) => (404, Vec::new(), "text/plain"),
                                         };
+                                        if let Some(asset) = traced_asset {
+                                            trace.mark(
+                                                "asset_response",
+                                                json!({"asset":asset,
+                                                "status":status,"bytes":body.len()}),
+                                            );
+                                        }
                                         responder.respond(
                                             Response::builder()
                                                 .status(status)
@@ -423,7 +502,9 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                             .with_url("pyyaki://localhost/")
                             .build(&window)?;
                     view = Some(new_view);
+                    trace.mark("webview_created", Value::Null);
                     deadline = Some(Instant::now() + Duration::from_secs(10));
+                    trace.mark("ui_deadline_started", json!({"timeout_ms":10000}));
                 }
                 Event::UserEvent(HostEvent::Ipc(mut incoming)) if shutdown_at.is_none() => {
                     let text = std::mem::take(&mut incoming.value);
@@ -469,38 +550,45 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                         } else {
                             1
                         };
-                        let _ = writeln!(host_log, "native_smoke={message}");
+                        trace.line(&format!("native_smoke={message}"));
                         eprintln!("native_smoke={message}");
                         closing.store(true, Ordering::Release);
                         if let Some(sender) = &input {
                             let _ = sender.try_send(r#"{"v":1,"type":"shutdown"}"#.into());
                         }
                         shutdown_at = Some(Instant::now() + Duration::from_secs(2));
+                    } else if message == json!({"v":1,"type":"pyyaki_connect_started"})
+                        && !started
+                        && !sdk_connect_started
+                    {
+                        sdk_connect_started = true;
+                        trace.mark("sdk_connect_started", Value::Null);
                     } else if message == json!({"v":1,"type":"pyyaki_shell_ready"}) && !started {
                         started = true;
-                        let _ = writeln!(
-                            host_log,
-                            "host_elapsed/shell_marker={:?}",
-                            started_at.elapsed()
-                        );
-                        diagnostic(diagnostics, started_at, "shell_marker", Value::Null);
+                        trace.mark("shell_marker", Value::Null);
+                        last_worker_phase = "python_spawn";
                         let (sender, receiver) = mpsc::sync_channel(32);
                         input = Some(sender);
                         deadline = Some(Instant::now() + Duration::from_secs(10));
+                        trace.mark("backend_deadline_started", json!({"timeout_ms":10000}));
                         start_backend(
-                            python.clone(),
-                            config.root.clone(),
-                            instance.join("worker.log"),
+                            BackendPaths {
+                                python: python.clone(),
+                                root: config.root.clone(),
+                                log: instance.join("worker.log"),
+                            },
                             session.clone(),
                             receiver,
                             proxy.clone(),
                             closing.clone(),
+                            trace.clone(),
                         );
                     } else if message.get("type") == Some(&json!("hello"))
                         && started
                         && pending_hello.is_none()
                         && !backend_ready
                     {
+                        trace.mark("sdk_hello_received", Value::Null);
                         pending_hello = Some(text);
                     } else if backend_ready
                         && matches!(
@@ -508,7 +596,13 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                             Some("hello" | "call" | "cancel")
                         )
                     {
+                        if message.get("type") == Some(&json!("hello")) {
+                            trace.mark("sdk_hello_received", Value::Null);
+                        }
                         send(input.as_ref().ok_or("No worker")?, &session, &text)?;
+                    } else if message == json!({"v":1,"type":"pyyaki_connect_timeout"}) {
+                        trace.mark("sdk_connect_timeout", Value::Null);
+                        return Err("SDK connection timed out (10 seconds)".into());
                     } else {
                         return Err("Invalid native UI message or navigation".into());
                     }
@@ -519,7 +613,8 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     }
                 }
                 Event::UserEvent(HostEvent::BackendReady) if !failed && shutdown_at.is_none() => {
-                    diagnostic(diagnostics, started_at, "backend_ready", Value::Null);
+                    trace.mark("backend_ready", Value::Null);
+                    last_worker_phase = "connection";
                     window.set_title(&config.window.title);
                     backend_ready = true;
                     deadline = None;
@@ -527,9 +622,17 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                         send(input.as_ref().ok_or("No worker")?, &session, &hello)?;
                     }
                 }
+                Event::UserEvent(HostEvent::StartupPhase(phase))
+                    if !failed && shutdown_at.is_none() =>
+                {
+                    last_worker_phase = phase;
+                }
                 Event::UserEvent(HostEvent::Reply(message)) if !failed && shutdown_at.is_none() => {
                     if let Some(view) = &view {
                         post(view, &message.value)?;
+                        if message.value.get("type") == Some(&json!("welcome")) {
+                            trace.mark("sdk_welcome_posted", Value::Null);
+                        }
                     }
                 }
                 Event::UserEvent(HostEvent::Failed(message))
@@ -565,6 +668,10 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     *flow = ControlFlow::ExitWithCode(exit_code);
                 }
             } else if deadline.is_some_and(|until| Instant::now() >= until) {
+                trace.mark(
+                    "host_initialization_timeout",
+                    json!({"last_worker_phase":last_worker_phase}),
+                );
                 return Err("UI/worker initialization timed out (10 seconds)".into());
             } else if backend_ready && worker.as_ref().is_some_and(Worker::exited) && !failed {
                 return Err("Python worker exited unexpectedly".into());
@@ -578,17 +685,18 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             closing.store(true, Ordering::Release);
             worker.take();
             input.take();
-            diagnostic(
-                diagnostics,
-                started_at,
+            trace.mark(
                 "backend_failed",
-                json!({"message": error.to_string()}),
+                json!({"message": error.to_string(),"last_worker_phase":last_worker_phase}),
             );
             if let Some(view) = &view {
-                let _ = show_view_error(view, &error.to_string());
+                let _ = show_view_error(view, &error.to_string(), last_worker_phase, &instance);
             }
-            splash = format!("PyYaki: {error} — close the window to exit.");
-            let _ = writeln!(host_log, "{splash}");
+            splash = format!(
+                "PyYaki: {error}\nLogs: {}\nClose the window to exit.",
+                instance.display()
+            );
+            trace.line(&splash);
             window.set_title("PyYaki — failed");
             window.request_redraw();
         }
@@ -611,9 +719,16 @@ fn post(view: &WebView, value: &Value) -> Result<(), Box<dyn Error>> {
     ))?;
     Ok(())
 }
-fn show_view_error(view: &WebView, message: &str) -> Result<(), Box<dyn Error>> {
-    let message = serde_json::to_string(message)?;
-    view.evaluate_script(&format!("window.dispatchEvent(new Event('__pyyaki_backend_failed__'));document.body.replaceChildren();const error=document.createElement('pre');error.textContent={message};document.body.append(error);"))?;
+fn show_view_error(
+    view: &WebView,
+    message: &str,
+    phase: &str,
+    instance: &std::path::Path,
+) -> Result<(), Box<dyn Error>> {
+    let payload = json!({"message":message,"phase":phase,
+        "host_log":instance.join("host.log").display().to_string(),
+        "worker_log":instance.join("worker.log").display().to_string()});
+    view.evaluate_script(&format!("({})({payload});", include_str!("../failure.js")))?;
     Ok(())
 }
 #[cfg(windows)]

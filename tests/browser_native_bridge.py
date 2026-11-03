@@ -26,6 +26,8 @@ def main():
                 file = ROOT / "examples/hello/ui" / (path.lstrip("/") or "index.html")
                 if path == "/_pyyaki/sdk.js":
                     file = ROOT / "src/pyyaki/static/sdk.js"
+                elif path == "/_pyyaki/failure.css":
+                    file = ROOT / "native/failure.css"
                 mime = {".js": "text/javascript", ".html": "text/html", ".css": "text/css"}
                 route.fulfill(
                     body=file.read_bytes(),
@@ -79,8 +81,9 @@ def main():
             page.get_by_role("button", name="エラーを試す").click()
             expect(page.locator("#error")).to_contain_text("APP_NATIVE")
             messages = page.evaluate("nativeMessages")
-            assert messages[0] == {"v": 1, "type": "pyyaki_shell_ready"}
-            assert messages[1] == {"v": 1, "type": "hello", "client_version": "0.1.0.dev0"}
+            assert messages[0] == {"v": 1, "type": "pyyaki_connect_started"}
+            assert messages[1] == {"v": 1, "type": "pyyaki_shell_ready"}
+            assert messages[2] == {"v": 1, "type": "hello", "client_version": "0.1.0.dev0"}
             assert page.evaluate("networkAttempts") == 0
             assert not errors, errors
 
@@ -157,8 +160,62 @@ def main():
               return {code: await ready, state: pyyaki.state};
             }""")
             assert failure == {"code": "BACKEND_FAILED", "state": "failed"}, failure
+
+            # A native SDK timeout must reach the host, even if Python never welcomes it.
+            page.clock.install()
+            page.goto("https://pyyaki.localhost/sdk-test.html")
+            page.evaluate("""async () => {
+              window.ipc.postMessage = text => nativeMessages.push(JSON.parse(text));
+              const { pyyaki } = await import('/_pyyaki/sdk.js');
+              window.probeSdk = pyyaki;
+              window.timedReady = pyyaki.ready({timeoutMs: 120000}).catch(error => error.code);
+            }""")
+            page.clock.run_for(10100)
+            assert page.evaluate("timedReady") == "TIMEOUT"
+            assert page.evaluate("probeSdk.state") == "failed"
+            assert page.evaluate("nativeMessages.at(-1)") == {
+                "v": 1,
+                "type": "pyyaki_connect_timeout",
+            }
+            assert page.evaluate("networkAttempts") == 0
+
+            page.goto("https://pyyaki.localhost/sdk-test.html")
+            page.evaluate("""async () => {
+              window.ipc.postMessage = text => {
+                const message = JSON.parse(text);
+                if (message.type === 'pyyaki_connect_timeout') throw Error('Host gone');
+                nativeMessages.push(message);
+              };
+              const { pyyaki } = await import('/_pyyaki/sdk.js');
+              window.probeSdk = pyyaki;
+              window.timedReady = pyyaki.ready({timeoutMs: 120000}).catch(error => error.code);
+            }""")
+            page.clock.run_for(10100)
+            assert page.evaluate("timedReady") == "TIMEOUT"
+            assert page.evaluate("probeSdk.state") == "failed"
+
+            details = {
+                "message": 'ValueError: 原因 <img src=x onerror="window.injected=true"> 😀',
+                "phase": "app_import_started",
+                "host_log": "C:\\Users\\" + "長いフォルダ名\\" * 30 + "host.log",
+                "worker_log": "C:\\Users\\検証 space\\worker.log",
+            }
+            page.set_viewport_size({"width": 320, "height": 800})
+            page.evaluate((ROOT / "native/failure.js").read_text(), details)
+            expect(page.get_by_role("alert")).to_contain_text(details["message"])
+            expect(page.get_by_role("alert")).to_contain_text("アプリの読み込み")
+            expect(page.get_by_role("alert")).to_contain_text(details["host_log"])
+            page.wait_for_function(
+                "getComputedStyle(document.querySelector('pre')).whiteSpace === 'pre-wrap'"
+            )
+            assert page.locator("img").count() == 0
+            assert page.evaluate("window.injected === undefined")
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            output = ROOT / "test-results/native-failure.png"
+            output.parent.mkdir(exist_ok=True)
+            page.screenshot(path=str(output), full_page=True)
             assert not errors, errors
-            print("Native SDK bridge passed: events, unsubscribe, callback isolation, no HTTP/WS.")
+            print("Native SDK bridge passed: RPC/events, failure/timeout, wrapping UI, no HTTP/WS.")
         finally:
             browser.close()
 

@@ -21,6 +21,12 @@ pub fn resolve(root: &Path, entry: &str, path: &str) -> io::Result<(Vec<u8>, &'s
     if relative == "_pyyaki/sdk.js" {
         return Ok((SDK.as_bytes().to_vec(), "text/javascript; charset=utf-8"));
     }
+    if relative == "_pyyaki/failure.css" {
+        return Ok((
+            include_bytes!("../failure.css").to_vec(),
+            "text/css; charset=utf-8",
+        ));
+    }
     if relative.starts_with("_pyyaki/") || relative.split('/').any(|p| p.starts_with('.')) {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,

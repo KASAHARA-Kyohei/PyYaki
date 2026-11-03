@@ -111,6 +111,10 @@ function connect() {
       if (error) { fail(error.code, error.message); reject(error); }
     };
     const timer = setTimeout(() => {
+      if (window.__PYYAKI_NATIVE__ && socket?.readyState === WebSocket.OPEN) {
+        // A vanished host must not prevent the SDK's own deadline from settling.
+        try { send({ v: 1, type: "pyyaki_connect_timeout" }); } catch {}
+      }
       abort.abort();
       finish(new PyYakiError("TIMEOUT", "Connection timed out"));
       socket?.close();
@@ -129,6 +133,12 @@ function connect() {
           return;
         }
         socket = nativeSocket();
+        try { send({ v: 1, type: "pyyaki_connect_started" }); }
+        catch {
+          finish(new PyYakiError("DISCONNECTED", "Native host unavailable"));
+          socket.close();
+          return;
+        }
       } else {
         const url = new URL("/_pyyaki/ws", location.href);
         url.protocol = location.protocol === "https:" ? "wss:" : "ws:";

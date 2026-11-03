@@ -13,6 +13,14 @@ from pyyaki._json import decode
 from pyyaki.errors import FrameworkError
 from pyyaki.worker import read_frame, write_frame
 
+PHASES = [
+    "worker_entered",
+    "config_loaded",
+    "app_import_started",
+    "app_imported",
+    "startup_hooks_started",
+    "startup_hooks_completed",
+]
 pytestmark = pytest.mark.skipif(
     os.name == "nt", reason="POSIX pipe harness; Windows host tested separately"
 )
@@ -122,7 +130,10 @@ def initialize(read, write, mode="windows"):
     write_frame(
         write, {"v": 1, "type": "worker_hello", "nonce": "a" * 64, "framework_version": __version__}
     )
-    assert receive(read) == {
+    notices, welcome = receive_startup(read)
+    assert [notice["phase"] for notice in notices] == PHASES
+    assert notices[-1]["worker_elapsed_ms"] - notices[-2]["worker_elapsed_ms"] >= 15
+    assert welcome == {
         "v": 1,
         "type": "worker_welcome",
         "nonce": "a" * 64,
@@ -132,6 +143,25 @@ def initialize(read, write, mode="windows"):
     welcome = receive(read)
     assert welcome["message"]["mode"] == mode
     assert welcome["message"]["capabilities"] == ["rpc", "events"]
+
+
+def receive_startup(read):
+    notices = []
+    while (message := receive(read))["type"] == "worker_progress":
+        assert set(message) == {
+            "v",
+            "type",
+            "nonce",
+            "framework_version",
+            "phase",
+            "worker_elapsed_ms",
+        }
+        assert message["nonce"] == "a" * 64
+        assert message["framework_version"] == __version__
+        assert message["phase"] == PHASES[len(notices)]
+        assert message["worker_elapsed_ms"] >= (notices[-1]["worker_elapsed_ms"] if notices else 0)
+        notices.append(message)
+    return notices, message
 
 
 def dispatch(write, message, session="host-issued-session"):
@@ -216,9 +246,13 @@ def test_startup_failure_never_sends_worker_welcome_and_runs_cleanup(project, tm
             write,
             {"v": 1, "type": "worker_hello", "nonce": "a" * 64, "framework_version": __version__},
         )
+        notices, failure = receive_startup(read)
+        assert [notice["phase"] for notice in notices] == PHASES[:-1]
+        assert failure["type"] == "worker_failed"
+        assert failure["phase"] == "startup_hooks_started"
+        assert failure["error_type"] == "RuntimeError"
+        assert failure["message"] == "startup failed"
         assert process.wait(timeout=3) == 1
-        with pytest.raises(EOFError):
-            receive(read)
         assert (project / "lifecycle.txt").read_text() == "stopped"
         log.seek(0)
         assert b"startup failed" in log.read()
@@ -230,7 +264,7 @@ def test_shutdown_before_sdk_hello_still_runs_cleanup(project, tmp_path):
             write,
             {"v": 1, "type": "worker_hello", "nonce": "a" * 64, "framework_version": __version__},
         )
-        assert receive(read)["type"] == "worker_welcome"
+        assert receive_startup(read)[1]["type"] == "worker_welcome"
         write_frame(write, {"v": 1, "type": "shutdown"})
         assert process.wait(timeout=3) == 0
         assert (project / "lifecycle.txt").read_text() == "stopped"
@@ -241,6 +275,26 @@ def test_native_session_switch_is_rejected(project, tmp_path):
         initialize(read, write)
         dispatch(write, {"v": 1, "type": "cancel", "id": "x"}, session="forged")
         assert process.wait(timeout=3) == 1
+
+
+def test_import_failure_is_bounded_and_traceback_is_saved(project, tmp_path):
+    message = "原因😀<script>" * 200
+    (project / "app.py").write_text(f"raise ValueError({message!r})", encoding="utf-8")
+    with worker(project, tmp_path) as (process, read, write, log):
+        write_frame(
+            write,
+            {"v": 1, "type": "worker_hello", "nonce": "a" * 64, "framework_version": __version__},
+        )
+        notices, failure = receive_startup(read)
+        assert [notice["phase"] for notice in notices] == PHASES[:3]
+        assert failure["phase"] == "app_import_started"
+        assert failure["error_type"] == "ValueError"
+        assert failure["message"] == message[:1024]
+        assert failure["nonce"] == "a" * 64
+        assert process.wait(timeout=3) == 1
+        log.seek(0)
+        # The original trace is written before the host is notified and may stop the child.
+        assert message.encode() in log.read()
 
 
 @pytest.mark.parametrize("size", [0, 1_048_577, 0xFFFFFFFF])
