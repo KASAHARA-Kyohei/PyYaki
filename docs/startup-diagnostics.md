@@ -63,3 +63,11 @@ cargo +1.89.0 build --manifest-path native/Cargo.toml --release --locked
 最初の反復検証（`test-results/startup-20261103T232624Z/`）は6件中5件成功。初回通常起動だけshell通知がなく、Python生成前にホストの10秒期限へ達した。検証器が30秒で終了させて失敗を保存した。この時点ではHTML/SDK取得の記録がなく、原因は未確定。取得記録とSDK接続開始通知を追加した最終コードでの再検証（`test-results/startup-20261103T232953Z/`）は、通常/import遅延/起動フック遅延の各2回、6件成功。記録の追加を初回失敗の修正や安定性の証明と扱わない。
 
 実WKWebViewの障害検証は`test-results/native-startup-failures/report.json`、短い既存診断は`test-results/diagnostics-20261103T232707Z/report.json`に保存した。これらはMacのGit管理外の記録であり、Windowsへ自動転送されない。UTCの保存先名と日本時間の実施日は区別する。画面の実提示、Windowsの元の失敗解消、時間単位の安定性、G1/G2全体は未検証のまま。
+
+## 表示状態の比較時に再現した起動失敗（2026-11-04）
+
+タイマー比較とは別に、比較用フラグを付けないhelloのreleaseスモークで、HTML/SDKは取得できたがshell通知が届かず、Python生成前の10秒期限へ達するケースを再確認した。失敗した自分のPIDとコマンドを照合してSIGTERMで終了した。ログと実行条件は`test-results/timer-startup-20261104/`に保存した。表示・フォーカス状態はこの起動で記録しておらず、原因を断定しない。
+
+続く既存反復検証器の`--runs 1 --delay 0`では3件中2件成功、最初のbaselineだけ失敗した。接続開始437ms、ホスト期限10,326ms、shell通知・Python生成なし。30秒の外部watchdogで終了し、成功したimport/hooksケースも待機0秒なので、5秒遅延の確認には使わない。元記録は`test-results/startup-20261104T044233Z/report.json`とケースごとのログ。再試行の成功で初回失敗を解消扱いにしない。
+
+SDKは2回のrequestAnimationFrame後にshell通知を送る実装である。[WebKit公式説明](https://webkit.org/blog/8970/how-web-content-can-affect-power-usage/)（2019-08-27公開、2026-11-04参照）には非アクティブ時のrAF停止とタイマー抑制が記載されており、表示条件は調査候補になる。ただし[今回の窓状態比較](performance-macos.md)はready後の測定で、初期rAFの停止を直接測っていない。起動時の表示状態とrAF進行を記録する切り分けが残る。先行描画の順序や10秒期限は変更していない。
