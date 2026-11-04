@@ -112,7 +112,7 @@ PyYakiは、共通のPython業務ロジックとHTML/CSS/JavaScriptのUIから�
 
 ### 5.4 Mac開発用ホストの補助測定
 
-Macでは`tests/diagnostics_macos.py`と専用の小さなアプリを使い、release版WKWebViewホストの起動・RPC・障害時の挙動を測定する。初回の連続稼働時間は利用者の回答により5分とする。RPC速度・長時間稼働の新しい合格基準をこの時間から導かない。
+Macでは`tests/diagnostics_macos.py`と専用の小さなアプリを使い、release版WKWebViewホストの起動・RPC・障害時の挙動を測定する。初回の連続稼働時間は利用者の回答により5分とする。2026-11-04の追加試験は利用者の回答により30分とし、標準SDKの連番IDモードで4,096要求を超えることも確認する。RPC速度・長時間稼働の新しい合格基準をこの時間から導かない。
 
 - 外部計測器のプロセス生成直前から、SDK ready通知・最初のRPC完了通知を受信するまでを測る。通知にはWebView IPCとstderr配送の遅れを含む。Rust内部の描画呼出し・HTMLマーカー・バックエンド準備の時刻も別に保存するが、画面への実提示を測った`T_native/T_shell/T_interactive`とは呼ばない。
 - RPCはSDKの`invoke`直前からPromise完了までをJSの`performance.now()`で測る。小さな固定データの逐次呼出しと、4並列呼出しを含む連続試験を区別する。時計の量子化を記録し、0msの標本を遅延ゼロと解釈しない。
@@ -120,7 +120,7 @@ Macでは`tests/diagnostics_macos.py`と専用の小さなアプリを使い、r
 - ホストと検出できた子プロセスのRSS・CPUスナップショット、Pythonのfd数・asyncio task数、イベント数・取消・期限切れ・UIタイマーの遅れを保存する。起動元に帰属できないWebKit XPCプロセスはRSS合計に含めず、アプリ全体のメモリ消費量や漏れなしの証明には使わない。
 - Python初期化の5秒遅延、一時停止/再開、強制終了、終了フックの長時間待機を別シナリオで確認する。自分で生成し親子関係を確認したPythonだけを障害注入の対象にし、終了後に既知のプロセスが残らないことを確認する。
 
-実行方法は[native/README.md](../native/README.md)、結果は[Mac初期計測](performance-macos.md)に記録する。Windows受入試験、本番Webの速度、時間単位・日単位の稼働、SIGKILLによるホスト強制終了は別途検証する。
+実行方法は[native/README.md](../native/README.md)、結果は[Mac初期計測](performance-macos.md)に記録する。壁時計と単調時計の差が5秒を超えた実行は、スリープや時刻変更の可能性があるため連続区間として無効にする。長い試験では、明示した`--prevent-idle-sleep`で自分のホストが動く間だけidle sleepを抑止できる。蓋を閉じる等の明示的なスリープは回避しない。Windows受入試験、本番Webの速度、時間単位・日単位の稼働、SIGKILLによるホスト強制終了は別途検証する。
 
 ## 6. MVPで実装する範囲
 

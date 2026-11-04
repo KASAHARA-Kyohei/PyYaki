@@ -31,6 +31,8 @@ cargo build --manifest-path native/Cargo.toml --release --locked
 
 起動10回、5秒のPython起動遅延、一時停止/再開、クラッシュ、終了時の待機、5分の連続稼働を順に確認する。`test-results/diagnostics-<UTC日時>/`に専用アプリ・raw標本・メモリスナップショット・結果JSON・ログを保存する。既存の出力先は上書きしない。時間を変える場合は`--duration <秒>`、出力先は`--output <新規ディレクトリ>`で指定する。
 
+2026-11-04の追加試験は`--duration 1800 --startup-runs 1 --prevent-idle-sleep`で通常起動1回と追加5シナリオを確認する。連続区間は約1秒ごとに4並列で呼び、20バッチごとに取消・期限・資源を確認して`soak-00/progress.json`へ保存する。`--prevent-idle-sleep`は自分のホストが動く間だけ`caffeinate -i`の一時アサーションを保持し、終了時に解放する。壁時計と単調時計の差が5秒を超えたら連続試験を無効として終了する。OSの恒久設定や蓋を閉じたときの動作は変更しない。各ケースの`observation.json`に経過時間と差を保存する。標準SDKのsequenceモードでは要求ID履歴を蓄積しない。旧形式のlegacyクライアントは4,096件の上限を維持する。
+
 `--diagnostics`はこの専用アプリが使うRustホストのメンテナー用フラグで、`--smoke-test`と併用しない。明示した場合だけ、内部`pyyaki_diagnostic`マーカーをstderrへ出力し、専用アプリの結果で自動終了する。通常起動や公開SDKには計測・障害注入APIを追加しない。停止/強制終了はPython測定器が親子関係を照合した自分の子に対してだけ行う。
 
 通知時刻には配送遅延が含まれ、画面の実提示時間ではない。毎回新規プロファイルを使うがOSキャッシュは制御しない。RSSはホストと検出できた子だけを対象とし、帰属不明のWebKit XPCは含まない。[定義と限界](../docs/requirements.md#54-mac開発用ホストの補助測定)、[初期結果](../docs/performance-macos.md)を参照。

@@ -59,7 +59,16 @@ def sample_processes(host):
     return {str(pid): row for pid, row in table.items() if pid in selected}
 
 
-def run_case(binary, output, scenario, index=0, duration=0, rpc_samples=100, delay=0):
+def run_case(
+    binary,
+    output,
+    scenario,
+    index=0,
+    duration=0,
+    rpc_samples=100,
+    delay=0,
+    prevent_idle_sleep=False,
+):
     project = output / f"{scenario}-{index:02}"
     shutil.copytree(
         ROOT / "tests/fixtures/diagnostics", project, ignore=shutil.ignore_patterns("__pycache__")
@@ -84,9 +93,11 @@ def run_case(binary, output, scenario, index=0, duration=0, rpc_samples=100, del
     ]
     markers = queue.Queue()
     started = time.perf_counter()
+    wall_started = time.time()
     process = subprocess.Popen(
         command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True
     )
+    sleep_guard = None
 
     def reader():
         with (project / "host-stderr.log").open("w") as log:
@@ -109,8 +120,20 @@ def run_case(binary, output, scenario, index=0, duration=0, rpc_samples=100, del
     next_sample = 0
     deadline = started + duration + 35 + delay
     try:
+        if prevent_idle_sleep:
+            sleep_guard = subprocess.Popen(
+                ["/usr/bin/caffeinate", "-i", "-w", str(process.pid)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         while process.poll() is None or thread.is_alive() or not markers.empty():
             now = time.perf_counter()
+            gap = time.time() - wall_started - (now - started)
+            if abs(gap) > 5:
+                raise RuntimeError(
+                    f"{scenario}: wall/monotonic clock gap {gap:.1f}s; "
+                    "continuous interval invalid (sleep or clock adjustment)"
+                )
             if now > deadline:
                 raise TimeoutError(f"{scenario}: diagnostic watchdog expired")
             if now >= next_sample and process.poll() is None:
@@ -206,9 +229,21 @@ def run_case(binary, output, scenario, index=0, duration=0, rpc_samples=100, del
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=3)
+        if sleep_guard is not None:
+            try:
+                sleep_guard.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                sleep_guard.terminate()
+                sleep_guard.wait(timeout=2)
         # Host Drop owns worker process-group cleanup, including a SIGSTOP'ed worker.
         thread.join(timeout=2)
         process.stderr.close()
+        record["wall_elapsed_seconds"] = time.time() - wall_started
+        record["clock_gap_seconds"] = record["wall_elapsed_seconds"] - (
+            time.perf_counter() - started
+        )
+        record["prevent_idle_sleep"] = prevent_idle_sleep
+        (project / "observation.json").write_text(json.dumps(record, indent=2))
 
 
 def main():
@@ -217,6 +252,11 @@ def main():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--duration", type=int, default=300)
     parser.add_argument("--startup-runs", type=int, default=10)
+    parser.add_argument(
+        "--prevent-idle-sleep",
+        action="store_true",
+        help="Hold a temporary caffeinate -i assertion for each owned host",
+    )
     args = parser.parse_args()
     if sys.platform != "darwin":
         parser.error("This harness requires macOS/WKWebView")
@@ -253,7 +293,9 @@ def main():
             "Observer markers include IPC/stderr delivery and are not physical frame presentation.",
             "RSS covers host and discovered descendants, not unattributed WebKit XPC processes.",
             "No Windows performance or long-term stability guarantee.",
+            "Wall/monotonic gaps over 5 seconds invalidate the continuous interval.",
         ],
+        "prevent_idle_sleep": args.prevent_idle_sleep,
         "runs": records,
     }
     print(f"Output: {output}", flush=True)
@@ -269,7 +311,16 @@ def main():
         for scenario, index, duration, samples, delay in cases:
             print(f"Starting {scenario}-{index:02} ({duration}s)", flush=True)
             try:
-                record = run_case(binary, output, scenario, index, duration, samples, delay)
+                record = run_case(
+                    binary,
+                    output,
+                    scenario,
+                    index,
+                    duration,
+                    samples,
+                    delay,
+                    prevent_idle_sleep=args.prevent_idle_sleep,
+                )
             except Exception as error:
                 records.append({"scenario": scenario, "ok": False, "harness_error": str(error)})
                 raise

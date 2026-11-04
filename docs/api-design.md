@@ -4,7 +4,7 @@
 
 本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。Context・イベント・起動/終了フックも実装済みで、実行可能なサンプルは`examples/hello`。未対応のCLI・ビルド等は設計例として区別する。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
 
-| 実装範囲（2026-10-31） | 状態 |
+| 実装範囲（2026-11-04） | 状態 |
 | --- | --- |
 | `App`、`@app.command`、型検証、`AppError`/`FrameworkError`、`app.asgi()` | 実装済み。ASGIは現状loopback限定の試作用 |
 | JS `ready`/`invoke`/`on`、`PyYakiError`、state/capabilities、期限・取消 | 実装済み。SDK/Python版は`0.1.0.dev0`で一致させる |
