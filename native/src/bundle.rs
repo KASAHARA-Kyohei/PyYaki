@@ -50,18 +50,24 @@ pub fn paths(executable: &Path) -> Result<(PathBuf, PathBuf), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::{
+        sync::atomic::{AtomicUsize, Ordering},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
 
     struct Fixture(PathBuf);
     impl Fixture {
         fn new() -> Self {
             let path = std::env::temp_dir().join(format!(
-                "pyyaki-bundle-{}-{}",
+                "pyyaki-bundle-{}-{}-{}",
                 std::process::id(),
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
-                    .as_nanos()
+                    .as_nanos(),
+                NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed)
             ));
             fs::create_dir(&path).unwrap();
             Self(path)
