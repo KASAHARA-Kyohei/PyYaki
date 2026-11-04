@@ -1,14 +1,16 @@
 # PyYaki アイコン
 
-作成・更新: 2026-11-04。鯛焼きをモチーフに、Codex組み込みimage_genで3案を個別生成した。利用者が**B（焼き菓子らしい柔らかな立体感）**の方向性を選択した。
+作成・更新: 2026-11-04。鯛焼きをモチーフに、Codex組み込みimage_genで3案を個別生成した。利用者の訂正により、選択は**C（赤茶とクリーム色のシンボル）**。
 
-## B案の仕上げ版
+## 選択したC案
 
-[pyyaki-icon.png](pyyaki-icon.png)は、Bの形・構図・アイボリー背景・柔らかな焼き菓子の質感を保ち、縁・溝・目の焼き色を少し濃くした仕上げ版。1,254×1,254pxのPNG原本をそのまま保存している。
+[pyyaki-icon.png](pyyaki-icon.png)は、[C案の元画像](concepts/c-symbol.png)を変更せずに保存したもの。赤茶の背景とクリーム色の鯛焼き、少ない線の形を使う。1,254×1,254pxのPNG。
 
-[比較画像](preview.png)と[HTMLプレビュー](preview.html)で、原案と仕上げ版の256/64/32/16px表示を確認できる。生成に使った[編集プロンプト全文](refinement-prompt.md)も保存した。Codex組み込みimage_genを使用し、CLI/APIキーを使うフォールバックは使用していない。
+[プレビュー画像](preview.png)と[HTMLプレビュー](preview.html)で、C案の256/64/32/16px表示を確認できる。生成に使った[プロンプト全文](concepts/prompts.md)の`c-symbol`を参照。選択の訂正に伴う画像の再生成・編集は行っていない。
 
 配布用の`.ico`・`.icns`への変換とアプリへの組み込みは今後の作業。現段階では画像・比較プレビュー・記録だけを追加しており、アプリの動作は変更していない。
+
+Bの検討資料は[仕上げ版](concepts/b-refined.png)・[比較画像](concepts/b-refined-preview.png)・[HTML](concepts/b-refined-preview.html)・[編集プロンプト](concepts/b-refinement-prompt.md)へ保存している。
 
 ## 初期候補
 

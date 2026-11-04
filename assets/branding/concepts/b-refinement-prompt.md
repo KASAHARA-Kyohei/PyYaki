@@ -1,6 +1,6 @@
 # B案の仕上げプロンプト
 
-作成: 2026-11-04。利用者がB案の方向性を選択した後、元画像`concepts/b-soft.png`を対象にCodex組み込みimage_genで編集した。形・構図・質感を保ち、縁・溝・目の焼き色を少し濃くする指示。不透明背景を指定。出力は`pyyaki-icon.png`へ原本のまま保存。
+作成: 2026-11-04。B案の検討時に、元画像`b-soft.png`を対象にCodex組み込みimage_genで編集した。形・構図・質感を保ち、縁・溝・目の焼き色を少し濃くする指示。不透明背景を指定。出力は`b-refined.png`へ原本のまま保存。
 
 ```text
 Use case: identity-preserve.
@@ -10,3 +10,5 @@ The user selected this exact soft baked-pastry direction. Preserve its identity:
 Make one restrained refinement for small icon legibility: slightly deepen the toasted amber/brown values around the outer silhouette and inside the existing molded grooves and eye, while preserving the soft dimensional baked-pastry look. The result should still feel appetizing and gently tactile, not outlined or flat and not glossy plastic.
 Keep the same restrained palette and overall shape; do not introduce extra marks, tiny scales, crumbs, props, letters, code symbols, extra fins, facial expression, exaggerated eyes, borders, rounded tile masks, watermark, or presentation mockup. Full-bleed opaque square background. Produce one finished icon image, not a comparison or a sheet.
 ```
+
+現在の選択はC案。このファイルとBの仕上げ版は検討資料として保存している。
