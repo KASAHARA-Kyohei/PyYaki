@@ -109,6 +109,7 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 | ポートが使用中 | Webの`--port`を変更。ネイティブのRPCはHTTP/WebSocket待受を使わない |
 | コマンドが見つからない / 型検証で失敗 | `entry`と登録名、名前付きparams、型注釈を確認。ContextはJSONから渡さない |
 | ネイティブにJS変更が反映されない | SDK変更ならRustホストを再ビルド。通常のUI変更ならホストを再起動 |
+| Macで初回だけPython開始前に期限へ達する | `sdk_shell_progress`のscheduled/frame1/frame2と`ui_window_state`のSpace・遮蔽状態を照合する。フルスクリーンからの起動で描画待ちが止まる例を確認済み。通常ウィンドウ表示で再試験できるが、本対応は未実装。[同じバイナリでの比較](startup-diagnostics.md)を参照 |
 | ready失敗 / BACKEND_FAILED | [段階ログ・反復検証](startup-diagnostics.md)で切り分け、entry・依存・起動フックを確認。Macのホスト/ワーカーログは`~/Library/Application Support/PyYaki/prototype/<instance>/` |
 | 呼び出しを重ねた後に切断 | 標準SDKは連番IDで履歴を蓄積しない。旧SDK/独自クライアントのlegacyモードには4,096件の上限が残る。SDK・Python・Rustホストを同じソースで更新する |
 

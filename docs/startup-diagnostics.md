@@ -77,3 +77,40 @@ cargo +1.89.0 build --manifest-path native/Cargo.toml --release --locked
 SDKは2回のrequestAnimationFrame後にshell通知を送る実装である。[WebKit公式説明](https://webkit.org/blog/8970/how-web-content-can-affect-power-usage/)（2019-08-27公開、2026-11-04参照）には非アクティブ時のrAF停止とタイマー抑制が記載されており、表示条件は調査候補になる。ただし[今回の窓状態比較](performance-macos.md)はready後の測定で、初期rAFの停止を直接測っていない。起動時の表示状態とrAF進行を記録する切り分けが残る。先行描画の順序や10秒期限は変更していない。
 
 同日のアイコン組み込み作業でも、開発ホストの初回スモークと1回の再実行が失敗した（`test-results/icon-proof/`）。最初の失敗はSDK接続開始1,478ms、ホスト期限10,742msで、shell通知とPython生成なし。Dock設定はTaoの起動後、最初の描画呼出しの後に行うよう整理したが、最終コード`cf3c2c6`の`--runs 1 --delay 0`も3件中2件成功・初回だけ失敗（`test-results/icon-proof-final-startup/report.json`）。この再確認は.app生成処理と一部並行しており、起動性能の計測には使わない。アイコン入り.appのスモーク成功とは分け、元の失敗を上書きせず、原因・解消とも未確定として残す。
+
+## 初期描画待ちとSpaceの比較（2026-11-04）
+
+利用者から切り分けの実施を依頼された。macOS 27.0.1 / Apple M2 / CPython 3.14.3、tao 0.34.8 / wry 0.53.5のrelease開発ホストで確認した。利用者はCodexをmacOSのフルスクリーン表示で使っていると回答し、その後の比較では通常ウィンドウへ切り替えたと回答した。表示モードは利用者申告であり、Codex自体のUIをツールで操作したものではない。
+
+### 同じバイナリによる比較
+
+ソース`0693850`、両試験の開始時は作業ツリーがクリーン。ホストSHA-256は両方とも`44466b8f7483b57cbf7cc77c3ae859eea8c3ea34464c8786ffd96f3670864eaa`で一致する。各ケースで新規プロファイルを使い、通常/import/hooksの区別はあるが待機はすべて0秒。他のビルドやテストは並行させず、OSキャッシュは消去していない。各子は20秒の外部watchdogで回収した。
+
+| Codexの表示条件（利用者申告） | 結果 | 原記録（Git管理外） |
+| --- | --- | --- |
+| macOSフルスクリーン | 3件中2件成功。最初のbaselineだけ失敗 | `test-results/startup-20261104T063510Z/report.json` |
+| 通常ウィンドウ | 9件すべて成功 | `test-results/startup-20261104T064029Z/report.json` |
+
+フルスクリーン時の失敗では、次の順序を記録した。時刻はホストrun入口からの経過で、IPC配送・スケジューリングを含む。
+
+| 経過ms（約） | 観測 |
+| --- | --- |
+| 427 | SDKがrAFを予約。DOM visibility=visible、focus=true |
+| 472 | 1回目のrAFが実行 |
+| 482 | DOM visibilityがhiddenへ変化 |
+| 1,267〜9,450 | ネイティブ窓はvisible/focused=true、minimized=false。アプリもactive=trueだが、所属NSWindowのisOnActiveSpace=false、Visible遮蔽ビットなし |
+| 10,258 | ホストがUI準備の期限に到達。frame2・shell通知・Python生成は記録なし |
+
+WebViewのhidden祖先はfalse、visibleRectは960×752だった。窓の`isVisible`や`isKeyWindow`だけでは表示可能性を判断できない。occlusionStateは公開のVisibleビットだけを判定し、rawの未知ビットに意味を付けていない。通常表示の9件ではshell通知時にisOnActiveSpace=true、Visibleビットあり。shell通知はホスト基準で約466〜545msだったが、これは画面の実提示や起動性能の合格値ではない。
+
+今回確認できた失敗経路は、**起動窓のSpace・遮蔽状態が変化 → DOMがhidden → 二重rAFの後半が待機 → shell通知なし → Python開始前に10秒期限**。非表示時のrAF停止は[WebKitの説明](https://webkit.org/blog/8970/how-web-content-can-affect-power-usage/)と整合する。OS内部でSpaceが変化する理由、フルスクリーン全般での再現率、以前のWindowsの接続期限と同じ原因かは未確定。フルスクリーンへ戻した再比較、実画面の提示、生成.appでの同条件比較は実施していない。
+
+### 採用しなかった変更と回帰確認
+
+WebView組み込み直後に`window.set_focus()`を一度だけ呼ぶ試作も比較したが、同じフルスクリーン条件で3件中2件成功・初回失敗が残った（`test-results/startup-20261104T063757Z/`）。解消の証拠がないため変更を取り消した。試作の差分・ソース対応は`test-results/startup-space-control/focus-trial.json`、同じバイナリでの比較要約は`comparison.json`に保存した。
+
+探索時の`4eff59a`は3/3成功、`8ba5187`は5/6成功であり、これらを最終比較へ混ぜない。原記録はそれぞれ`test-results/startup-20261104T062806Z/`、`test-results/startup-20261104T063107Z/`。成功例があるため、フルスクリーンなら必ず失敗するとは扱わない。
+
+通常表示での追加の回帰確認は、通常・import前5秒待機・起動フック内5秒待機の3件が成功（`test-results/startup-20261104T064328Z/`）。Python 127件を非推奨警告error指定で確認し、Rust 13件、Mac/Windows GNUターゲットのClippy、Web/仮ネイティブのブラウザ契約も通過した。仮ブリッジではrAFを一段ずつ止め、2回目までshell/helloを送らないことと、接続後の監視解除を確認した。Windows実機での更新版は未検証。
+
+本対応は未実装。表示待ちと接続・起動期限の分離をADR-017の候補へ記録し、公開ready期限とWindowsの先行描画条件を含めて検討する。DOMロードやタイマーを描画通知の代わりにしておらず、10秒期限も延長していない。開発時の暫定回避として通常ウィンドウ表示での成功を観測した範囲にとどめる。

@@ -6,7 +6,7 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 **現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査に加え、2026-11-03にWindows 11 x64でMSVCビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認しました。[失敗・未確認事項](docs/validation-windows.md)が残り、G1/G2全体は未完了です。公開パッケージ・Windows単一exeビルドはありません。MacはPython同梱`.app`のローカル生成試作を追加しました。Macネイティブでは初期計測と5分・30分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
 
-起動期限やPython起動失敗は[段階ログ・障害画面・反復検証の手順](docs/startup-diagnostics.md)で切り分けられます。新しい計測と表示のWindows実機再検証は未実施です。
+起動期限やPython起動失敗は[段階ログ・障害画面・反復検証の手順](docs/startup-diagnostics.md)で切り分けられます。Macではフルスクリーン時のSpace移動と初期描画待ちが止まる経路を確認し、通常表示では9回の起動に成功しました。本対応と、新しい記録のWindows実機再検証は未完了です。
 
 [C案の既定アイコン](assets/branding/README.md)を、Mac .app・開発ホストのDock設定と、Windows開発ホストのexe・ウィンドウ・タスクバーへ組み込む実装を追加しました。[反映方法と検証範囲](native/README.md#アイコン)を参照してください。Windows実機での表示確認は未実施です。
 

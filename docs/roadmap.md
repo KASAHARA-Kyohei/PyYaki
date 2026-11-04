@@ -11,16 +11,16 @@
 | 領域 | 現在地 | 残る確認・実装 |
 | --- | --- | --- |
 | 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れを実装。MacのPython/ブラウザで確認 | 自動再読込、本番Web運用、長時間/高負荷の評価 |
-| Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分/30分の連続試験、表示状態7条件、Python遅延/停止/クラッシュ・終了処理を確認。Python同梱.appのローカル生成・再配置と既定アイコンの同梱を確認 | Dock/Finderの目視、断続的なshell通知待ち期限の切り分け、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
+| Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分/30分の連続試験、表示状態7条件、Python遅延/停止/クラッシュ・終了処理を確認。Python同梱.appのローカル生成・再配置と既定アイコンの同梱を確認 | Dock/Finderの目視、Space切替時の初期描画待ちと期限への対応、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
 | Windowsネイティブ | Windows 11 x64でMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・通常終了/ホスト強制終了時のPython回収を確認 | 起動ログ・障害表示・アイコン追加後の再検証、負荷時の接続期限、GDI実提示の順序・性能、ハンドル継承の負例、実WebView2境界試験、ネットワーク/企業環境。詳細は[実機記録](validation-windows.md) |
 | 導入 / 配布 | 開発用CLIは`dev`とMacの`build macos`試作。実行はRustホスト直接起動または生成.app | Rust不要のネイティブCLI配置、`build windows`、ランタイム同梱、単一exe組立/展開/署名 |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
 
-Macの直近の自動検査はPython 127件、Rust 12件、Mac/Windows GNUターゲットのClippyに成功。実WKWebViewでは初期診断15ケース、後続の30分診断6ケースと表示状態7条件を確認した。一方で[通常起動のshell通知待ち失敗](startup-diagnostics.md)は未解消。WindowsはPython 67件成功・14件スキップ、MSVC Rustテスト6件、実WebView2スモーク成功。失敗・修正・未確認事項は[Windows実機記録](validation-windows.md)を参照。性能の条件と限界は[Mac計測記録](performance-macos.md)を正とし、これらをWindowsのG1/G2合格とは扱わない。
+Macの直近の自動検査はPython 127件、Rust 13件、Mac/Windows GNUターゲットのClippyに成功。実WKWebViewでは初期診断15ケース、後続の30分診断6ケースと表示状態7条件を確認した。[初期描画待ちの比較](startup-diagnostics.md)では、同じバイナリで通常表示9/9成功・フルスクリーン2/3成功。Space移動後の描画待ち停止を確認したが、本対応は未実装。WindowsはPython 67件成功・14件スキップ、MSVC Rustテスト6件、実WebView2スモーク成功。失敗・修正・未確認事項は[Windows実機記録](validation-windows.md)を参照。性能の条件と限界は[Mac計測記録](performance-macos.md)を正とし、これらをWindowsのG1/G2合格とは扱わない。
 
 Windowsの環境確認と既存ホストのMSVCビルド・主要動作の実機検証を実施した。2026-11-04に起動段階ログ・通常例外の障害表示・反復検証器を追加し、Macで確認した。次は[この手順](startup-diagnostics.md)でWindowsの接続期限を再検証する。先行描画の実提示、ネットワーク/境界試験の残りも確認し、G1の最小単一exe検証へ進む。配布方式に依存する作り込みは、その結果を反映して行う。これは推奨順序であり、実装開始や検証環境の条件を新たに承認した記録ではない。
 
-Macで先に進める場合の候補は、起動時の表示状態とshell通知待ち期限の切り分け、旧形式の要求ID制約の採否、自動再読込、起動時のフォーカス/Spaces・アプリ識別の調整要否の確認。後者は同じデスクトップに別ウィンドウが出ること自体を不具合扱いにするものではない。ready後のタイマーは[表示状態の比較](performance-macos.md#ウィンドウ状態とタイマーの比較)で最小化・非表示時に遅延を再現したが、起動失敗の原因を確定したものではない。優先順位は次の作業依頼で確認する。
+Macで先に進める場合の候補は、Space切替時の表示待ちと起動期限の扱い（ADR-017）、旧形式の要求ID制約の採否、自動再読込、起動時のフォーカス/Spaces・アプリ識別の調整要否の確認。後者は同じデスクトップに別ウィンドウが出ること自体を不具合扱いにするものではない。ready後のタイマーは[表示状態の比較](performance-macos.md#ウィンドウ状態とタイマーの比較)で最小化・非表示時に遅延を再現した。Python開始前の失敗は別途[初期描画待ちとSpaceの比較](startup-diagnostics.md)へ記録し、根本対応は未実装としている。優先順位は次の作業依頼で確認する。
 
 ## 1. ゲートと成果物
 
@@ -287,3 +287,9 @@ Python 127件、Rust 12件、Mac/Windows GNUターゲットのClippy、Ruff/fmt�
 Python 127件、Rust 12件、Mac/Windows GNUターゲットのClippy、Ruff/fmtを確認。Macでdebug/releaseとwheel/.appを生成し、署名・2,507通常ファイルのハッシュ・実WKWebViewスモークに成功した。[Macの生成記録](macos-build.md)を参照。Windows GNU releaseホストのPEへ7サイズのPNGが元ICOと一致して埋め込まれたことも確認したが、MSVC/実機表示やPython同梱の単一exe配布の検証ではない。Dockの画面取得はタイムアウトし、目視確認は未完了。
 
 最終コード`cf3c2c6`の開発起動検証は待機0秒の3件中2件成功、初回のみshell通知待ち期限で失敗。原記録は`test-results/icon-proof-final-startup/`。既知の起動問題は未解消であり、再試行の成功やアイコンの配置変更を原因解消の証拠にしない。
+
+### 2026-11-04 初回の描画待ちとSpaceの切り分け
+
+利用者の依頼で、SDKのscheduled/frame1/frame2・表示変化と、MacのNSWindow遮蔽・active Space等を記録した。失敗ではframe1後にDOMがhidden、窓がアクティブSpace外となり、frame2とshell通知がなくPython開始前にUI期限へ達した。利用者申告のフルスクリーンと通常表示を同じ`0693850`のバイナリで比較し、前者2/3成功・後者9/9成功。一度の前面化試作も2/3で初回失敗が残り、採用せずに元へ戻した。[原記録と限界](startup-diagnostics.md)を参照する。
+
+通常表示のimport/フック5秒遅延を含む3件も成功。Python 127件（非推奨警告をerror指定）、Rust 13件、Mac/Windows GNU Clippy、Web/仮ネイティブのブラウザ契約を確認した。本対応は未実装で、表示待ちと複数の期限の扱いをADR-017へ候補として記録した。Windowsの元の失敗と同原因とは断定しない。開発機では通常表示で起動できた範囲を暫定回避として記録する。
