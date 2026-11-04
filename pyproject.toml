@@ -19,13 +19,13 @@ dependencies = [
 pyyaki = "pyyaki.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10", "httpx>=0.28,<1", "httpx2>=2,<3", "playwright>=1.50,<2", "ruff>=0.9,<1", "build>=1,<2", "setuptools>=75"]
+dev = ["pytest>=8,<10", "httpx>=0.28,<1", "httpx2>=2,<3", "playwright>=1.50,<2", "ruff>=0.9,<1", "build>=1,<2", "setuptools>=75", "Pillow>=12,<13"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-pyyaki = ["static/*.js"]
+pyyaki = ["static/*.js", "static/*.icns"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

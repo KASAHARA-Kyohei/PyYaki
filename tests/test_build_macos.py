@@ -1,6 +1,8 @@
 import errno
+import hashlib
 import json
 import platform
+import plistlib
 import sys
 import zipfile
 from pathlib import Path
@@ -235,7 +237,16 @@ def test_complete_report_and_app_are_published_together(prepared_build):
     inputs, _ = prepared_build
     assert build(**inputs) == inputs["output"]
     report = inputs["output"].with_suffix(".build.json")
-    assert json.loads(report.read_text())["app_id"] == "com.example.test"
+    metadata = json.loads(report.read_text())
+    assert metadata["app_id"] == "com.example.test"
+    contents = inputs["output"] / "Contents"
+    plist = plistlib.loads((contents / "Info.plist").read_bytes())
+    icon = contents / "Resources" / plist["CFBundleIconFile"]
+    source = Path(builder.__file__).parent / "static/pyyaki.icns"
+    assert icon.read_bytes() == source.read_bytes()
+    assert metadata["files"][icon.relative_to(inputs["output"]).as_posix()]["sha256"] == (
+        hashlib.sha256(icon.read_bytes()).hexdigest()
+    )
     assert sorted(p.name for p in inputs["output"].parent.iterdir()) == [
         "Example.app",
         "Example.build.json",

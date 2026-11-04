@@ -233,6 +233,7 @@ def build(
         app.mkdir(parents=True)
         (contents / "MacOS").mkdir()
         shutil.copy2(host, contents / "MacOS/PyYaki")
+        shutil.copyfile(Path(__file__).parent / "static/pyyaki.icns", resources / "PyYaki.icns")
         shutil.copytree(
             runtime,
             resources / "python",
@@ -324,6 +325,7 @@ def build(
                     "CFBundleIdentifier": app_id,
                     "CFBundleName": name,
                     "CFBundleExecutable": "PyYaki",
+                    "CFBundleIconFile": "PyYaki.icns",
                     "CFBundlePackageType": "APPL",
                     "CFBundleShortVersionString": version,
                     "CFBundleVersion": version,

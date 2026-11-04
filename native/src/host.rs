@@ -331,6 +331,8 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let mut diagnostics =
         packaged.is_some() && first.as_deref() == Some(std::ffi::OsStr::new("--diagnostics"));
     let mut timer_probe_seconds = None;
+    #[cfg(target_os = "macos")]
+    let development_host = packaged.is_none();
     let (mut root, mut python) = match packaged {
         Some((root, python)) => (root, Some(python)),
         None => (std::env::current_dir()?, None),
@@ -383,10 +385,24 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     });
     trace.mark("host_started", json!({"pid":std::process::id()}));
     let event_loop = EventLoopBuilder::<HostEvent>::with_user_event().build();
-    let window = WindowBuilder::new()
+    let builder = WindowBuilder::new()
         .with_title(&config.window.title)
-        .with_inner_size(LogicalSize::new(config.window.width, config.window.height))
-        .build(&event_loop)?;
+        .with_inner_size(LogicalSize::new(config.window.width, config.window.height));
+    #[cfg(windows)]
+    let builder = {
+        use tao::{
+            dpi::PhysicalSize,
+            platform::windows::{IconExtWindows, WindowBuilderExtWindows},
+            window::Icon,
+        };
+        builder
+            .with_window_icon(Some(Icon::from_resource(1, None)?))
+            .with_taskbar_icon(Some(Icon::from_resource(
+                1,
+                Some(PhysicalSize::new(256, 256)),
+            )?))
+    };
+    let window = builder.build(&event_loop)?;
     let proxy = event_loop.create_proxy();
     #[cfg(target_os = "macos")]
     let mut timer_probe = if let Some(seconds) = timer_probe_seconds {
@@ -426,6 +442,10 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                         return Ok(());
                     }
                     trace.mark("native_draw", Value::Null);
+                    #[cfg(target_os = "macos")]
+                    if development_host {
+                        crate::icon_macos::set_development_icon()?;
+                    }
                     let protocol_config = config.clone();
                     let navigation = NavigationGate::default();
                     let ipc_proxy = proxy.clone();

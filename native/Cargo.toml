@@ -5,6 +5,9 @@ edition = "2024"
 rust-version = "1.89"
 publish = false
 
+[build-dependencies]
+embed-resource = "3"
+
 [[bin]]
 name = "pyyaki"
 path = "src/main.rs"
@@ -32,3 +35,6 @@ undocumented_unsafe_blocks = "deny"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSImage"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData"] }

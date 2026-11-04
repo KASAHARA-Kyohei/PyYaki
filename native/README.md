@@ -4,6 +4,14 @@
 
 共通APIの現在地は[ロードマップ](../docs/roadmap.md#現在地と次の作業)、SDK変更時の再ビルドや検査の使い分けは[開発ガイド](../docs/development.md)を参照する。
 
+## アイコン
+
+C案を既定アイコンとして組み込む。Macでバイナリを直接`run`する場合はAppKitへ埋め込み512px PNGを設定し、生成.appは`Contents/Resources/PyYaki.icns`と`CFBundleIconFile`を使う。既存のバイナリ・.appには自動反映されないので、再ビルド・再生成する。
+
+Windowsは`build.rs`がICOをリソースID 1へ組み込み、Taoがそのリソースからウィンドウとタスクバーの画像を読み込む。開発ビルドにはWindows SDKのrc.exeが必要（既存のMSVC/SDK構成）。GNUターゲットではwindresが必要で、Macからの型検査でもリソースをコンパイルする。コンパイラーが見つからない場合にアイコンなしで黙って成功させない。これらは開発用の資材で、配布後実行には不要。
+
+形式変換の手順と原本は[ブランド資産](../assets/branding/README.md)を参照。通常のRustビルドやMac .app生成は保存済み資産を使い、Pillowを実行しない。独自アイコン用の設定、Webのfavicon、Windows単一exe生成はこの変更に含まれない。WindowsのMSVCビルド・Explorer/タスクバーの実表示は更新版で再確認が必要。
+
 ## Macでの開発用確認
 
 利用者の依頼によりMac開発用ホストを追加した。tao/wry/WKWebView、同じ静的UI・SDK・Pythonワーカーを使用する。Rust 1.89以降とCPython 3.14の開発venvを用意し、リポジトリ直下で実行する。

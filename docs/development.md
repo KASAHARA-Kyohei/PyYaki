@@ -50,6 +50,8 @@ cargo build --manifest-path native/Cargo.toml --locked
 
 SDKと`native/failure.js`・`native/failure.css`はネイティブホストへコンパイル時に埋め込まれる。Pythonや利用者UIはホスト生成時に同梱しない開発方式なので、Python/UIだけの変更でRustの再ビルドは不要。自動再読込は未実装で、ネイティブのページ再読み込み・別ページへの遷移も許可していない。
 
+アイコン資産も埋め込まれるため、[変換手順](../assets/branding/README.md)を実行したらRustホストとwheel/.appを再生成する。Windowsターゲットの検査・ビルドではリソース用のrc.exe（MSVC）またはwindres（GNU）も必要。[アイコンの組み込み](../native/README.md#アイコン)を参照。
+
 ワーカーの内部契約を変更した場合も、対応するRustホストを再ビルドする。2026-11-04の起動通知追加はこの変更に該当する。
 
 新しいコマンドは`@app.command`で非同期関数として明示登録し、必要なら`*, ctx: Context`を宣言する。イベント・フックの使い方は[Python API](api-design.md#3-python-api)と[JavaScript API](api-design.md#4-javascript-api)を参照。UIはHTML/CSS/JSの独立ファイルへ置き、Pythonの文字列へ埋め込まない。

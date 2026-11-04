@@ -70,6 +70,7 @@ with tarfile.open(archive) as stream:
 ## 設定と制限
 
 - `tool.pyyaki.name`、reverse-DNS形式の`app-id`、3つの数値からなる`version`をbundleメタデータに使う。window.title未指定時はnameを使う。開発用ホストがnameを直接読む動作とは区別する。
+- 既定アイコンは[選択したC案](../assets/branding/README.md)。wheel内の`static/pyyaki.icns`を`Contents/Resources/PyYaki.icns`へ署名前に配置し、`CFBundleIconFile`で参照する。通常ファイルとしてレポートへハッシュを記録する。変換済み資産を使うため、生成時のPillowやiconutilは不要。独自アイコン指定の設定は未実装。
 - `tool.pyyaki.build.macos.include`はプロジェクト相対globの配列。既定はentryのPythonファイルとUI配下。domainやデータ等が必要なら明示し、pyproject.toml自体はincludeしない。実行用設定はentry/UI/windowだけから生成する。
 - `.env`等の隠しファイル、venv・Git・生成物・秘密鍵拡張子を除外し、アプリ資産のsymlinkやパス脱出を拒否する。Pythonコードに直接書かれた秘密情報の自動判定は行わない。
 - lockは推移依存を含む`name==version`とSHA-256だけを受け付ける。URL・pipオプション・環境マーカー・extrasはこの試作では未対応。wheelhouseは通常の`.whl`ファイルだけを置く。資材解決の自動ネット取得は行わない。
@@ -80,7 +81,7 @@ with tarfile.open(archive) as stream:
 
 macOS 27.0.1 / M2 / CPython 3.14.3で、同梱Pydantic native拡張を含むhelloの生成・実WKWebViewのRPC/イベント/取消・正常終了を確認した。`.app`を移動し、資材元のruntimeとプロジェクトのコピーを一時的に隠して、PATHをシステム用だけにし、無効なPYTHONHOME/PYTHONPATHを指定した状態でも成功した。起動後に署名とmanifestの全ファイルハッシュも再確認した。
 
-これはPython未導入のクリーンMacや別CPUでの試験ではない。Developer ID署名、公証、quarantine付き配布、最低OS版、Intel、DMG、アイコン・更新、第三者への正式配布は後続検証とする。5分の性能報告は開発用ホストの別測定であり、このbundleの性能保証には使わない。
+これはPython未導入のクリーンMacや別CPUでの試験ではない。Developer ID署名、公証、quarantine付き配布、最低OS版、Intel、DMG、独自アイコン設定・更新、第三者への正式配布は後続検証とする。5分の性能報告は開発用ホストの別測定であり、このbundleの性能保証には使わない。
 
 ## 失敗時処理の追試（2026-11-04）
 

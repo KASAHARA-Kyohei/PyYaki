@@ -4,6 +4,8 @@
 mod bundle;
 #[cfg(any(windows, target_os = "macos"))]
 mod host;
+#[cfg(target_os = "macos")]
+mod icon_macos;
 #[cfg(windows)]
 mod process;
 #[cfg(target_os = "macos")]
