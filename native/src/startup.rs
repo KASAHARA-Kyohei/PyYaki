@@ -111,10 +111,7 @@ impl Startup {
                 && error_type.chars().count() <= 128
                 && message.chars().count() <= 1024
             {
-                return Ok(Update::Failed(format!(
-                    "Python failed during {}: {error_type}: {message}",
-                    notice.phase
-                )));
+                return Ok(Update::Failed(format!("{error_type}: {message}")));
             }
         }
         Err("Invalid worker startup phase or message")
@@ -218,7 +215,7 @@ mod tests {
         failure["message"] = json!("原因 <script> 😀");
         assert!(
             matches!(startup.accept(failure.clone(), "test"), Ok(Update::Failed(text))
-            if text.contains("RuntimeError: 原因 <script> 😀"))
+            if text == "RuntimeError: 原因 <script> 😀")
         );
         failure["message"] = json!("😀".repeat(1025));
         assert!(startup.accept(failure, "test").is_err());

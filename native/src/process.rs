@@ -177,8 +177,10 @@ impl Worker {
         let arguments: Vec<Vec<u16>> = vec![
             program[..program.len() - 1].to_vec(),
             "-I".encode_utf16().collect(),
-            "-m".encode_utf16().collect(),
-            "pyyaki.worker".encode_utf16().collect(),
+            "-c".encode_utf16().collect(),
+            include_str!("../worker_bootstrap.py")
+                .encode_utf16()
+                .collect(),
             "--project".encode_utf16().collect(),
             directory[..directory.len() - 1].to_vec(),
             "--read-handle".encode_utf16().collect(),

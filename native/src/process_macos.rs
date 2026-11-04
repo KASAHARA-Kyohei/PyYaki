@@ -28,8 +28,8 @@ impl Worker {
             .args([
                 "-I",
                 "-B",
-                "-m",
-                "pyyaki.worker",
+                "-c",
+                include_str!("../worker_bootstrap.py"),
                 "--mode",
                 "macos",
                 "--project",

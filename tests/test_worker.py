@@ -5,6 +5,7 @@ import struct
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -21,6 +22,9 @@ PHASES = [
     "startup_hooks_started",
     "startup_hooks_completed",
 ]
+BOOTSTRAP = (Path(__file__).resolve().parents[1] / "native/worker_bootstrap.py").read_text(
+    encoding="utf-8"
+)
 pytestmark = pytest.mark.skipif(
     os.name == "nt", reason="POSIX pipe harness; Windows host tested separately"
 )
@@ -95,8 +99,8 @@ def worker(project, tmp_path, mode="windows"):
             [
                 sys.executable,
                 "-I",
-                "-m",
-                "pyyaki.worker",
+                "-c",
+                BOOTSTRAP,
                 "--mode",
                 mode,
                 "--project",

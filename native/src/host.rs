@@ -288,9 +288,8 @@ fn start_backend(
                 "worker_failed",
                 json!({"stage":stage,"message":error.to_string()}),
             );
-            let _ = proxy.send_event(HostEvent::Failed(format!(
-                "Python backend failed during {stage}: {error}"
-            )));
+            // The stage is retained in the trace and rendered separately in the UI.
+            let _ = proxy.send_event(HostEvent::Failed(error.to_string()));
         }
     });
 }
