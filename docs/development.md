@@ -1,6 +1,6 @@
 # 開発と動作確認
 
-更新: 2026-11-04。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
+更新: 2026-11-05。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
 
 ## 最初に確認すること
 
@@ -48,7 +48,7 @@ cargo build --manifest-path native/Cargo.toml --locked
 | ウィンドウ / プロセス / 資産配信 | `native/src/` | Rustの再ビルドと再起動 |
 | 専用スモーク確認 | `native/smoke.js` | Rustの再ビルド後、`--smoke-test`で起動 |
 
-SDKと`native/failure.js`・`native/failure.css`はネイティブホストへコンパイル時に埋め込まれる。Pythonや利用者UIはホスト生成時に同梱しない開発方式なので、Python/UIだけの変更でRustの再ビルドは不要。自動再読込は未実装で、ネイティブのページ再読み込み・別ページへの遷移も許可していない。
+SDKと`native/failure.js`・`native/failure.css`・`native/worker_bootstrap.py`はネイティブホストへコンパイル時に埋め込まれる。これらの変更はRustの再ビルドが必要。通常のPythonパッケージや利用者UIはホスト生成時に同梱しない開発方式なので、その変更は再起動で反映する。自動再読込は未実装で、ネイティブのページ再読み込み・別ページへの遷移も許可していない。
 
 アイコン資産も埋め込まれるため、[変換手順](../assets/branding/README.md)を実行したらRustホストとwheel/.appを再生成する。Windowsターゲットの検査・ビルドではリソース用のrc.exe（MSVC）またはwindres（GNU）も必要。[アイコンの組み込み](../native/README.md#アイコン)を参照。
 
@@ -121,4 +121,6 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 
 当日のPython検査はWindowsで67件成功・14件スキップ。symlink作成がWinError 1314ならリンク専用2件だけをスキップし、他のWeb検査は実行する。当日はPOSIXワーカー等12件もWindows対象外だった。新規検査を含む更新版の件数は再実行で確認する。権限やOS設定を変えて回避しない。
 
-起動期限の再現確認には[起動の切り分け](startup-diagnostics.md)の`tests/startup_probe.py`を使う。2026-11-04に`ae3889c`をWindowsで再検証し、起動9/9、Python 108件成功・19件スキップ、Rust 10件、Clippyと実GUIスモークに成功した。[再検証記録](validation-windows-2026-11-04.md)を参照。以前の初回失敗は未再現で、原因解消とは扱わない。今回のworker.logの日本語はCP932で読めたため、UTF-8と決めつけて元ログを上書きしない。
+起動期限の再現確認には[起動の切り分け](startup-diagnostics.md)の`tests/startup_probe.py`を使う。2026-11-04に`ae3889c`をWindowsで再検証し、起動9/9、Python 108件成功・19件スキップ、Rust 10件、Clippyと実GUIスモークに成功した。[再検証記録](validation-windows-2026-11-04.md)を参照。以前の初回失敗は未再現で、原因解消とは扱わない。当日のworker.logはCP932だったため、過去ログをUTF-8と決めつけて上書きしない。
+
+2026-11-05の修正後は、パッケージimport前の固定bootstrapがstdout/stderrをUTF-8へ設定する。WindowsのPython 112成功・19スキップ、Rust 10成功、MSVC/Clippy/実GUIを[確認](validation-worker-logs-2026-11-05.md)した。新しいworker.logはPowerShellの`Get-Content -Encoding UTF8 <パス>`等で読む。通常ファイルの既定encodingは変えず、アプリの生バイト出力・ストリーム再設定は対象外。Macではホスト再ビルド・スモーク・.app再生成の確認が残る。

@@ -1,6 +1,6 @@
 # PyYaki native host prototype
 
-2026-11-04時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**2026-11-03にWindows 11 x64のMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認した。G1/G2全体や単一exe配布は未完了。失敗・未確認事項は[Windows実機記録](../docs/validation-windows.md)を参照する。**
+2026-11-05時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**2026-11-03にWindows 11 x64のMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認した。G1/G2全体や単一exe配布は未完了。失敗・未確認事項は[Windows実機記録](../docs/validation-windows.md)を参照する。**
 
 共通APIの現在地は[ロードマップ](../docs/roadmap.md#現在地と次の作業)、SDK変更時の再ビルドや検査の使い分けは[開発ガイド](../docs/development.md)を参照する。
 
@@ -100,6 +100,8 @@ Python版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exe�
 
 同じinstance内の`host.log`にはホスト内の経過時間とエラーを記録する。外部`CreateProcess`前のt0とは異なり、`T_native`等の性能目標の達成証拠には使わない。プロファイル・ログは試作時点では自動削除しない。終了後に対象instanceを削除でき、業務データ保存先には使用しない。
 
+2026-11-05の修正では、ホストに埋め込む`worker_bootstrap.py`がPyYakiのimport前にPythonのstdout/stderrをUTF-8・backslashreplace・行バッファリングへ設定する。`-I`と通常ファイルの既定文字コードは維持し、固定コードを`-c`で起動する。生バイト出力・アプリによる再設定・bootstrap以前の障害は対象外。過去のCP932ログは変換しない。[Windowsの実機結果とMacで残る回帰確認](../docs/validation-worker-logs-2026-11-05.md)を参照。bootstrap変更後はRustホストを再ビルドする。
+
 ## 起動期限の再確認
 
 2026-11-04に起動段階ログ・障害画面・反復検証器を追加した。ホストとワーカーを同じソースから更新し、[起動の切り分け](../docs/startup-diagnostics.md)に従って通常/import遅延/起動フック遅延を確認する。同日に`ae3889c`をWindowsで[再検証](../docs/validation-windows-2026-11-04.md)し、実GUIスモークと起動反復9/9、意図的なimport例外の画面、終了時回収を確認した。以前の初回失敗は未再現で、原因解消とは扱わない。
@@ -129,6 +131,6 @@ python tests/browser_native_bridge.py
 
 Windowsターゲットは型検査用に事前導入する。Windows向けexeのクロスビルド・実行を保証する手順ではない。今回のMacでは既定SDK 27とリンカーが不整合だったため、インストール済みのSDK 26.5を`SDKROOT`で選び直して検査した。SDKファイルやOS設定は変更していない。
 
-`browser_native_bridge.py`はChromium上の仮のWebView2ブリッジを使う契約テストで、実際のWindows/WebView2実行ではない。Pythonワーカーの実パイプ結合テストはPOSIXのfd継承で実行するため、Windowsでは別の実機確認が必要。
+`browser_native_bridge.py`はChromium上の仮のWebView2ブリッジを使う契約テストで、実際のWindows/WebView2実行ではない。`test_worker.py`はPOSIX fd継承専用。`test_worker_logging.py`はWindowsの継承ハンドル/POSIX fdの両方を扱い、ログ・RPC・通常例外を実ワーカーで確認する。実GUIとホストのJob Object回収は別の実機確認が必要。
 
 未実装: ネイティブexeのpip配置、汎用ホスト資材の配布、単一exe組立・展開・署名、Fixed Version WebView2/Python同梱。詳細な配布方針は[ビルド設計](../docs/build-system.md)を正とする。

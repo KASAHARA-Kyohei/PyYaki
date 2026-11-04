@@ -1,6 +1,6 @@
 # PyYaki アーキテクチャ設計
 
-状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-04 / Windows既存ホストの実機確認済み・Windowsベンチマーク未実施
+状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-05 / Windows既存ホストの実機確認済み・Windowsベンチマーク未実施
 
 初期試作では、`web.py`と通信に依存しない`app.py`、共有セッション`_rpc.py`、匿名パイプの`worker.py`、Windows用Rustホスト`native/`を実装した。RPC、接続単位のContext、順序付きイベントとSDK購読、起動・終了フックを提供する。MacのWeb/ワーカー試験とWindowsの型検査に加え、WindowsのGUI/RPCと通常終了・ホスト強制終了時のPython回収を2026-11-03に[実機確認](validation-windows.md)した。ネイティブwheel・単一exe・ネットワーク/企業環境は未確認または未実装で、Windows用のADRやMVP全体の採択とは扱わない。
 
@@ -226,9 +226,12 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-015 | 要求IDの全履歴 / 有限履歴 / 交渉した単調連番 | 公開前試作では標準SDKがsequenceを交渉し、最後の番号だけで再送を拒否。旧形式は4,096件上限を維持。有限履歴の単純な破棄は古い再送を受理するため採らない。全面的なID形式変更と比べ既存クライアントを維持できるが、2モードの保守が必要 | Webと実パイプで4,100件・重複拒否、再入SDK呼出しを確認。Mac実機の連続試験とWindows更新版を確認して正式採択を判断 |
 | ADR-016 | 既定アイコン / 独自アイコン設定、RC直接呼出し / embed-resource / winresource | 初期試作は利用者が選んだC案を既定として埋め込み。Mac .appはbundle資産、開発Dockは既存objc2バインディング。Windowsはembed-resourceで事前変換ICOをコンパイルする。開発時にリソースコンパイラーを要するが、実行時の画像変換やアプリごとのRust不要という配布方針は変えない | Mac生成・署名とGNU版PEの画像照合を確認。2026-11-04にWindows MSVCとExplorer/ウィンドウを実画面、タスクバーを利用者目視で確認（[記録](validation-windows-2026-11-04.md)）。Mac Dock目視は残る。独自設定と署名前のコンパイラー不要の差替えは別途判断 |
 | ADR-017 | 非表示時の表示待ちと期限の分離 / 初回の前面化 / DOM準備で描画を代替 | Space移動で二重rAF待ちが止まる[Macの失敗経路](startup-diagnostics.md)を確認。表示待ちの状態を接続・バックエンド待ちから分ける案を次に検討する。SDK接続期限・公開ready期限・ホストUI期限の整合が必要。一度だけの前面化は試験でも失敗し不採用。DOM準備を描画扱いにする変更は先行描画条件を弱めるため採らない | 未実装・未採択。Macの通常/フルスクリーン・表示復帰・利用者のSpace移動、初期化通知欠落・Python遅延を検証し、Windows実機の描画順と公開readyの期限契約も維持できることを確認 |
+| ADR-018 | PYTHONIOENCODING / -X utf8 / worker内reconfigure / パッケージimport前の固定bootstrap | 固定bootstrapでstdout/stderrだけをUTF-8・backslashreplace・行バッファリングへ設定する試作。-Iと通常ファイルの既定encodingを維持し、パッケージimport失敗も対象にする。生バイト出力とアプリによる再設定は対象外 | 2026-11-05にWindowsの実パイプ4検査・実WebView2・通常/強制終了・日本語例外を確認（[記録](validation-worker-logs-2026-11-05.md)）。Macのビルド・WKWebView・生成.appは未確認で、正式採択にはその回帰確認が必要 |
 
 2026-10-31のMac同梱方式比較（Windowsの配布方式の採択とは別）: [PyInstaller](https://pyinstaller.org/en/stable/operating-mode.html)はPythonと依存の収集を再利用できる一方、動的import・データの収集指定が必要。Python.orgのframework型をそのままvenvからコピーする方法は再配置確認が別途必要。[python-build-standalone](https://gregoryszorc.com/docs/python-build-standalone/main/running.html)はinstall_onlyの事前ビルドとライセンスファイルを提供し、既存Rustホストの後段ワーカーとして使えるため、Macローカル試作ではこちらを採用して再配置を確認した。全依存・OS・配布署名の互換性や法的な再配布確認は未完了。
 
 ゲートの定義は[roadmap.md](roadmap.md)を参照する。
+
+2026-11-05のログ方式比較: CPython標準機能を使い、新しい依存は追加しない。[`-I`](https://docs.python.org/3.14/using/cmdline.html#cmdoption-I)はPYTHON系環境変数を無視するためPYTHONIOENCODINGだけでは設定できない。[UTF-8 mode](https://docs.python.org/3.14/library/os.html#python-utf-8-mode)は通常のopen等にも影響するため、今回のログだけの変更には採らない。[TextIOWrapper.reconfigure](https://docs.python.org/3.14/library/io.html#io.TextIOWrapper.reconfigure)で両テキストストリームだけを設定する。worker.py内での設定では先行するPyYakiパッケージのimport失敗を捕捉できないため、ホストに埋め込む固定bootstrapで設定後にrunpyを使う。行バッファリングによる書込み頻度への影響があり、性能効果は未測定。公開APIへ任意評価を追加するものではない。資料参照日: 2026-11-05。
 
 2026-11-04のアイコン実装比較: [embed-resource 3](https://docs.rs/embed-resource/3.0.12/embed_resource/)は既存RCのコンパイルとMSVC/GNUのツール探索を扱い、[winresource](https://docs.rs/winresource/0.1.34/winresource/)はRC生成とバージョン情報も提供する。今回は固定したICON定義1件だけなので前者を使い、ツール探索の自作を避けた。Macは[CFBundleIconFile](https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundleiconfile)と[applicationIconImage](https://developer.apple.com/documentation/appkit/nsapplication/applicationiconimage)を使い、既存のobjc2 0.6/objc2-app-kit 0.3へ必要な依存を明示した。形式変換はsips/iconutilでのMac限定手順と[PillowのICO/ICNS対応](https://pillow.readthedocs.io/en/12.3.0/handbook/image-file-formats.html)を比較し、Windows用PNGのRGBA化と複数サイズの出力を同じスクリプトで扱えるPillowを開発用だけに採用した。PNG形式のWindowsアイコンには[32bpp ARGBが必要](https://devblogs.microsoft.com/oldnewthing/20101022-00/?p=12473)なため、不透明な原本にもalpha=255を持たせる。原本の再生成・デザイン変更はしない。
