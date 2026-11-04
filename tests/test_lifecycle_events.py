@@ -5,9 +5,32 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pyyaki import App, Context, FrameworkError
+from pyyaki._json import MAX_SAFE_INTEGER
 from pyyaki._rpc import Connection
 from pyyaki.config import Config
 from pyyaki.web import create_asgi
+
+
+def test_sequence_replay_protection_uses_constant_history():
+    connection = Connection(App(), None, "one", "macos", request_id_mode="sequence")
+    for number in range(1, 10001):
+        connection.claim_request_id(str(number))
+    assert not connection.seen
+    assert connection.last_request_id == 10000
+    connection.claim_request_id(str(MAX_SAFE_INTEGER))
+    for identifier in ("1", "9999", str(MAX_SAFE_INTEGER), str(MAX_SAFE_INTEGER + 1)):
+        with pytest.raises(FrameworkError):
+            connection.claim_request_id(identifier)
+
+
+@pytest.mark.parametrize(
+    "identifier", ["0", "01", "+1", "-1", "1.0", "1e3", "１", "١", "", "1\n", "x", 1, True, None]
+)
+def test_sequence_ids_have_one_canonical_ascii_form(identifier):
+    connection = Connection(App(), None, "one", "web", request_id_mode="sequence")
+    with pytest.raises(FrameworkError):
+        connection.claim_request_id(identifier)
+    assert connection.last_request_id == 0
 
 
 def test_context_injection_and_strict_signature():

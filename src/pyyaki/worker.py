@@ -13,7 +13,7 @@ from pathlib import Path
 
 from . import App, __version__
 from ._json import MAX_MESSAGE_BYTES, decode, encode
-from ._rpc import MAX_INFLIGHT, Connection, envelope
+from ._rpc import MAX_INFLIGHT, Connection, envelope, negotiate_request_ids
 from .config import load_config
 from .errors import FrameworkError
 
@@ -178,10 +178,12 @@ async def serve(app: App, read_fd: int, write_fd: int, nonce: str, mode: str) ->
     )
     transport = PipeTransport(read_fd, write_fd)
     public_hello = decode(await transport.receive_text())
-    envelope(public_hello, {"v", "type", "client_version"})
+    request_id_mode = negotiate_request_ids(public_hello, {"v", "type", "client_version"})
     if public_hello["type"] != "hello" or public_hello["client_version"] != __version__:
         raise FrameworkError("PROTOCOL_MISMATCH", "Invalid SDK handshake")
-    connection = Connection(app, transport, transport.session_id, mode)
+    connection = Connection(
+        app, transport, transport.session_id, mode, request_id_mode=request_id_mode
+    )
     await connection.send(
         {
             "v": 1,
@@ -191,6 +193,7 @@ async def serve(app: App, read_fd: int, write_fd: int, nonce: str, mode: str) ->
             "capabilities": ["rpc", "events"],
             "framework_version": __version__,
             "limits": {
+                "request_id_mode": request_id_mode,
                 "max_message_bytes": MAX_MESSAGE_BYTES,
                 "max_inflight": MAX_INFLIGHT,
                 "default_timeout_ms": 30000,

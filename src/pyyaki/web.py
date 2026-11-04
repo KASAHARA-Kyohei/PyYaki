@@ -13,7 +13,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from . import __version__
 from ._json import MAX_MESSAGE_BYTES, decode
-from ._rpc import MAX_INFLIGHT, Connection, envelope
+from ._rpc import MAX_INFLIGHT, Connection, negotiate_request_ids
 from .app import App
 from .config import Config
 from .errors import FrameworkError
@@ -128,7 +128,7 @@ def create_asgi(app: App, config: Config) -> FastAPI:
         try:
             async with asyncio.timeout(10):
                 hello = decode(await socket.receive_text())
-            envelope(hello, {"v", "type", "client_version", "nonce"})
+            request_id_mode = negotiate_request_ids(hello, {"v", "type", "client_version", "nonce"})
             if hello["type"] != "hello" or hello["client_version"] != __version__:
                 await socket.close(code=1002)
                 return
@@ -137,7 +137,9 @@ def create_asgi(app: App, config: Config) -> FastAPI:
             ):
                 await socket.close(code=1008)
                 return
-            connection = Connection(app, socket, secrets.token_urlsafe(24), "web")
+            connection = Connection(
+                app, socket, secrets.token_urlsafe(24), "web", request_id_mode=request_id_mode
+            )
             await connection.send(
                 {
                     "v": 1,
@@ -147,6 +149,7 @@ def create_asgi(app: App, config: Config) -> FastAPI:
                     "capabilities": ["rpc", "events"],
                     "framework_version": __version__,
                     "limits": {
+                        "request_id_mode": request_id_mode,
                         "max_message_bytes": MAX_MESSAGE_BYTES,
                         "max_inflight": MAX_INFLIGHT,
                         "default_timeout_ms": 30_000,

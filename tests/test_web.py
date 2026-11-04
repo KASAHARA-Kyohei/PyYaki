@@ -86,10 +86,13 @@ def nonce(client):
 
 
 @contextmanager
-def connected(client):
+def connected(client, request_id_mode=None):
     token = nonce(client)
     with client.websocket_connect(WS_URL, headers={"origin": ORIGIN}) as socket:
-        socket.send_json({"v": 1, "type": "hello", "client_version": __version__, "nonce": token})
+        hello = {"v": 1, "type": "hello", "client_version": __version__, "nonce": token}
+        if request_id_mode is not None:
+            hello["request_id_mode"] = request_id_mode
+        socket.send_json(hello)
         welcome = socket.receive_json()
         assert welcome["capabilities"] == ["rpc", "events"]
         yield socket, welcome
@@ -233,11 +236,57 @@ def test_duplicate_ids_close_connection(client):
 
 
 def test_prototype_request_history_is_bounded(client, monkeypatch):
-    monkeypatch.setattr("pyyaki._rpc.MAX_CALLS", 1)
+    monkeypatch.setattr("pyyaki._rpc.MAX_LEGACY_CALLS", 1)
     with connected(client) as (socket, _):
         call(socket)
         assert socket.receive_json()["type"] == "result"
         call(socket, "two")
+        with pytest.raises(WebSocketDisconnect):
+            socket.receive_json()
+
+
+def test_sequence_requests_exceed_4096_and_replay_still_closes(client):
+    with connected(client, "sequence") as (socket, welcome):
+        assert welcome["limits"]["request_id_mode"] == "sequence"
+        for index in range(1, 4101):
+            call(socket, str(index))
+            response = socket.receive_json()
+            assert response["id"] == str(index) and response["result"] == "鯛焼き🐟"
+        call(socket, "1")
+        with pytest.raises(WebSocketDisconnect):
+            socket.receive_json()
+
+
+def test_sequence_keeps_concurrency_cancel_and_skipped_numbers(client):
+    with connected(client, "sequence") as (socket, _):
+        call(socket, "10", "wait", {})
+        assert client.started.wait(1)
+        call(socket, "15")
+        assert socket.receive_json()["id"] == "15"
+        socket.send_json({"v": 1, "type": "cancel", "id": "10"})
+        assert socket.receive_json()["error"]["code"] == "CANCELLED"
+        # A late cancel for a completed ID must not affect newer work.
+        socket.send_json({"v": 1, "type": "cancel", "id": "15"})
+        call(socket, "20")
+        assert socket.receive_json()["id"] == "20"
+        call(socket, "19")
+        with pytest.raises(WebSocketDisconnect):
+            socket.receive_json()
+
+
+@pytest.mark.parametrize("mode", ["unknown", None, True, 1, [], {}])
+def test_invalid_id_mode_is_not_silently_downgraded(client, mode):
+    token = nonce(client)
+    with client.websocket_connect(WS_URL, headers={"origin": ORIGIN}) as socket:
+        socket.send_json(
+            {
+                "v": 1,
+                "type": "hello",
+                "client_version": __version__,
+                "nonce": token,
+                "request_id_mode": mode,
+            }
+        )
         with pytest.raises(WebSocketDisconnect):
             socket.receive_json()
 

@@ -27,6 +27,7 @@ async def shutdown():
 
 @app.command("probe.echo")
 async def echo(value: str, emit: bool = False, *, ctx: Context) -> str:
+    ctx.state["echo_calls"] = ctx.state.get("echo_calls", 0) + 1
     if emit:
         await ctx.emit("tick", {"value": value})
     return value
@@ -49,4 +50,5 @@ async def info(*, ctx: Context) -> dict[str, int]:
         "active": ctx.state.get("active", 0),
         "asyncio_tasks": len(asyncio.all_tasks()),
         "fds": len(os.listdir("/dev/fd")),
+        "echo_calls": ctx.state.get("echo_calls", 0),
     }

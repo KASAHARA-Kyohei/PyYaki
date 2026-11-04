@@ -126,7 +126,7 @@ def worker(project, tmp_path, mode="windows"):
             os.close(read)
 
 
-def initialize(read, write, mode="windows"):
+def initialize(read, write, mode="windows", request_id_mode=None):
     write_frame(
         write, {"v": 1, "type": "worker_hello", "nonce": "a" * 64, "framework_version": __version__}
     )
@@ -139,10 +139,14 @@ def initialize(read, write, mode="windows"):
         "nonce": "a" * 64,
         "framework_version": __version__,
     }
-    dispatch(write, {"v": 1, "type": "hello", "client_version": __version__})
+    hello = {"v": 1, "type": "hello", "client_version": __version__}
+    if request_id_mode is not None:
+        hello["request_id_mode"] = request_id_mode
+    dispatch(write, hello)
     welcome = receive(read)
     assert welcome["message"]["mode"] == mode
     assert welcome["message"]["capabilities"] == ["rpc", "events"]
+    assert welcome["message"]["limits"]["request_id_mode"] == (request_id_mode or "legacy")
 
 
 def receive_startup(read):
@@ -274,6 +278,20 @@ def test_native_session_switch_is_rejected(project, tmp_path):
     with worker(project, tmp_path) as (process, read, write, _):
         initialize(read, write)
         dispatch(write, {"v": 1, "type": "cancel", "id": "x"}, session="forged")
+        assert process.wait(timeout=3) == 1
+
+
+@pytest.mark.parametrize("mode", ["windows", "macos"])
+def test_native_sequence_ids_continue_and_reject_replay(project, tmp_path, mode):
+    with worker(project, tmp_path, mode) as (process, read, write, _):
+        initialize(read, write, mode, request_id_mode="sequence")
+        for index in range(1, 4101):
+            call(write, str(index), "missing")
+            reply = receive(read)["message"]
+            assert reply["id"] == str(index)
+            assert reply["error"]["code"] == "METHOD_NOT_FOUND"
+        call(write, "1", "missing")
+        assert receive(read)["type"] == "worker_failed"
         assert process.wait(timeout=3) == 1
 
 

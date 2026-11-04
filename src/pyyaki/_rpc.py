@@ -4,13 +4,13 @@ import asyncio
 import contextlib
 from typing import Literal, Protocol
 
-from ._json import decode, encode
+from ._json import MAX_SAFE_INTEGER, decode, encode
 from .app import NAME, App
 from .context import Context
 from .errors import FrameworkError
 
 MAX_INFLIGHT = 16
-MAX_CALLS = 4096
+MAX_LEGACY_CALLS = 4096
 MAX_EVENTS = 64
 
 
@@ -24,6 +24,16 @@ def envelope(message: dict, fields: set[str]) -> None:
         raise FrameworkError("BAD_REQUEST", "Invalid protocol envelope")
 
 
+def negotiate_request_ids(hello: dict, fields: set[str]) -> str:
+    if "request_id_mode" in hello:
+        fields = fields | {"request_id_mode"}
+    envelope(hello, fields)
+    mode = hello.get("request_id_mode", "legacy")
+    if mode not in ("legacy", "sequence"):
+        raise FrameworkError("BAD_REQUEST", "Unsupported request ID mode")
+    return mode
+
+
 class Connection:
     def __init__(
         self,
@@ -31,16 +41,44 @@ class Connection:
         socket: Transport,
         session_id: str,
         mode: Literal["web", "windows", "macos"],
+        *,
+        request_id_mode: str = "legacy",
     ):
+        if request_id_mode not in ("legacy", "sequence"):
+            raise ValueError("Unsupported request ID mode")
         self.app = app
         self.socket = socket
         self.tasks: dict[str, asyncio.Task] = {}
         self.seen: set[str] = set()
+        self.request_id_mode = request_id_mode
+        self.last_request_id = 0
         self.send_lock = asyncio.Lock()
         self.context = Context(session_id, mode, self.emit)
         self.events: asyncio.Queue[str] = asyncio.Queue(MAX_EVENTS)
         self.sequence = 0
         self.closed = False
+
+    def claim_request_id(self, request_id: object) -> None:
+        if not isinstance(request_id, str) or not 1 <= len(request_id) <= 128:
+            raise FrameworkError("BAD_REQUEST", "Invalid request ID")
+        if self.request_id_mode == "sequence":
+            if (
+                len(request_id) > 16
+                or not request_id.isascii()
+                or not request_id.isdecimal()
+                or request_id.startswith("0")
+                or not self.last_request_id < int(request_id) <= MAX_SAFE_INTEGER
+            ):
+                raise FrameworkError("BAD_REQUEST", "Invalid or replayed request ID sequence")
+            self.last_request_id = int(request_id)
+        else:
+            if (
+                not request_id.isascii()
+                or request_id in self.seen
+                or len(self.seen) >= MAX_LEGACY_CALLS
+            ):
+                raise FrameworkError("BAD_REQUEST", "Invalid, duplicate, or exhausted request ID")
+            self.seen.add(request_id)
 
     async def emit(self, name: str, payload: object) -> None:
         if self.closed:
@@ -127,16 +165,9 @@ class Connection:
                 continue
             envelope(message, {"v", "type", "id", "method", "params", "timeout_ms"})
             request_id = message["id"]
-            if (
-                kind != "call"
-                or not isinstance(request_id, str)
-                or not 1 <= len(request_id) <= 128
-                or not request_id.isascii()
-                or request_id in self.seen
-                or len(self.seen) >= MAX_CALLS
-            ):
-                raise FrameworkError("BAD_REQUEST", "Invalid, duplicate, or exhausted request ID")
-            self.seen.add(request_id)
+            if kind != "call":
+                raise FrameworkError("BAD_REQUEST", "Invalid call type")
+            self.claim_request_id(request_id)
             if (
                 type(message["timeout_ms"]) is not int
                 or not 1 <= message["timeout_ms"] <= 120_000

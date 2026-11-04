@@ -62,6 +62,7 @@ def main():
                 if (message.type === 'hello') reply({
                   v: 1, type: 'welcome', mode: 'windows', capabilities: ['rpc', 'events'],
                   framework_version: '0.1.0.dev0', session_id: 'host-issued',
+                  limits: {request_id_mode: 'sequence'},
                 });
                 if (message.type === 'call') {
                   if (message.method === 'hang') return;
@@ -83,7 +84,14 @@ def main():
             messages = page.evaluate("nativeMessages")
             assert messages[0] == {"v": 1, "type": "pyyaki_connect_started"}
             assert messages[1] == {"v": 1, "type": "pyyaki_shell_ready"}
-            assert messages[2] == {"v": 1, "type": "hello", "client_version": "0.1.0.dev0"}
+            assert messages[2] == {
+                "v": 1,
+                "type": "hello",
+                "client_version": "0.1.0.dev0",
+                "request_id_mode": "sequence",
+            }
+            ids = [message["id"] for message in messages if message["type"] == "call"]
+            assert ids == [str(index) for index in range(1, len(ids) + 1)]
             assert page.evaluate("networkAttempts") == 0
             assert not errors, errors
 
@@ -114,6 +122,18 @@ def main():
                 catch (error) { if (error.code === 'BAD_REQUEST') invalid++; }
               }
               await pyyaki.ready();
+              let nested;
+              const reentrant = {get name() {
+                nested ??= pyyaki.invoke('greet', {name: 'nested'});
+                return 'outer';
+              }};
+              await pyyaki.invoke('greet', reentrant);
+              await nested;
+              const ids = nativeMessages.filter(message => message.type === 'call')
+                .map(message => Number(message.id));
+              if (!ids.every((id, index) => index === 0 || id > ids[index - 1])) {
+                throw Error('Out-of-order reentrant request IDs');
+              }
               const emit = (name, payload, seq) => sendNativeEvent({
                 v: 1, type: 'event', name, payload, seq,
               });

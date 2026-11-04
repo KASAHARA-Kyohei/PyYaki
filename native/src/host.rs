@@ -516,6 +516,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                                 message.get("phase").and_then(Value::as_str),
                                 Some(
                                     "ready"
+                                        | "sample"
                                         | "interactive"
                                         | "fault_ready"
                                         | "paused_timeout"

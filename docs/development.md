@@ -106,7 +106,7 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 | コマンドが見つからない / 型検証で失敗 | `entry`と登録名、名前付きparams、型注釈を確認。ContextはJSONから渡さない |
 | ネイティブにJS変更が反映されない | SDK変更ならRustホストを再ビルド。通常のUI変更ならホストを再起動 |
 | ready失敗 / BACKEND_FAILED | [段階ログ・反復検証](startup-diagnostics.md)で切り分け、entry・依存・起動フックを確認。Macのホスト/ワーカーログは`~/Library/Application Support/PyYaki/prototype/<instance>/` |
-| 呼び出しを重ねた後に切断 | 現在は1接続で累積4,096要求の上限がある。Webはページ再読込、ネイティブはホスト再起動で新しい接続にする |
+| 呼び出しを重ねた後に切断 | 標準SDKは連番IDで履歴を蓄積しない。旧SDK/独自クライアントのlegacyモードには4,096件の上限が残る。SDK・Python・Rustホストを同じソースで更新する |
 
 ログとプロファイルは試作では自動削除しない。ブラウザ画像、診断のraw標本、生成物は`test-results/`等のGit管理外へ保存する。起動/終了フックはワーカーまたはASGI lifespanごとに実行し、ブラウザの接続単位の状態はContextへ置く。取消は協調的で、同期CPU処理や取消を無視する処理の停止・巻戻しを保証しない。
 

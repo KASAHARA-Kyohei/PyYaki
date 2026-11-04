@@ -124,6 +124,23 @@ def run_case(binary, output, scenario, index=0, duration=0, rpc_samples=100, del
                 continue
             record["markers"].append(marker)
             phase = marker["phase"]
+            if phase == "sample":
+                (project / "progress.json").write_text(
+                    json.dumps(
+                        {
+                            "sample": marker["data"],
+                            "memory": record["memory"][-1] if record["memory"] else None,
+                        },
+                        indent=2,
+                    )
+                )
+                if marker["data"]["batches"] % 60 == 0:
+                    print(
+                        f"  {scenario}: {marker['data']['elapsed_ms'] / 1000:.0f}s, "
+                        f"echo={marker['data']['echo_calls']}, "
+                        f"tasks={marker['data']['asyncio_tasks']}, fd={marker['data']['fds']}",
+                        flush=True,
+                    )
             if phase == "interactive":
                 record["memory"].append(
                     {

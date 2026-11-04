@@ -15,6 +15,7 @@ let socket;
 let connection;
 let capabilities = Object.freeze([]);
 const pending = new Map();
+let lastRequestId = 0;
 const subscriptions = new Map();
 const validEventName = (name) => typeof name === "string" &&
   name.length <= 64 && /^[a-z]/.test(name) && !/[^a-z0-9_.-]/.test(name) &&
@@ -145,6 +146,7 @@ function connect() {
         socket = new WebSocket(url);
       }
       socket.onopen = () => send({ v: 1, type: "hello", client_version: VERSION,
+        request_id_mode: "sequence",
         ...(native ? {} : { nonce }) });
       socket.onmessage = ({ data }) => {
         try {
@@ -156,6 +158,7 @@ function connect() {
           if (message.v !== 1) throw new Error("Protocol mismatch");
           if (!settled && message.type === "welcome") {
             if (message.framework_version !== VERSION || message.mode !== mode ||
+                message.limits?.request_id_mode !== "sequence" ||
                 !Array.isArray(message.capabilities)) throw new Error("Version mismatch");
             capabilities = Object.freeze([...message.capabilities]);
             state = "ready";
@@ -252,9 +255,15 @@ async function invoke(name, params = {}, { timeoutMs = 30000, signal } = {}) {
     throw new PyYakiError("BAD_REQUEST", "Invalid call options");
   }
   if (signal?.aborted) throw new PyYakiError("CANCELLED", "Command cancelled");
+  // Snapshot before assigning an ID: getters can invoke another command reentrantly.
+  checkJson(params);
+  params = structuredClone(params);
+  if (signal?.aborted) throw new PyYakiError("CANCELLED", "Command cancelled");
   if (pending.size >= 16) throw new PyYakiError("BUSY", "Too many concurrent commands");
-  const id = typeof crypto.randomUUID === "function" ? crypto.randomUUID() :
-    [...crypto.getRandomValues(new Uint8Array(16))].map(x => x.toString(16).padStart(2, "0")).join("");
+  if (lastRequestId >= Number.MAX_SAFE_INTEGER) {
+    throw new PyYakiError("BAD_REQUEST", "Request ID sequence exhausted; reload to reconnect");
+  }
+  const id = String(++lastRequestId);
   return new Promise((resolve, reject) => {
     const finish = (callback, value) => {
       if (!pending.delete(id)) return;

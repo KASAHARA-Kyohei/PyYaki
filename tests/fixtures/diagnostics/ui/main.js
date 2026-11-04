@@ -88,13 +88,17 @@ try {
     for (let index = 0; index < config.rpc_samples; index++) rpc.push(await echo('x'.repeat(256)));
     const soak = [];
     const started = performance.now();
-    const interval = Math.max(1000, config.duration_seconds * 1000 / 600);
+    const interval = 1000;
     let batches = 0;
     while (performance.now() - started < config.duration_seconds * 1000) {
       const batchAt = performance.now();
       const samples = await Promise.all([0, 1, 2, 3].map(index => echo(`soak-${batches}-${index}`, index === 0)));
       soak.push(...samples);
-      if (++batches % 20 === 0) await cancellation();
+      if (++batches % 20 === 0) {
+        await cancellation();
+        report('sample', {elapsed_ms: performance.now() - started, batches,
+          ...resources.at(-1)});
+      }
       await sleep(Math.max(0, interval - (performance.now() - batchAt)));
     }
     const deadline = performance.now() + 2000;

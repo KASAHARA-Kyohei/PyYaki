@@ -12,7 +12,7 @@
 | `Context`、イベント、`on`、起動・終了フック | 共通処理として実装済み。Windows実WebView2のイベント・取消・終了フックも確認 |
 | Mac/Windowsブリッジ・内部ワーカー通信 | Macは実WKWebView・実パイプで確認。WindowsもMSVCビルド・実WebView2のRPC・Python回収を確認。不要ハンドル非継承の負例等は未確認。[実機記録](validation-windows.md)を参照 |
 
-試作固有の制約: 接続初期化nonceは30秒・一度限りで、未使用nonceは全体256件を上限に古いものから失効。JSONの深さは64まで、1接続の要求ID追跡は4,096件までで、超過時は接続を閉じる。接続復帰はページの手動再読み込み。JSON本文1MiB、同時16要求、invoke既定30秒/最大120秒は設計値を使用。送信待ちは2秒で打ち切り、プロトコル違反・版不一致は接続を閉じる。これらの試作制約はMVPの最終採択ではなく、長時間稼働は未検証。
+試作固有の制約: 接続初期化nonceは30秒・一度限りで、未使用nonceは全体256件を上限に古いものから失効。JSONの深さは64まで、標準SDKはhelloで`request_id_mode="sequence"`を交渉し、要求履歴を蓄積しない。旧形式のクライアントだけ要求IDを最大4,096件まで追跡し、超過時は接続を閉じる。接続復帰はページの手動再読み込み。JSON本文1MiB、同時16要求、invoke既定30秒/最大120秒は設計値を使用。送信待ちは2秒で打ち切り、プロトコル違反・版不一致は接続を閉じる。これらの試作制約はMVPの最終採択ではなく、長時間稼働は未検証。
 
 ネイティブ試作ではページ再読み込み/遷移を許可せず、再接続はホストを閉じて再起動する。内部フレームは配送用の包みを含めて1MiB、UI→ホストとホスト→ワーカーのキューはそれぞれ32件、ワーカー→GUIの受信待ちはイベント/応答を合わせて64件。UI資産は同時16読込・各16MiBまで。超過時は明示エラーとしてホストを失敗状態にする試作上の制限で、MVPの採択は今後評価する。
 
@@ -177,13 +177,13 @@ Windows特有の機能は将来別名前空間で設計し、非対応時は`UNS
 SDKは接続したらhelloを送信する。Webは取得した接続nonceを必須とし、Windowsの公開helloにはnonceを含めず、ホストが内部パイプの別nonceでワーカーを検証する。
 
 ```json
-{"v":1,"type":"hello","client_version":"0.1.0.dev0","nonce":"web-only-one-time-value"}
+{"v":1,"type":"hello","client_version":"0.1.0.dev0","nonce":"web-only-one-time-value","request_id_mode":"sequence"}
 ```
 
 Windowsではhelloの`nonce`を省略する。helloは接続につき1回だけ受け付ける。対応版とワーカーreadyの確認後にwelcomeを返す。
 
 ```json
-{"v":1,"type":"welcome","session_id":"opaque-session-id","mode":"windows","capabilities":["rpc","events"],"framework_version":"0.1.0.dev0","limits":{"max_message_bytes":1048576,"max_inflight":16,"default_timeout_ms":30000,"max_timeout_ms":120000}}
+{"v":1,"type":"welcome","session_id":"opaque-session-id","mode":"windows","capabilities":["rpc","events"],"framework_version":"0.1.0.dev0","limits":{"request_id_mode":"sequence","max_message_bytes":1048576,"max_inflight":16,"default_timeout_ms":30000,"max_timeout_ms":120000}}
 ```
 
 `session_id`は診断用にも使えるが、後続の呼出しでクライアントが指定する宛先には使わない。ホスト/サーバーが接続に結びつけたセッションで配送する。
@@ -193,18 +193,22 @@ v1は整数のプロトコル版。未対応v、未知のメッセージtype、�
 ### 5.2 要求と応答
 
 ```json
-{"v":1,"type":"call","id":"client-generated-unique-id","method":"greet","params":{"name":"Yaki"},"timeout_ms":30000}
+{"v":1,"type":"call","id":"1","method":"greet","params":{"name":"Yaki"},"timeout_ms":30000}
 ```
 
 ```json
-{"v":1,"type":"result","id":"client-generated-unique-id","result":{"message":"Hello, Yaki!"}}
+{"v":1,"type":"result","id":"1","result":{"message":"Hello, Yaki!"}}
 ```
 
 ```json
-{"v":1,"type":"error","id":"client-generated-unique-id","error":{"code":"VALIDATION_ERROR","message":"name must be a string","details":{"field":"name"}}}
+{"v":1,"type":"error","id":"1","error":{"code":"VALIDATION_ERROR","message":"name must be a string","details":{"field":"name"}}}
 ```
 
-IDは接続中に一意な最大128文字のASCII文字列。並行呼出しの応答順は要求順と一致しない。result/errorは同一IDにつきいずれか1つを最終応答とする。重複IDは接続のプロトコル違反として未処理要求を失敗させ、接続を閉じる。
+標準SDKの`sequence`モードでは、IDは`1`〜`9007199254740991`の正規化されたASCII十進文字列。先頭ゼロ・符号・指数表記を許可しない。受信順に厳密な増加を要求し、欠番は許可する。サーバーは最後の番号1個だけを保持し、それ以下を未使用の番号でも拒否する。結果・エラー・BUSYのいずれも受理した番号を消費し、古いIDの取消は新しい要求へ作用しない。SDKは引数をスナップショットしてから番号を割り当て、getterによる再入呼出しでも送信順の増加を保つ。
+
+helloの任意フィールド`request_id_mode`は`sequence`または`legacy`。省略時は従来の`legacy`で、接続中に一意な最大128文字のASCII文字列を使う。legacyは最大4,096件の履歴上限を残す。welcomeの`limits.request_id_mode`で選択結果を返し、標準SDKはsequenceの確認前にreadyにならない。未知のモードや追加フィールドは拒否する。
+
+並行呼出しの応答順は要求順と一致しない。result/errorは同一IDにつきいずれか1つを最終応答とする。重複IDは接続のプロトコル違反として未処理要求を失敗させ、接続を閉じる。
 
 `timeout_ms`は送信側の待機上限であり、サーバーも受信からの期限で処理を制限する。二つの時計を直接比較しない。遅れて届いた応答はSDKが破棄する。再試行可能性を通信層で決めず、業務上必要ならアプリがidempotency keyをparamsに設計する。
 
@@ -215,7 +219,7 @@ IDは接続中に一意な最大128文字のASCII文字列。並行呼出しの�
 ```
 
 ```json
-{"v":1,"type":"cancel","id":"client-generated-unique-id"}
+{"v":1,"type":"cancel","id":"1"}
 ```
 
 イベントは接続内でseqを1から増やし、接続中のイベント送信順を維持する。`ctx.emit`は検証済みJSONのキュー投入で完了し、UIでの受信・処理完了を保証する通知ではない。イベントと要求の最終応答の到着順には依存しない。要求の最終応答と別のメッセージであり、SDKの購読の有無にかかわらず接続先へ送る。購読なしの場合SDKが破棄する。切断中のイベント再送、欠番の復元、永続化は行わない。
