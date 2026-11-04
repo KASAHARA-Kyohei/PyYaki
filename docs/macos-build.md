@@ -89,4 +89,10 @@ macOS 27.0.1 / M2 / CPython 3.14.3で、同梱Pydantic native拡張を含むhell
 
 別途、実runtimeとオフラインwheelhouseから`test-results/macos-publication-proof/Hello PyYaki.app`を生成し、実codesignの検証・実WKWebViewスモークに成功した。隣の`.build.json`の通常ファイル2,505件をSHA-256で照合し、stagingが残っていないことを確認。元の`dist/Hello PyYaki.app`は変更していない。
 
+## 既定アイコンの組み込み検証（2026-11-04）
+
+`cf3c2c6`のホストとICNS入りのwheel、既存のオフライン資材から、別の`test-results/icon-proof-final/Hello PyYaki.app`を生成した。`CFBundleIconFile=PyYaki.icns`と資産の一致、AppleのiconutilによるICNSの読み戻し、通常ファイル2,507件のレポートハッシュ、実codesignの検証を確認。Pillowは同梱Pythonに入っていない。確認値は同じディレクトリの`verification.json`に保存した。既存のdistや以前の検証.appは上書きしていない。
+
+実WKWebViewのスモークにも成功し、結果は`bundle-smoke.json`と`bundle-smoke.log`に保存した。起動後の署名も再確認した。Dockの画面取得はCUAツールがタイムアウトしたため、Dock/Finderの実表示を目視確認したとは扱わない。独自アイコン設定、他Macや正式配布の検証は未完了。
+
 出力先には同一ボリュームでhard linkと排他的renameを使えることが必要で、未対応なら暗黙の上書きへフォールバックせず失敗する。appとレポートの2つをまとめた原子的トランザクションではない。SIGKILL・電源断・公開の極小区間での中断や、同権限の別プロセスによる任意の改変に対する完全な復旧は保証しない。レポートだけ残った場合は対応する.appの有無と内容を確認してから、不要なものだけ手動で整理する。G3全体の競合・破損・中断試験の完了とは扱わない。

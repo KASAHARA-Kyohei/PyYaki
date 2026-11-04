@@ -12,6 +12,8 @@ Windowsは`build.rs`がICOをリソースID 1へ組み込み、Taoがそのリ�
 
 形式変換の手順と原本は[ブランド資産](../assets/branding/README.md)を参照。通常のRustビルドやMac .app生成は保存済み資産を使い、Pillowを実行しない。独自アイコン用の設定、Webのfavicon、Windows単一exe生成はこの変更に含まれない。WindowsのMSVCビルド・Explorer/タスクバーの実表示は更新版で再確認が必要。
 
+2026-11-04にMacのdebug/releaseビルド、ICNSを含むwheel、.appの生成・署名・資産ハッシュを確認した。Windows GNUターゲットのreleaseホストもMacで生成し、PEのICON_GROUP ID 1の7画像がICOの各PNGとバイト単位で一致した（`test-results/icon-proof/windows-resources.json`）。Python等のペイロードを同梱したWindows配布アプリの生成・実機起動ではない。Dockの画面取得はタイムアウトしたため、実表示の目視確認は未完了。
+
 ## Macでの開発用確認
 
 利用者の依頼によりMac開発用ホストを追加した。tao/wry/WKWebView、同じ静的UI・SDK・Pythonワーカーを使用する。Rust 1.89以降とCPython 3.14の開発venvを用意し、リポジトリ直下で実行する。

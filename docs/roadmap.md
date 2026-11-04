@@ -11,8 +11,8 @@
 | 領域 | 現在地 | 残る確認・実装 |
 | --- | --- | --- |
 | 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れを実装。MacのPython/ブラウザで確認 | 自動再読込、本番Web運用、長時間/高負荷の評価 |
-| Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分/30分の連続試験、表示状態7条件、Python遅延/停止/クラッシュ・終了処理を確認。Python同梱.appのローカル生成と再配置も確認 | 断続的なshell通知待ち期限の切り分け、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
-| Windowsネイティブ | Windows 11 x64でMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・通常終了/ホスト強制終了時のPython回収を確認 | 起動ログ・障害表示追加後の再検証、負荷時の接続期限、GDI実提示の順序・性能、ハンドル継承の負例、実WebView2境界試験、ネットワーク/企業環境。詳細は[実機記録](validation-windows.md) |
+| Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分/30分の連続試験、表示状態7条件、Python遅延/停止/クラッシュ・終了処理を確認。Python同梱.appのローカル生成・再配置と既定アイコンの同梱を確認 | Dock/Finderの目視、断続的なshell通知待ち期限の切り分け、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
+| Windowsネイティブ | Windows 11 x64でMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・通常終了/ホスト強制終了時のPython回収を確認 | 起動ログ・障害表示・アイコン追加後の再検証、負荷時の接続期限、GDI実提示の順序・性能、ハンドル継承の負例、実WebView2境界試験、ネットワーク/企業環境。詳細は[実機記録](validation-windows.md) |
 | 導入 / 配布 | 開発用CLIは`dev`とMacの`build macos`試作。実行はRustホスト直接起動または生成.app | Rust不要のネイティブCLI配置、`build windows`、ランタイム同梱、単一exe組立/展開/署名 |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
 
@@ -279,3 +279,11 @@ RPCのp95は8ms、最大30ms。一方、UIの100msタイマーは遅れp95 924ms
 `75889e7`での再測定は7条件すべて想定の状態、全echo 417回、既知の残留PIDなし。前面・非フォーカス・検証窓を重ねた区間のJS遅れp95は4〜5ms、最小化960ms・非表示974ms、復元後4〜5ms。Rustの遅れと区間をまたぐRPCも分離した。[条件・除外試行・原記録](performance-macos.md#ウィンドウ状態とタイマーの比較)を参照。元の30分試験の原因やGUI受入条件達成は断定しない。
 
 Python 127件、Rust 12件、Mac/Windows GNUターゲットのClippy、Ruff/fmtを確認。Rustの並列テストで再現した一時ディレクトリ名の衝突はテスト側の連番で修正した。比較フラグなしの起動ではshell通知待ちの期限切れを再確認し、続く待機0秒の反復3件は2件成功・初回だけ失敗。[起動の記録](startup-diagnostics.md)へ残し、今回の比較の成功と区別する。Windows実機での更新版再検証は未実施。
+
+### 2026-11-04 C案アイコンの組み込み
+
+利用者の依頼により、選択済みのC案を既定としてMac .app・開発Dock設定とWindowsホストのPE・ウィンドウ・タスクバーへ組み込んだ。形式変換はPillowを使うメンテナー作業で、実行や通常ビルドでは保存済み資産を使う。独自アイコン設定やWebのfaviconは追加していない。OSS比較・実機で残る条件はADR-016。
+
+Python 127件、Rust 12件、Mac/Windows GNUターゲットのClippy、Ruff/fmtを確認。Macでdebug/releaseとwheel/.appを生成し、署名・2,507通常ファイルのハッシュ・実WKWebViewスモークに成功した。[Macの生成記録](macos-build.md)を参照。Windows GNU releaseホストのPEへ7サイズのPNGが元ICOと一致して埋め込まれたことも確認したが、MSVC/実機表示やPython同梱の単一exe配布の検証ではない。Dockの画面取得はタイムアウトし、目視確認は未完了。
+
+最終コード`cf3c2c6`の開発起動検証は待機0秒の3件中2件成功、初回のみshell通知待ち期限で失敗。原記録は`test-results/icon-proof-final-startup/`。既知の起動問題は未解消であり、再試行の成功やアイコンの配置変更を原因解消の証拠にしない。

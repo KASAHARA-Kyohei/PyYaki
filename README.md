@@ -8,6 +8,8 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 起動期限やPython起動失敗は[段階ログ・障害画面・反復検証の手順](docs/startup-diagnostics.md)で切り分けられます。新しい計測と表示のWindows実機再検証は未実施です。
 
+[C案の既定アイコン](assets/branding/README.md)を、Mac .app・開発ホストのDock設定と、Windows開発ホストのexe・ウィンドウ・タスクバーへ組み込む実装を追加しました。[反映方法と検証範囲](native/README.md#アイコン)を参照してください。Windows実機での表示確認は未実施です。
+
 開発を再開するときは[開発ガイド](docs/development.md)、現在の実装と残作業は[ロードマップの現在地](docs/roadmap.md#現在地と次の作業)を参照してください。
 
 2026-10-31の名称調査では、[PyPIの`pyyaki`公式API](https://pypi.org/pypi/pyyaki/json)は404で、[GitHubの名前検索](https://github.com/search?q=pyyaki+in%3Aname&type=repositories)でも該当する公開リポジトリは見つかりませんでした。名称は採用しましたが、PyPIでの登録可能性を保証するものではなく、公開時に再確認します。

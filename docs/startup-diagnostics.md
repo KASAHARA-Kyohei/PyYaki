@@ -71,3 +71,5 @@ cargo +1.89.0 build --manifest-path native/Cargo.toml --release --locked
 続く既存反復検証器の`--runs 1 --delay 0`では3件中2件成功、最初のbaselineだけ失敗した。接続開始437ms、ホスト期限10,326ms、shell通知・Python生成なし。30秒の外部watchdogで終了し、成功したimport/hooksケースも待機0秒なので、5秒遅延の確認には使わない。元記録は`test-results/startup-20261104T044233Z/report.json`とケースごとのログ。再試行の成功で初回失敗を解消扱いにしない。
 
 SDKは2回のrequestAnimationFrame後にshell通知を送る実装である。[WebKit公式説明](https://webkit.org/blog/8970/how-web-content-can-affect-power-usage/)（2019-08-27公開、2026-11-04参照）には非アクティブ時のrAF停止とタイマー抑制が記載されており、表示条件は調査候補になる。ただし[今回の窓状態比較](performance-macos.md)はready後の測定で、初期rAFの停止を直接測っていない。起動時の表示状態とrAF進行を記録する切り分けが残る。先行描画の順序や10秒期限は変更していない。
+
+同日のアイコン組み込み作業でも、開発ホストの初回スモークと1回の再実行が失敗した（`test-results/icon-proof/`）。最初の失敗はSDK接続開始1,478ms、ホスト期限10,742msで、shell通知とPython生成なし。Dock設定はTaoの起動後、最初の描画呼出しの後に行うよう整理したが、最終コード`cf3c2c6`の`--runs 1 --delay 0`も3件中2件成功・初回だけ失敗（`test-results/icon-proof-final-startup/report.json`）。この再確認は.app生成処理と一部並行しており、起動性能の計測には使わない。アイコン入り.appのスモーク成功とは分け、元の失敗を上書きせず、原因・解消とも未確定として残す。
