@@ -253,3 +253,9 @@ Windowsでの新しいコードのMSVCビルド・再検証は未実施。2026-1
 標準SDKのhelloにrequest_id_mode=sequenceを追加し、welcomeで交渉結果を確認する。IDはJavaScriptの安全な整数範囲の正規化十進文字列を単調増加させ、共通Connectionは最後の番号だけを保持して再送を拒否する。欠番を許容し、同時16件・取消・期限・イベントを維持する。旧helloはlegacyとして従来のASCII IDと4,096件上限を維持する。比較と採否条件はADR-015。
 
 Python 107件、Web/仮ネイティブのブラウザ契約を確認。WebとPOSIXパイプ（Windows/macOS mode）で4,100要求と古いIDの再送拒否を確認した。Windowsでのハンドル継承や更新SDKの実WebView2確認とは区別する。利用者は追加のMac連続試験を30分と指定した。試験器の1秒ごとの4並列・資源標本・進捗保存を準備し、実行結果は別途記録する。
+
+### 2026-11-04 Mac生成の失敗経路
+
+レポートの保存失敗が公開済み.appだけを残す経路を修正した。レポートをstagingへ完成させ、既存パスを置換しないhard linkとDarwinの排他的renameで公開する。.app公開に失敗したら自分のレポートだけをinodeで照合して回収し、出力先へ後から置かれた別の成果物を保護する。既存の壊れたレポートsymlinkも拒否する。
+
+Python 124件、Mac/Windows GNUターゲットのClippy、Rust 12件を確認。単体の外部ツール失敗注入と、実資材から生成した.appの署名・実WKWebViewスモーク・2,505通常ファイルのmanifest照合を区別して[記録](macos-build.md#失敗時処理の追試2026-11-04)した。SIGKILL/電源断を含む2成果物の完全なトランザクションやWindowsビルドの成功は保証しない。

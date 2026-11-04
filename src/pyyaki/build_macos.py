@@ -1,5 +1,6 @@
 """Offline, same-architecture .app prototype from explicit, prebuilt inputs."""
 
+import ctypes
 import hashlib
 import json
 import os
@@ -19,6 +20,37 @@ from . import __version__
 from .config import load_config
 
 EXCLUDED = {".git", ".venv", "__pycache__", "build", "dist", "test-results", ".pytest_cache"}
+
+
+def rename_exclusive(source: Path, destination: Path) -> None:
+    # Darwin <sys/stdio.h>: renamex_np(..., RENAME_EXCL=0x4). Unlike rename(),
+    # this also rejects an empty directory or symlink created after our last check.
+    library = ctypes.CDLL(None, use_errno=True)
+    rename = library.renamex_np
+    rename.argtypes = (ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint)
+    rename.restype = ctypes.c_int
+    if rename(os.fsencode(source), os.fsencode(destination), 0x4):
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error), str(destination))
+
+
+def publish(bundle: Path, output: Path, report: Path, manifest: dict) -> None:
+    staged_report = bundle.parent / "build-report.json"
+    staged_report.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    # Same-volume hard link publishes the complete report without following or replacing
+    # an existing path. Keep its inode in staging until the app has been published too.
+    os.link(staged_report, report)
+    try:
+        rename_exclusive(bundle, output)
+    except BaseException:
+        try:
+            owned = staged_report.stat()
+            current = report.lstat()
+            if (owned.st_dev, owned.st_ino) == (current.st_dev, current.st_ino):
+                report.unlink()
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def digest(path: Path) -> str:
@@ -147,7 +179,13 @@ def build(
         raise ValueError("version must use three numeric components")
     output = Path(os.path.abspath(output or project / "dist" / f"{name}.app"))
     report = output.with_suffix(".build.json")
-    if output.suffix != ".app" or output.exists() or report.exists() or output.is_symlink():
+    if (
+        output.suffix != ".app"
+        or output.exists()
+        or report.exists()
+        or output.is_symlink()
+        or report.is_symlink()
+    ):
         raise ValueError("Output must be a new .app path with no existing build report")
     host, runtime, wheelhouse, framework_wheel, requirements = (
         path.resolve(strict=True)
@@ -354,8 +392,5 @@ def build(
                 manifest["files"][relative] = {"symlink": os.readlink(path)}
             elif path.is_file():
                 manifest["files"][relative] = {"size": path.stat().st_size, "sha256": digest(path)}
-        if output.exists() or report.exists():
-            raise ValueError("Output was created while building; refusing to overwrite")
-        bundle.rename(output)
-        report.write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
+        publish(bundle, output, report, manifest)
     return output

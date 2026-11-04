@@ -63,7 +63,7 @@ with tarfile.open(archive) as stream:
 "dist/Hello PyYaki.app/Contents/MacOS/PyYaki" --smoke-test
 ```
 
-隣に生成する`Hello PyYaki.build.json`へ、ホスト/wheel/lockのハッシュと生成ファイルのSHA-256・サイズ・内部symlinkを記録する。これは実行時に読む入力ではなく、ビルドの確認用レポート。既存の`.app`やレポートは上書きしない。ビルド中のstagingは失敗時にも破棄する。
+隣に生成する`Hello PyYaki.build.json`へ、ホスト/wheel/lockのハッシュと生成ファイルのSHA-256・サイズ・内部symlinkを記録する。これは実行時に読む入力ではなく、ビルドの確認用レポート。既存の`.app`やレポート（壊れたsymlinkも含む）は上書きしない。ビルド中のstagingは通常の例外やKeyboardInterruptで破棄する。完成したレポートをstagingに書き、同一ボリュームのhard linkで新規公開してから、Darwinの`renamex_np(RENAME_EXCL)`で完成した.appを上書きなしで公開する。appの公開に失敗したら、自分が作ったレポートだけをinodeで照合して取り除く。
 
 起動通知の内部契約を変更した場合（2026-11-04の計測追加等）は、Rustホストとframework wheelの両方を同じソースから再生成する。既存.app内のホスト・ワーカーは自動更新されない。
 
@@ -81,3 +81,11 @@ with tarfile.open(archive) as stream:
 macOS 27.0.1 / M2 / CPython 3.14.3で、同梱Pydantic native拡張を含むhelloの生成・実WKWebViewのRPC/イベント/取消・正常終了を確認した。`.app`を移動し、資材元のruntimeとプロジェクトのコピーを一時的に隠して、PATHをシステム用だけにし、無効なPYTHONHOME/PYTHONPATHを指定した状態でも成功した。起動後に署名とmanifestの全ファイルハッシュも再確認した。
 
 これはPython未導入のクリーンMacや別CPUでの試験ではない。Developer ID署名、公証、quarantine付き配布、最低OS版、Intel、DMG、アイコン・更新、第三者への正式配布は後続検証とする。5分の性能報告は開発用ホストの別測定であり、このbundleの性能保証には使わない。
+
+## 失敗時処理の追試（2026-11-04）
+
+`tests/test_build_macos.py`で、資材欠落、runtimeコピーの途中失敗・再配置失敗、依存とframeworkの導入失敗、アプリimport、署名・検証失敗、レポート書込時の容量不足、公開権限エラー、KeyboardInterruptを注入した。stagingと自分の不完全な成果物が残らず、既存成果物・途中で出力先へ置かれた別成果物・別のレポートを保護することを確認した。外部Python/pip/署名コマンドの失敗注入はstubによる単体試験で、実際にOS設定やディスク容量を変更していない。Darwinの排他的renameは実APIで空の既存ディレクトリへの置換拒否も確認した。
+
+別途、実runtimeとオフラインwheelhouseから`test-results/macos-publication-proof/Hello PyYaki.app`を生成し、実codesignの検証・実WKWebViewスモークに成功した。隣の`.build.json`の通常ファイル2,505件をSHA-256で照合し、stagingが残っていないことを確認。元の`dist/Hello PyYaki.app`は変更していない。
+
+出力先には同一ボリュームでhard linkと排他的renameを使えることが必要で、未対応なら暗黙の上書きへフォールバックせず失敗する。appとレポートの2つをまとめた原子的トランザクションではない。SIGKILL・電源断・公開の極小区間での中断や、同権限の別プロセスによる任意の改変に対する完全な復旧は保証しない。レポートだけ残った場合は対応する.appの有無と内容を確認してから、不要なものだけ手動で整理する。G3全体の競合・破損・中断試験の完了とは扱わない。
