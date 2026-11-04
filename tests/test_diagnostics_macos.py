@@ -74,6 +74,7 @@ def test_transition_and_settled_samples_are_kept_separate():
     ]
     assert summary["crossing_rpcs"] == 4 and summary["rpc_ms"]["n"] == 2
     assert summary["phase_ack_ms"] == 10
+    assert summary["native_state_matches"] is True
 
 
 def test_missing_steady_samples_are_not_reported_as_zero_lag():
@@ -84,3 +85,10 @@ def test_missing_steady_samples_are_not_reported_as_zero_lag():
     assert summary["js_lag_ms"] is None
     assert summary["native_lag_ms"] is None
     assert summary["dom_states"] == [] and summary["native_states"] == []
+    assert summary["native_state_matches"] is False
+
+
+def test_unexpected_window_state_invalidates_the_segment():
+    data = record()
+    data["markers"][0]["data"]["samples"][2].update(visible=False, minimized=True)
+    assert timer_summary(data)[0]["native_state_matches"] is False

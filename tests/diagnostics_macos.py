@@ -53,9 +53,20 @@ def timer_summary(record):
         native_states = Counter(
             (s["visible"], s["focused"], s["minimized"]) for s in native_samples
         )
+        expected_state = {
+            "foreground": (True, True, False),
+            "background": (True, False, False),
+            "covered": (True, False, False),
+            "minimized": (False, False, True),
+            "restored": (True, True, False),
+            "hidden": (False, False, False),
+            "recovered": (True, True, False),
+        }[segment["name"]]
         summaries.append(
             {
                 "name": segment["name"],
+                "native_state_matches": bool(native_states)
+                and set(native_states) == {expected_state},
                 "duration_ms": segment["duration_ms"],
                 "phase_ack_ms": ack["host_elapsed_ms"] - segment["native_start_ms"],
                 "js_lag_ms": distribution([s["lag_ms"] for s in js_samples]),
@@ -257,6 +268,9 @@ def run_case(
         record["result"] = result
         if scenario == "timer" and result and result.get("ok"):
             record["timer_segments"] = timer_summary(record)
+            record["timer_states_ok"] = all(
+                segment["native_state_matches"] for segment in record["timer_segments"]
+            )
         shutdown_file = project / "shutdown.json"
         record["shutdown_hook"] = (
             json.loads(shutdown_file.read_text()) if shutdown_file.exists() else None
@@ -273,6 +287,8 @@ def run_case(
         )
         if scenario == "shutdown":
             record["ok"] &= bool(record["shutdown_hook"]) and record["shutdown_ms"] < 3000
+        if scenario == "timer":
+            record["ok"] &= record.get("timer_states_ok", False)
         for name in ("rpc_ms", "soak_rpc_ms", "timer_lag_ms"):
             if result and name in result:
                 record[name] = distribution(result[name])

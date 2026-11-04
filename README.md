@@ -147,7 +147,7 @@ Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じ�
 | [ロードマップ](docs/roadmap.md) | 現在地、技術検証ゲート、実装順序、公開条件 |
 | [開発ガイド](docs/development.md) | 作業再開、起動、変更の反映、検査、問題の切り分け |
 | [Windows実機記録](docs/validation-windows.md) | 既存ホストのMSVC・GUI確認、環境、失敗と残課題 |
-| [Mac計測記録](docs/performance-macos.md) | 起動・RPC・5分/30分の連続試験と測定上の限界 |
+| [Mac計測記録](docs/performance-macos.md) | 起動・RPC・5分/30分の連続試験、表示状態とタイマーの比較、測定上の限界 |
 | [Mac .app生成](docs/macos-build.md) | Python同梱bundleのローカル生成手順・入力と制限 |
 
 ## ライセンス

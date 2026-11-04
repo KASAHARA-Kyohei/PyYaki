@@ -49,6 +49,8 @@ Rustの`--diagnostics --timer-probe-seconds <秒>`が必要で、通常起動で
 
 `timer-00/observation.json`とreport.jsonのtimer_segmentsで結果を確認する。区間名だけで状態を決めず、実際の状態件数とphase_ack_ms（ネイティブ通知からJS受信の確認まで）を確認する。表示の物理的な提示や入力応答の保証値ではない。
 
+切替後2秒以降のネイティブ状態が予定と一致しない区間はnative_state_matches=falseとなり、比較全体も失敗とする。試験中に窓操作をしない。背面・被覆のDOM状態はOSの判定をそのまま保存し、窓の幾何学的な重なりや物理的な画面提示の検証とは区別する。
+
 ## Windowsでの開発用確認
 
 2026-11-03にWindows 11 Pro 25H2 / Intel Core i5-8250U x64、CPython 3.14.10通常GIL版、Rust 1.89.0 MSVC、既存MSVCとWebView2でビルド・起動を確認した。詳細は[実機記録](../docs/validation-windows.md)。以下は開発用の汎用手順で、Windows単一exe生成は未実装。

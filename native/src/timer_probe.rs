@@ -61,12 +61,16 @@ impl TimerProbe {
     ) -> Result<(&'static str, Value), Box<dyn Error>> {
         match PHASES.get(index).copied() {
             Some("background") => {
+                window.set_visible(true);
+                window.set_minimized(false);
                 self.control
                     .set_inner_size(tao::dpi::LogicalSize::new(300, 160));
                 self.control.set_visible(true);
                 self.control.set_focus();
             }
             Some("covered") => {
+                window.set_visible(true);
+                window.set_minimized(false);
                 let position = window.outer_position()?;
                 let size = window.outer_size();
                 self.control
@@ -88,6 +92,7 @@ impl TimerProbe {
                 self.control.set_focus();
             }
             Some("hidden") => {
+                window.set_minimized(false);
                 window.set_visible(false);
                 self.control.set_visible(true);
                 self.control.set_focus();
