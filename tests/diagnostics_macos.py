@@ -13,6 +13,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -30,6 +31,50 @@ def distribution(values):
         "p95": ordered[math.ceil(len(values) * 0.95) - 1],
         "max": ordered[-1],
     }
+
+
+def timer_summary(record):
+    """Keep raw samples; separate the first 2s of each native window transition."""
+    summaries = []
+    for segment in record["result"]["segments"]:
+        native = next(
+            m["data"]
+            for m in record["markers"]
+            if m["phase"] == "timer_native_segment" and m["data"]["index"] == segment["index"]
+        )
+        ack = next(
+            m
+            for m in record["markers"]
+            if m["phase"] == "timer_phase_seen" and m["data"]["index"] == segment["index"]
+        )
+        js_samples = [s for s in segment["timer_samples"] if s["elapsed_ms"] >= 2000]
+        native_samples = [s for s in native["samples"] if s["elapsed_ms"] >= 2000]
+        dom_states = Counter((s["visibility"], s["focused"]) for s in js_samples)
+        native_states = Counter(
+            (s["visible"], s["focused"], s["minimized"]) for s in native_samples
+        )
+        summaries.append(
+            {
+                "name": segment["name"],
+                "duration_ms": segment["duration_ms"],
+                "phase_ack_ms": ack["host_elapsed_ms"] - segment["native_start_ms"],
+                "js_lag_ms": distribution([s["lag_ms"] for s in js_samples]),
+                "native_lag_ms": distribution([s["lag_ms"] for s in native_samples]),
+                "raw_js_lag_ms": distribution([s["lag_ms"] for s in segment["timer_samples"]]),
+                "raw_native_lag_ms": distribution([s["lag_ms"] for s in native["samples"]]),
+                "rpc_ms": distribution(segment["rpc_ms"]),
+                "crossing_rpcs": segment["crossing_rpcs"],
+                "dom_states": [
+                    {"visibility": k[0], "focused": k[1], "n": v}
+                    for k, v in sorted(dom_states.items())
+                ],
+                "native_states": [
+                    {"visible": k[0], "focused": k[1], "minimized": k[2], "n": v}
+                    for k, v in sorted(native_states.items())
+                ],
+            }
+        )
+    return summaries
 
 
 def processes():
@@ -68,6 +113,7 @@ def run_case(
     rpc_samples=100,
     delay=0,
     prevent_idle_sleep=False,
+    timer_probe_seconds=None,
 ):
     project = output / f"{scenario}-{index:02}"
     shutil.copytree(
@@ -82,6 +128,11 @@ def run_case(
     (project / "probe.json").write_text(json.dumps(config))
     (project / "ui/config.js").write_text(f"export default {json.dumps(config)};\n")
     (project / "pyproject.toml").write_text('[tool.pyyaki]\nentry="app:app"\n')
+    if timer_probe_seconds is not None:
+        (project / "ui/index.html").write_text(
+            '<!doctype html><meta charset="utf-8"><title>PyYaki timer probe</title>'
+            '<script type="module" src="/timer.js"></script><p id="status">Timer probe</p>'
+        )
     command = [
         str(binary),
         "run",
@@ -91,6 +142,8 @@ def run_case(
         str(ROOT / ".venv/bin/python"),
         "--diagnostics",
     ]
+    if timer_probe_seconds is not None:
+        command += ["--timer-probe-seconds", str(timer_probe_seconds)]
     markers = queue.Queue()
     started = time.perf_counter()
     wall_started = time.time()
@@ -121,8 +174,9 @@ def run_case(
     deadline = started + duration + 35 + delay
     try:
         if prevent_idle_sleep:
+            guard_flags = ["-i", "-d"] if timer_probe_seconds is not None else ["-i"]
             sleep_guard = subprocess.Popen(
-                ["/usr/bin/caffeinate", "-i", "-w", str(process.pid)],
+                ["/usr/bin/caffeinate", *guard_flags, "-w", str(process.pid)],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -201,6 +255,8 @@ def run_case(
             (time.perf_counter() - shutdown_at) * 1000 if shutdown_at is not None else None
         )
         record["result"] = result
+        if scenario == "timer" and result and result.get("ok"):
+            record["timer_segments"] = timer_summary(record)
         shutdown_file = project / "shutdown.json"
         record["shutdown_hook"] = (
             json.loads(shutdown_file.read_text()) if shutdown_file.exists() else None
@@ -243,6 +299,7 @@ def run_case(
             time.perf_counter() - started
         )
         record["prevent_idle_sleep"] = prevent_idle_sleep
+        record["prevent_display_sleep"] = prevent_idle_sleep and timer_probe_seconds is not None
         (project / "observation.json").write_text(json.dumps(record, indent=2))
 
 
@@ -253,15 +310,22 @@ def main():
     parser.add_argument("--duration", type=int, default=300)
     parser.add_argument("--startup-runs", type=int, default=10)
     parser.add_argument(
+        "--timer-probe-seconds",
+        type=int,
+        help="Only run the seven window states, 15..60 seconds each",
+    )
+    parser.add_argument(
         "--prevent-idle-sleep",
         action="store_true",
-        help="Hold a temporary caffeinate -i assertion for each owned host",
+        help="Hold caffeinate -i for each owned host (timer probes also hold -d)",
     )
     args = parser.parse_args()
     if sys.platform != "darwin":
         parser.error("This harness requires macOS/WKWebView")
     if not 0 <= args.duration <= 3600 or not 1 <= args.startup_runs <= 100:
         parser.error("duration must be 0..3600; startup-runs must be 1..100")
+    if args.timer_probe_seconds is not None and not 15 <= args.timer_probe_seconds <= 60:
+        parser.error("timer-probe-seconds must be 15..60")
     binary = args.binary.resolve(strict=True)
     output = args.output or ROOT / "test-results" / (
         "diagnostics-" + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -296,6 +360,7 @@ def main():
             "Wall/monotonic gaps over 5 seconds invalidate the continuous interval.",
         ],
         "prevent_idle_sleep": args.prevent_idle_sleep,
+        "timer_probe_seconds": args.timer_probe_seconds,
         "runs": records,
     }
     print(f"Output: {output}", flush=True)
@@ -308,6 +373,8 @@ def main():
             ("shutdown", 0, 0, 0, 0),
             ("soak", 0, args.duration, 100, 0),
         ]
+        if args.timer_probe_seconds is not None:
+            cases = [("timer", 0, args.timer_probe_seconds * 7 + 5, 0, 0)]
         for scenario, index, duration, samples, delay in cases:
             print(f"Starting {scenario}-{index:02} ({duration}s)", flush=True)
             try:
@@ -320,6 +387,7 @@ def main():
                     samples,
                     delay,
                     prevent_idle_sleep=args.prevent_idle_sleep,
+                    timer_probe_seconds=args.timer_probe_seconds,
                 )
             except Exception as error:
                 records.append({"scenario": scenario, "ok": False, "harness_error": str(error)})

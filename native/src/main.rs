@@ -9,6 +9,8 @@ mod process;
 #[cfg(target_os = "macos")]
 #[path = "process_macos.rs"]
 mod process;
+#[cfg(target_os = "macos")]
+mod timer_probe;
 
 #[cfg(any(windows, target_os = "macos"))]
 fn main() {

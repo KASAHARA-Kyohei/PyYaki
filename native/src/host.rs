@@ -330,6 +330,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         packaged.is_some() && first.as_deref() == Some(std::ffi::OsStr::new("--smoke-test"));
     let mut diagnostics =
         packaged.is_some() && first.as_deref() == Some(std::ffi::OsStr::new("--diagnostics"));
+    let mut timer_probe_seconds = None;
     let (mut root, mut python) = match packaged {
         Some((root, python)) => (root, Some(python)),
         None => (std::env::current_dir()?, None),
@@ -338,6 +339,18 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         match arg.to_str() {
             Some("--smoke-test") => smoke_test = true,
             Some("--diagnostics") => diagnostics = true,
+            Some("--timer-probe-seconds") => {
+                let seconds: u64 = args
+                    .next()
+                    .ok_or("Missing timer probe seconds")?
+                    .to_str()
+                    .ok_or("Invalid timer probe seconds")?
+                    .parse()?;
+                if !cfg!(target_os = "macos") || !(15..=60).contains(&seconds) {
+                    return Err("Timer probe requires macOS and 15..60 seconds per phase".into());
+                }
+                timer_probe_seconds = Some(seconds);
+            }
             Some("--project") => root = PathBuf::from(args.next().ok_or("Missing project path")?),
             Some("--python") => {
                 python = Some(std::path::absolute(PathBuf::from(
@@ -349,6 +362,9 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     }
     if smoke_test && diagnostics {
         return Err("Choose either --smoke-test or --diagnostics".into());
+    }
+    if timer_probe_seconds.is_some() && !diagnostics {
+        return Err("Timer probe requires --diagnostics".into());
     }
     let python = python.ok_or("Specify --python with the installed PyYaki development venv")?;
     let config = Arc::new(Config::load(&root)?);
@@ -372,6 +388,18 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         .with_inner_size(LogicalSize::new(config.window.width, config.window.height))
         .build(&event_loop)?;
     let proxy = event_loop.create_proxy();
+    #[cfg(target_os = "macos")]
+    let mut timer_probe = if let Some(seconds) = timer_probe_seconds {
+        let control = WindowBuilder::new()
+            .with_title("PyYaki timer probe control")
+            .with_inner_size(LogicalSize::new(300, 160))
+            .with_visible(false)
+            .with_focused(false)
+            .build(&event_loop)?;
+        Some(crate::timer_probe::TimerProbe::new(control, seconds))
+    } else {
+        None
+    };
     let closing = Arc::new(AtomicBool::new(false));
     let mut context = WebContext::new(Some(instance.join("profile")));
     let mut view: Option<WebView> = None;
@@ -517,6 +545,8 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                                 Some(
                                     "ready"
                                         | "sample"
+                                        | "timer_probe_ready"
+                                        | "timer_phase_seen"
                                         | "interactive"
                                         | "fault_ready"
                                         | "paused_timeout"
@@ -529,6 +559,24 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                             return Err("Invalid diagnostic marker".into());
                         }
                         let phase = message["phase"].as_str().unwrap();
+                        if matches!(phase, "timer_probe_ready" | "timer_phase_seen")
+                            && timer_probe_seconds.is_none()
+                        {
+                            return Err("Timer probe flag missing".into());
+                        }
+                        #[cfg(target_os = "macos")]
+                        if phase == "timer_probe_ready" {
+                            let probe = timer_probe.as_mut().ok_or("Timer probe flag missing")?;
+                            if message["data"] != json!({}) {
+                                return Err("Invalid timer probe marker".into());
+                            }
+                            let (name, data) = probe.start(
+                                &window,
+                                view.as_ref().ok_or("No WebView")?,
+                                started_at,
+                            )?;
+                            diagnostic(true, started_at, name, data);
+                        }
                         diagnostic(true, started_at, phase, message["data"].clone());
                         if phase == "result" {
                             exit_code = if message["data"]["ok"] == json!(true) {
@@ -655,6 +703,15 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                 _ => {}
             }
             #[cfg(target_os = "macos")]
+            if !failed
+                && shutdown_at.is_none()
+                && let (Some(probe), Some(view)) = (&mut timer_probe, &view)
+            {
+                for (phase, data) in probe.poll(&window, view, started_at)? {
+                    diagnostic(true, started_at, phase, data);
+                }
+            }
+            #[cfg(target_os = "macos")]
             if INTERRUPTED.load(Ordering::Relaxed) && shutdown_at.is_none() {
                 closing.store(true, Ordering::Release);
                 if let Some(sender) = &input {
@@ -680,6 +737,10 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             Ok(())
         })();
         if let Err(error) = result {
+            #[cfg(target_os = "macos")]
+            if let Some(probe) = &mut timer_probe {
+                probe.cancel(&window);
+            }
             failed = true;
             exit_code = 1;
             deadline = None;

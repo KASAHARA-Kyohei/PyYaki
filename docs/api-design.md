@@ -247,6 +247,10 @@ Mac/Windowsホストとワーカーには、公開メッセージとは別の制
 
 2026-11-04に追加した起動段階は`worker_entered → config_loaded → app_import_started → app_imported → startup_hooks_started → startup_hooks_completed`。通知の繰返し・逆順・追加フィールドを拒否し、公開SDKへ中継しない。SDKからホストへの`{"v":1,"type":"pyyaki_connect_started"}`と`{"v":1,"type":"pyyaki_connect_timeout"}`も内部専用で、接続開始と内部10秒期限を記録する。期限通知時は障害画面とワーカー回収へ進む。呼出し単位のready待機期限とは区別する。記録の基準時刻・再検証方法は[起動の切り分け](startup-diagnostics.md)を参照。開発中の内部契約変更なので、ホストとワーカーを同じソースから更新する。
 
+### 計測専用のウィンドウ巡回
+
+Macの明示フラグ`--diagnostics --timer-probe-seconds <15..60>`では、固定した7つの自分の窓状態をRustが順に切り替える。JSの`pyyaki_diagnostic`の`timer_probe_ready`（dataは空object）で開始し、`timer_phase_seen`で確認する。この2マーカーは追加フラグなしでは拒否する。Rustは`__pyyaki_timer_phase__`イベントでindex/name/native_start_msを通知し、JSが抑制されても復元へ進む。任意の窓操作を受け付ける公開APIではない。測定手順は[native README](../native/README.md#macのウィンドウ状態とタイマーを比較する)を参照。
+
 ## 6. エラーと制限値
 
 | code | 意味・返却元 |

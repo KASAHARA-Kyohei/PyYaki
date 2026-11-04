@@ -37,6 +37,18 @@ cargo build --manifest-path native/Cargo.toml --release --locked
 
 通知時刻には配送遅延が含まれ、画面の実提示時間ではない。毎回新規プロファイルを使うがOSキャッシュは制御しない。RSSはホストと検出できた子だけを対象とし、帰属不明のWebKit XPCは含まない。[定義と限界](../docs/requirements.md#54-mac開発用ホストの補助測定)、[初期結果](../docs/performance-macos.md)を参照。
 
+### Macのウィンドウ状態とタイマーを比較する
+
+```console
+.venv/bin/python tests/diagnostics_macos.py --timer-probe-seconds 15 --prevent-idle-sleep
+```
+
+通常の6シナリオを省略し、前面・一部が見える非フォーカス・検証窓で被覆・最小化・復元・非表示・再表示の7区間を各15秒で比較する。秒数は15〜60。対象は自分の検証ホストと2つの検証窓だけで、他アプリの操作や画面の消灯はしない。比較中は窓の切替が起こる。消灯条件が混ざらないよう、この短いモードで`--prevent-idle-sleep`を付けた場合は一時的にcaffeinate -iに加えて-dも保持する。終了時に解放し、OSの恒久設定は変えない。
+
+Rustの`--diagnostics --timer-probe-seconds <秒>`が必要で、通常起動では検証窓を作らない。JSのタイマーが抑制されてもRust側で区間を切り替えて復元する。実際のネイティブ窓のvisible/focused/minimizedとDOMのvisibilityState/hasFocus、JSタイマー・Rustの100msポーリング・RPCを別々に保存する。切替直後2秒を分けた集計と全rawを保持し、要求が区間をまたいだRPCは集計対象から分ける。
+
+`timer-00/observation.json`とreport.jsonのtimer_segmentsで結果を確認する。区間名だけで状態を決めず、実際の状態件数とphase_ack_ms（ネイティブ通知からJS受信の確認まで）を確認する。表示の物理的な提示や入力応答の保証値ではない。
+
 ## Windowsでの開発用確認
 
 2026-11-03にWindows 11 Pro 25H2 / Intel Core i5-8250U x64、CPython 3.14.10通常GIL版、Rust 1.89.0 MSVC、既存MSVCとWebView2でビルド・起動を確認した。詳細は[実機記録](../docs/validation-windows.md)。以下は開発用の汎用手順で、Windows単一exe生成は未実装。
