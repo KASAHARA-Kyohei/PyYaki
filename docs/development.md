@@ -121,4 +121,4 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 
 当日のPython検査はWindowsで67件成功・14件スキップ。symlink作成がWinError 1314ならリンク専用2件だけをスキップし、他のWeb検査は実行する。当日はPOSIXワーカー等12件もWindows対象外だった。新規検査を含む更新版の件数は再実行で確認する。権限やOS設定を変えて回避しない。
 
-起動期限の再現確認には[起動の切り分け](startup-diagnostics.md)の`tests/startup_probe.py`を使う。新しい計測・障害画面はMacで確認した段階で、Windowsでの解消は再検証が必要。以前の実機記録を更新版の合格証拠にしない。
+起動期限の再現確認には[起動の切り分け](startup-diagnostics.md)の`tests/startup_probe.py`を使う。2026-11-04に`ae3889c`をWindowsで再検証し、起動9/9、Python 108件成功・19件スキップ、Rust 10件、Clippyと実GUIスモークに成功した。[再検証記録](validation-windows-2026-11-04.md)を参照。以前の初回失敗は未再現で、原因解消とは扱わない。今回のworker.logの日本語はCP932で読めたため、UTF-8と決めつけて元ログを上書きしない。

@@ -114,3 +114,11 @@ WebView組み込み直後に`window.set_focus()`を一度だけ呼ぶ試作も�
 通常表示での追加の回帰確認は、通常・import前5秒待機・起動フック内5秒待機の3件が成功（`test-results/startup-20261104T064328Z/`）。Python 127件を非推奨警告error指定で確認し、Rust 13件、Mac/Windows GNUターゲットのClippy、Web/仮ネイティブのブラウザ契約も通過した。仮ブリッジではrAFを一段ずつ止め、2回目までshell/helloを送らないことと、接続後の監視解除を確認した。Windows実機での更新版は未検証。
 
 本対応は未実装。表示待ちと接続・起動期限の分離をADR-017の候補へ記録し、公開ready期限とWindowsの先行描画条件を含めて検討する。DOMロードやタイマーを描画通知の代わりにしておらず、10秒期限も延長していない。開発時の暫定回避として通常ウィンドウ表示での成功を観測した範囲にとどめる。
+
+## Windows更新版の再検証（2026-11-04）
+
+同日のMac側`ae3889c`をWindows 11 x64でMSVC releaseビルドし、既存スモークと`--runs 3 --delay 5`を単独実行した。通常/import前5秒/起動フック内5秒の各3回、計9/9成功。全件でscheduled/frame1/frame2、shell後のPython生成、workerの6段階とwelcomeを照合し、既存期限は変更していない。今回は以前の突発的な接続期限を再現しておらず、その停止段階・原因解消やMacのSpace問題との同因は未確定。
+
+意図的なimport例外ではapp_import_startedの後にworker_failed/backend_failedが記録され、例外名と日本語メッセージ、停止段階、host/workerログの案内と長いパスの折り返しを実画面で確認した。ホストログはUTF-8で読めたが、この環境の日本語worker.logの生バイトはCP932であり、UTF-8 strict decodeは失敗した。元ログはそのまま残し、文字コードの扱いは次の検討候補とする。
+
+対象コミット・環境・実際のテスト件数・9回の段階表・生ログ保存先と未確認項目は[Windows再検証記録](validation-windows-2026-11-04.md)を参照する。

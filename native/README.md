@@ -10,7 +10,7 @@ C案を既定アイコンとして組み込む。Macでバイナリを直接`run
 
 Windowsは`build.rs`がICOをリソースID 1へ組み込み、Taoがそのリソースからウィンドウとタスクバーの画像を読み込む。開発ビルドにはWindows SDKのrc.exeが必要（既存のMSVC/SDK構成）。GNUターゲットではwindresが必要で、Macからの型検査でもリソースをコンパイルする。コンパイラーが見つからない場合にアイコンなしで黙って成功させない。これらは開発用の資材で、配布後実行には不要。
 
-形式変換の手順と原本は[ブランド資産](../assets/branding/README.md)を参照。通常のRustビルドやMac .app生成は保存済み資産を使い、Pillowを実行しない。独自アイコン用の設定、Webのfavicon、Windows単一exe生成はこの変更に含まれない。WindowsのMSVCビルド・Explorer/タスクバーの実表示は更新版で再確認が必要。
+形式変換の手順と原本は[ブランド資産](../assets/branding/README.md)を参照。通常のRustビルドやMac .app生成は保存済み資産を使い、Pillowを実行しない。独自アイコン用の設定、Webのfavicon、Windows単一exe生成はこの変更に含まれない。2026-11-04に更新版のMSVCビルドとExplorer/ウィンドウのC案実表示を確認した。タスクバーは利用者の目視回答で確認し、自動スクリーンショットとは区別する。[再検証記録](../docs/validation-windows-2026-11-04.md)を参照。
 
 2026-11-04にMacのdebug/releaseビルド、ICNSを含むwheel、.appの生成・署名・資産ハッシュを確認した。Windows GNUターゲットのreleaseホストもMacで生成し、PEのICON_GROUP ID 1の7画像がICOの各PNGとバイト単位で一致した（`test-results/icon-proof/windows-resources.json`）。Python等のペイロードを同梱したWindows配布アプリの生成・実機起動ではない。Dockの画面取得はタイムアウトしたため、実表示の目視確認は未完了。
 
@@ -102,7 +102,7 @@ Python版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exe�
 
 ## 起動期限の再確認
 
-2026-11-04に起動段階ログ・障害画面・反復検証器を追加した。ホストとワーカーを同じソースから更新し、[起動の切り分け](../docs/startup-diagnostics.md)に従って通常/import遅延/起動フック遅延を確認する。新しいコードのWindows実機再検証は未実施で、以前の初回失敗の解消とは扱わない。
+2026-11-04に起動段階ログ・障害画面・反復検証器を追加した。ホストとワーカーを同じソースから更新し、[起動の切り分け](../docs/startup-diagnostics.md)に従って通常/import遅延/起動フック遅延を確認する。同日に`ae3889c`をWindowsで[再検証](../docs/validation-windows-2026-11-04.md)し、実GUIスモークと起動反復9/9、意図的なimport例外の画面、終了時回収を確認した。以前の初回失敗は未再現で、原因解消とは扱わない。
 
 同日に二重rAFの進行・DOM表示状態とネイティブ窓の状態記録も追加した。MacではCodexのフルスクリーン表示時に起動窓が別Spaceとなり、frame2待ちで止まる経路を確認。同じバイナリで通常表示9/9成功、フルスクリーン2/3成功だが、本対応やWindowsの原因確定ではない。一度だけの前面化の試作も初回失敗が残り、採用していない。通常表示との比較手順は上記の切り分け記録を参照し、描画マーカーをDOMロードへ置き換えたり、期限を延長したりして回避した結果とは扱わない。
 
