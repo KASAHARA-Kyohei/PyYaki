@@ -79,6 +79,12 @@ fn ui_window_state(window: &Window, webview: &WebView) -> Value {
         state["webview_visible_size"] = json!([rect.size.width, rect.size.height]);
         if let Some(attached) = view.window() {
             state["window_occlusion_bits"] = json!(attached.occlusionState().bits());
+            state["window_unoccluded"] = json!(
+                attached
+                    .occlusionState()
+                    .contains(objc2_app_kit::NSWindowOcclusionState::Visible)
+            );
+            state["window_on_active_space"] = json!(attached.isOnActiveSpace());
         }
     }
     state
@@ -670,6 +676,9 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     } else if message == json!({"v":1,"type":"pyyaki_shell_ready"}) && !started {
                         started = true;
                         trace.mark("shell_marker", Value::Null);
+                        if let Some(view) = &view {
+                            trace.mark("ui_window_state", ui_window_state(&window, view));
+                        }
                         last_worker_phase = "python_spawn";
                         let (sender, receiver) = mpsc::sync_channel(32);
                         input = Some(sender);
@@ -757,16 +766,13 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                 }
                 _ => {}
             }
-            if view.is_some()
-                && !started
+            if !started
                 && !failed
                 && shutdown_at.is_none()
                 && Instant::now() >= next_ui_sample
+                && let Some(view) = &view
             {
-                trace.mark(
-                    "ui_window_state",
-                    ui_window_state(&window, view.as_ref().unwrap()),
-                );
+                trace.mark("ui_window_state", ui_window_state(&window, view));
                 next_ui_sample = Instant::now() + Duration::from_secs(1);
             }
             #[cfg(target_os = "macos")]

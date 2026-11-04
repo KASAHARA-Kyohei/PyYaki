@@ -14,7 +14,7 @@
 | `ui_deadline_started` | WebView生成後のHTML準備期限（10秒）の開始 |
 | `sdk_connect_started` | SDKが接続を開始した旨の通知をホストで受信 |
 | `sdk_shell_progress` | 二重rAFのscheduled/frame1/frame2と、待機中のvisibility/focus/blur。DOMのvisibility・focusを最大16件記録 |
-| `ui_window_state` | HTML準備待ちの間、約1秒ごとのネイティブ窓のvisible/focused/minimized。Macはアプリのactive/hidden、WebViewのhidden祖先・visibleRect寸法、所属NSWindowのocclusionStateのbitsも記録 |
+| `ui_window_state` | HTML準備待ちの間、約1秒ごと、およびshell通知時のネイティブ窓のvisible/focused/minimized。Macはアプリのactive/hidden、WebViewのhidden祖先・visibleRect寸法、所属NSWindowのocclusionStateのbits/Visible判定とisOnActiveSpaceも記録 |
 | `shell_marker` / `sdk_hello_received` | レイアウト後の通知 / 公開helloをホストで受信 |
 | `backend_deadline_started` | shell通知後のワーカー準備期限（10秒）の開始 |
 | `python_spawn_started` / `python_spawned` | バックグラウンドでのワーカー生成呼出し前後 |
