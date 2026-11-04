@@ -93,7 +93,7 @@ Webを起動した状態で、別ターミナルのルートから次を実行�
 ./native/target/debug/pyyaki run --project examples/hello --python .venv/bin/python --smoke-test
 ```
 
-速度・5分の連続試験には専用アプリとrelease版を使う。[計測手順](../native/README.md#macの速度安定性を計測する)と[初期結果](performance-macos.md)を参照し、通常のスモーク確認と区別する。
+速度・連続試験には専用アプリとrelease版を使う。30分の追試では`--duration 1800 --startup-runs 1 --prevent-idle-sleep`を指定する。[計測手順](../native/README.md#macの速度安定性を計測する)と[初期結果](performance-macos.md)を参照し、通常のスモーク確認と区別する。
 
 Markdownだけの変更では、関連文書・ローカルリンク・見出し・API例の整合性を確認する。無関係な実装テストの追加や、5分試験の再実行は必要としない。
 

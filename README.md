@@ -4,7 +4,7 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 名称は「鯛焼き」にかけたものです。表示名を**PyYaki**、パッケージ・Python import・CLI・JavaScript SDKの識別子を**`pyyaki`**に統一します。
 
-**現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査に加え、2026-11-03にWindows 11 x64でMSVCビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認しました。[失敗・未確認事項](docs/validation-windows.md)が残り、G1/G2全体は未完了です。公開パッケージ・Windows単一exeビルドはありません。MacはPython同梱`.app`のローカル生成試作を追加しました。Macネイティブでは初期計測と5分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
+**現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査に加え、2026-11-03にWindows 11 x64でMSVCビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認しました。[失敗・未確認事項](docs/validation-windows.md)が残り、G1/G2全体は未完了です。公開パッケージ・Windows単一exeビルドはありません。MacはPython同梱`.app`のローカル生成試作を追加しました。Macネイティブでは初期計測と5分・30分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
 
 起動期限やPython起動失敗は[段階ログ・障害画面・反復検証の手順](docs/startup-diagnostics.md)で切り分けられます。新しい計測と表示のWindows実機再検証は未実施です。
 
@@ -133,7 +133,7 @@ Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じ�
 
 主な開発機はMacです。最初のMac試作はCPython 3.14通常GIL版で、HTMLからPythonコマンドを呼び、結果・エラーを表示し、非同期処理中もUIが応答するところまでとする方針を2026-10-31に承認し、実装を開始しました。2026-11-03には手元のWindowsで既存ホストのMSVCビルドと主要動作を確認しました。残る先行描画・境界・ネットワーク等の確認と、未実装の単一exeの最小試作へ進む段階です。Windows固有の起動・配布方式全体は未確定です。詳しい順序は[ロードマップ](docs/roadmap.md)に記載しています。
 
-高速性と安定性を重視します。起動時間の計測に加え、GUIの応答性、Pythonのクラッシュ・終了処理、キャッシュ破損等を評価する設計です。Mac開発用ホストの起動・RPC・5分の連続稼働・Python障害時の結果を[初期計測](docs/performance-macos.md)に記録しています。Windowsの性能と長時間稼働の数値基準は今後の検討事項です。
+高速性と安定性を重視します。起動時間の計測に加え、GUIの応答性、Pythonのクラッシュ・終了処理、キャッシュ破損等を評価する設計です。Mac開発用ホストの起動・RPC・5分/30分の連続稼働・Python障害時の結果を[初期計測](docs/performance-macos.md)に記録しています。Windowsの性能と長時間稼働の数値基準は今後の検討事項です。
 
 ## 文書
 
@@ -147,7 +147,7 @@ Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じ�
 | [ロードマップ](docs/roadmap.md) | 現在地、技術検証ゲート、実装順序、公開条件 |
 | [開発ガイド](docs/development.md) | 作業再開、起動、変更の反映、検査、問題の切り分け |
 | [Windows実機記録](docs/validation-windows.md) | 既存ホストのMSVC・GUI確認、環境、失敗と残課題 |
-| [Mac初期計測](docs/performance-macos.md) | 起動・RPC・5分の連続試験と測定上の限界 |
+| [Mac計測記録](docs/performance-macos.md) | 起動・RPC・5分/30分の連続試験と測定上の限界 |
 | [Mac .app生成](docs/macos-build.md) | Python同梱bundleのローカル生成手順・入力と制限 |
 
 ## ライセンス
