@@ -61,15 +61,25 @@ struct BackendPaths {
     log: PathBuf,
 }
 
-fn ui_window_state(window: &Window) -> Value {
+fn ui_window_state(window: &Window, webview: &WebView) -> Value {
+    #[cfg(not(target_os = "macos"))]
+    let _ = webview;
     #[allow(unused_mut)]
     let mut state = json!({"visible":window.is_visible(),"focused":window.is_focused(),
         "minimized":window.is_minimized()});
     #[cfg(target_os = "macos")]
     if let Some(mtm) = objc2::MainThreadMarker::new() {
+        use wry::WebViewExtMacOS;
         let application = objc2_app_kit::NSApplication::sharedApplication(mtm);
         state["application_active"] = json!(application.isActive());
         state["application_hidden"] = json!(application.isHidden());
+        let view = webview.webview();
+        state["webview_hidden"] = json!(view.isHiddenOrHasHiddenAncestor());
+        let rect = view.visibleRect();
+        state["webview_visible_size"] = json!([rect.size.width, rect.size.height]);
+        if let Some(attached) = view.window() {
+            state["window_occlusion_bits"] = json!(attached.occlusionState().bits());
+        }
     }
     state
 }
@@ -753,7 +763,10 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                 && shutdown_at.is_none()
                 && Instant::now() >= next_ui_sample
             {
-                trace.mark("ui_window_state", ui_window_state(&window));
+                trace.mark(
+                    "ui_window_state",
+                    ui_window_state(&window, view.as_ref().unwrap()),
+                );
                 next_ui_sample = Instant::now() + Duration::from_secs(1);
             }
             #[cfg(target_os = "macos")]
