@@ -1,4 +1,4 @@
-//! Private worker startup messages. A fixed sequence bounds work and GUI notices.
+//! Private UI observations and worker startup messages; fixed fields bound notices.
 use crate::VERSION;
 use serde::Deserialize;
 use serde_json::Value;
@@ -11,6 +11,23 @@ pub const PHASES: [&str; 6] = [
     "startup_hooks_started",
     "startup_hooks_completed",
 ];
+
+/// Private, bounded UI observations; never forwarded to the Python dispatcher.
+pub fn validate_shell_progress(message: &Value) -> Result<(), &'static str> {
+    if message.as_object().is_none_or(|object| object.len() != 5)
+        || message["v"] != serde_json::json!(1)
+        || message["type"] != "pyyaki_shell_progress"
+        || !matches!(
+            message["stage"].as_str(),
+            Some("scheduled" | "frame1" | "frame2" | "visibility" | "focus" | "blur")
+        )
+        || !matches!(message["visibility"].as_str(), Some("visible" | "hidden"))
+        || !message["focused"].is_boolean()
+    {
+        return Err("Invalid shell progress observation");
+    }
+    Ok(())
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -108,6 +125,39 @@ impl Startup {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn shell_observations_have_only_fixed_stages_and_state_fields() {
+        let valid = json!({"v":1,"type":"pyyaki_shell_progress","stage":"scheduled",
+            "visibility":"visible","focused":false});
+        for stage in [
+            "scheduled",
+            "frame1",
+            "frame2",
+            "visibility",
+            "focus",
+            "blur",
+        ] {
+            let mut message = valid.clone();
+            message["stage"] = json!(stage);
+            validate_shell_progress(&message).unwrap();
+        }
+        for (key, value) in [
+            ("v", json!(2)),
+            ("type", json!("call")),
+            ("stage", json!("arbitrary")),
+            ("visibility", json!("unknown")),
+            ("focused", json!(1)),
+            ("extra", json!(true)),
+        ] {
+            let mut message = valid.clone();
+            message[key] = value;
+            assert!(validate_shell_progress(&message).is_err(), "{key}");
+        }
+        let mut missing = valid;
+        missing.as_object_mut().unwrap().remove("focused");
+        assert!(validate_shell_progress(&missing).is_err());
+    }
 
     fn progress(phase: &str, ms: f64) -> Value {
         json!({"v":1,"type":"worker_progress","nonce":"test",

@@ -13,6 +13,8 @@
 | `asset_requested` / `asset_response` | HTMLトップページとSDKの初回取得・応答準備。HTTP status相当値とバイト数 |
 | `ui_deadline_started` | WebView生成後のHTML準備期限（10秒）の開始 |
 | `sdk_connect_started` | SDKが接続を開始した旨の通知をホストで受信 |
+| `sdk_shell_progress` | 二重rAFのscheduled/frame1/frame2と、待機中のvisibility/focus/blur。DOMのvisibility・focusを最大16件記録 |
+| `ui_window_state` | HTML準備待ちの間、約1秒ごとのネイティブ窓のvisible/focused/minimized。Macはアプリのactive/hiddenも記録 |
 | `shell_marker` / `sdk_hello_received` | レイアウト後の通知 / 公開helloをホストで受信 |
 | `backend_deadline_started` | shell通知後のワーカー準備期限（10秒）の開始 |
 | `python_spawn_started` / `python_spawned` | バックグラウンドでのワーカー生成呼出し前後 |
@@ -25,6 +27,8 @@
 | `worker_failed` / `backend_failed` | ワーカー通信・初期化の失敗 / GUI側の障害処理 |
 
 `host_elapsed_ms`はRustのrun入口を基準とした、その記録を行うスレッド上の経過時間。外部CreateProcess前のt0ではない。ワーカーの6段階には、内部hello検証後を基準とした`data.worker_elapsed_ms`も付く。差分にはパイプ送受信、スレッド/asyncioのスケジューリングも含む。Python生成から`worker_entered`までにはインタープリター・PyYaki自体のimportも含み、各々の純粋なCPU時間を分離した値ではない。
+
+描画待ちの記録は2026-11-04の追加切り分け用。scheduledだけなら最初のrAF待ち、frame1だけなら2回目の待ち、frame2後ならshell通知の配送等を調べる。DOMの表示判定とネイティブ窓の状態は別々に記録し、物理的な提示の証明とはしない。JSの監視はshell通知前または接続終了時に解除する。記録を増やす変更であり、初期化期限とPythonを起動する順序は変えていない。
 
 SDKの接続タイマーは`ready()`による接続開始時から10秒、ホストのワーカー準備期限はshell通知の処理時から10秒。`ready({timeoutMs})`の呼出し単位の待機期限も別にある。今回これらの期限を延長・統合していない。SDKの内部接続期限に達した場合は、ホストにも通知して障害画面とワーカー回収へ進む。Web経路にこの通知は追加しない。
 

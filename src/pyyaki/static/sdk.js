@@ -104,11 +104,13 @@ function connect() {
   return new Promise((resolve, reject) => {
     let settled = false;
     let sequence = 0;
+    let stopShellTracking = () => {};
     const abort = new AbortController();
     const finish = (error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      stopShellTracking();
       if (error) { fail(error.code, error.message); reject(error); }
     };
     const timer = setTimeout(() => {
@@ -209,11 +211,35 @@ function connect() {
       };
       if (native) {
         // The native host starts Python only after this post-layout marker.
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          if (socket.readyState !== WebSocket.OPEN) return;
-          send({ v: 1, type: "pyyaki_shell_ready" });
-          socket.onopen();
-        }));
+        let remaining = 16;
+        const progress = (stage) => {
+          if (settled || remaining <= 0 || socket.readyState !== WebSocket.OPEN) return;
+          remaining--;
+          try { send({v: 1, type: "pyyaki_shell_progress", stage,
+            visibility: document.visibilityState, focused: document.hasFocus()}); } catch {}
+        };
+        const visible = () => progress("visibility");
+        const focus = () => progress("focus");
+        const blur = () => progress("blur");
+        document.addEventListener("visibilitychange", visible);
+        window.addEventListener("focus", focus);
+        window.addEventListener("blur", blur);
+        stopShellTracking = () => {
+          document.removeEventListener("visibilitychange", visible);
+          window.removeEventListener("focus", focus);
+          window.removeEventListener("blur", blur);
+        };
+        progress("scheduled");
+        requestAnimationFrame(() => {
+          progress("frame1");
+          requestAnimationFrame(() => {
+            progress("frame2");
+            stopShellTracking();
+            if (socket.readyState !== WebSocket.OPEN) return;
+            send({ v: 1, type: "pyyaki_shell_ready" });
+            socket.onopen();
+          });
+        });
       }
     };
     if (native) {

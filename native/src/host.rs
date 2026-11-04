@@ -1,6 +1,6 @@
 use crate::process::Worker;
 use pyyaki_host::navigation::NavigationGate;
-use pyyaki_host::startup::{Startup, Update};
+use pyyaki_host::startup::{Startup, Update, validate_shell_progress};
 use pyyaki_host::{MAX_MESSAGE_BYTES, ORIGIN, VERSION, assets, config::Config, framing};
 use serde_json::{Value, json};
 use std::{
@@ -59,6 +59,19 @@ struct BackendPaths {
     python: PathBuf,
     root: PathBuf,
     log: PathBuf,
+}
+
+fn ui_window_state(window: &Window) -> Value {
+    #[allow(unused_mut)]
+    let mut state = json!({"visible":window.is_visible(),"focused":window.is_focused(),
+        "minimized":window.is_minimized()});
+    #[cfg(target_os = "macos")]
+    if let Some(mtm) = objc2::MainThreadMarker::new() {
+        let application = objc2_app_kit::NSApplication::sharedApplication(mtm);
+        state["application_active"] = json!(application.isActive());
+        state["application_hidden"] = json!(application.isHidden());
+    }
+    state
 }
 
 impl StartupLog {
@@ -424,6 +437,8 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let mut pending_hello: Option<String> = None;
     let mut started = false;
     let mut sdk_connect_started = false;
+    let mut shell_observations = 0;
+    let mut next_ui_sample = Instant::now();
     let mut backend_ready = false;
     let mut failed = false;
     let mut last_worker_phase = "ui_initialization";
@@ -632,6 +647,16 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     {
                         sdk_connect_started = true;
                         trace.mark("sdk_connect_started", Value::Null);
+                    } else if message.get("type") == Some(&json!("pyyaki_shell_progress")) {
+                        validate_shell_progress(&message)?;
+                        if shell_observations < 16 {
+                            shell_observations += 1;
+                            trace.mark(
+                                "sdk_shell_progress",
+                                json!({"stage":message["stage"],
+                                "visibility":message["visibility"],"focused":message["focused"]}),
+                            );
+                        }
                     } else if message == json!({"v":1,"type":"pyyaki_shell_ready"}) && !started {
                         started = true;
                         trace.mark("shell_marker", Value::Null);
@@ -721,6 +746,15 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     window.set_title("PyYaki — closing…");
                 }
                 _ => {}
+            }
+            if view.is_some()
+                && !started
+                && !failed
+                && shutdown_at.is_none()
+                && Instant::now() >= next_ui_sample
+            {
+                trace.mark("ui_window_state", ui_window_state(&window));
+                next_ui_sample = Instant::now() + Duration::from_secs(1);
             }
             #[cfg(target_os = "macos")]
             if !failed

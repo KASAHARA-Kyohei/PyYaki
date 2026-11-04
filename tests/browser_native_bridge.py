@@ -82,6 +82,15 @@ def main():
             page.get_by_role("button", name="エラーを試す").click()
             expect(page.locator("#error")).to_contain_text("APP_NATIVE")
             messages = page.evaluate("nativeMessages")
+            observations = [m for m in messages if m["type"] == "pyyaki_shell_progress"]
+            assert [m["stage"] for m in observations if m["stage"].startswith("frame")] == [
+                "frame1",
+                "frame2",
+            ]
+            assert observations[0]["stage"] == "scheduled"
+            assert all(m["visibility"] in ("visible", "hidden") for m in observations)
+            assert all(type(m["focused"]) is bool for m in observations)
+            messages = [m for m in messages if m["type"] != "pyyaki_shell_progress"]
             assert messages[0] == {"v": 1, "type": "pyyaki_connect_started"}
             assert messages[1] == {"v": 1, "type": "pyyaki_shell_ready"}
             assert messages[2] == {
@@ -94,6 +103,27 @@ def main():
             assert ids == [str(index) for index in range(1, len(ids) + 1)]
             assert page.evaluate("networkAttempts") == 0
             assert not errors, errors
+
+            # Delay each frame independently: observing progress must never start Python early.
+            page.goto("https://pyyaki.localhost/sdk-test.html")
+            page.evaluate("""async () => {
+              window.framesToRun = [];
+              window.requestAnimationFrame = callback => framesToRun.push(callback);
+              const { pyyaki } = await import('/_pyyaki/sdk.js');
+              window.frameReady = pyyaki.ready();
+            }""")
+            assert page.evaluate("nativeMessages.map(m => m.type)") == [
+                "pyyaki_connect_started",
+                "pyyaki_shell_progress",
+            ]
+            page.evaluate("framesToRun.shift()(performance.now())")
+            assert not page.evaluate("nativeMessages.some(m => m.type === 'hello')")
+            assert page.evaluate("nativeMessages.at(-1).stage") == "frame1"
+            page.evaluate("framesToRun.shift()(performance.now())")
+            assert page.evaluate("frameReady.then(r => r.mode)") == "windows"
+            count = page.evaluate("nativeMessages.length")
+            page.evaluate("window.dispatchEvent(new Event('blur'))")
+            assert page.evaluate("nativeMessages.length") == count
 
             # Reuse this page's per-navigation init script with a blank test document.
             page.goto("https://pyyaki.localhost/sdk-test.html")
