@@ -102,6 +102,8 @@ Python版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exe�
 
 2026-11-05の修正では、ホストに埋め込む`worker_bootstrap.py`がPyYakiのimport前にPythonのstdout/stderrをUTF-8・backslashreplace・行バッファリングへ設定する。`-I`と通常ファイルの既定文字コードは維持し、固定コードを`-c`で起動する。生バイト出力・アプリによる再設定・bootstrap以前の障害は対象外。過去のCP932ログは変換しない。[Windowsの実機結果とMacで残る回帰確認](../docs/validation-worker-logs-2026-11-05.md)を参照。bootstrap変更後はRustホストを再ビルドする。
 
+同日の追加確認では、修正版の通常/import5秒/フック5秒の反復9/9に成功し、専用の`tests/diagnostics_windows.py`で不正UI/workerフレーム・期限・資産/遷移・無効プロキシを確認した。[境界・異常系の結果](../docs/validation-windows-boundary-2026-11-05.md)は11確認・1未達。venv launcherがwriterを保持するためworker側fdだけのcloseではEOF検出を確認できず、全ケースの終了コードは1として残す。端末全体のネットワークや保護設定は変えない。
+
 ## 起動期限の再確認
 
 2026-11-04に起動段階ログ・障害画面・反復検証器を追加した。ホストとワーカーを同じソースから更新し、[起動の切り分け](../docs/startup-diagnostics.md)に従って通常/import遅延/起動フック遅延を確認する。同日に`ae3889c`をWindowsで[再検証](../docs/validation-windows-2026-11-04.md)し、実GUIスモークと起動反復9/9、意図的なimport例外の画面、終了時回収を確認した。以前の初回失敗は未再現で、原因解消とは扱わない。

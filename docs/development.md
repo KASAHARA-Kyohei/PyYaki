@@ -124,3 +124,5 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 起動期限の再現確認には[起動の切り分け](startup-diagnostics.md)の`tests/startup_probe.py`を使う。2026-11-04に`ae3889c`をWindowsで再検証し、起動9/9、Python 108件成功・19件スキップ、Rust 10件、Clippyと実GUIスモークに成功した。[再検証記録](validation-windows-2026-11-04.md)を参照。以前の初回失敗は未再現で、原因解消とは扱わない。当日のworker.logはCP932だったため、過去ログをUTF-8と決めつけて上書きしない。
 
 2026-11-05の修正後は、パッケージimport前の固定bootstrapがstdout/stderrをUTF-8へ設定する。WindowsのPython 112成功・19スキップ、Rust 10成功、MSVC/Clippy/実GUIを[確認](validation-worker-logs-2026-11-05.md)した。新しいworker.logはPowerShellの`Get-Content -Encoding UTF8 <パス>`等で読む。通常ファイルの既定encodingは変えず、アプリの生バイト出力・ストリーム再設定は対象外。Macではホスト再ビルド・スモーク・.app再生成の確認が残る。
+
+実ホストの境界・異常系は`tests/diagnostics_windows.py --binary native/target/release/pyyaki.exe --output <新規のtest-results配下>`で確認できる。実行は上記venvのPythonを使う。コピーに故意の異常終了・不正フレーム等を加えるメンテナー専用検証で、通常のpytestとは別。`--case`で絞り込める。11-05の[12ケースの記録](validation-windows-boundary-2026-11-05.md)は11確認・pipe-close 1未達で、全件実行の終了コードは1。venv launcherのwriter保持による制約を合格にせず残している。

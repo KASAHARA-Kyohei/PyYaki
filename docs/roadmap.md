@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れを実装。MacのPython/ブラウザで確認 | 自動再読込、本番Web運用、長時間/高負荷の評価 |
 | Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分/30分の連続試験、表示状態7条件、Python遅延/停止/クラッシュ・終了処理を確認。Python同梱.appのローカル生成・再配置と既定アイコンの同梱を確認 | Dock/Finderの目視、Space切替時の初期描画待ちと期限への対応、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
-| Windowsネイティブ | Windows 11 x64でMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・通常終了/ホスト強制終了時のPython回収を確認。11-05にテキストログのUTF-8化と障害説明の重複を修正・実機確認 | 11-04の起動反復9/9・C案アイコン確認と区別する。以前の初回失敗は未再現で原因未確定。GDI実提示・性能、ハンドル負例、境界・ネットワーク/企業環境は残る。[ログ修正の結果と限界](validation-worker-logs-2026-11-05.md) |
+| Windowsネイティブ | Windows 11 x64でMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・通常/強制終了回収を確認。11-05にUTF-8修正後の起動反復9/9、境界・異常系12ケース中11の確認を追加 | 以前の初回失敗は未再現で原因未確定。venvのwriter保持でpipe-closeは未達。GDI実提示・性能、ハンドル負例、download/全origin、ネットワーク切断・企業環境は残る。[境界確認の結果と限界](validation-windows-boundary-2026-11-05.md) |
 | 導入 / 配布 | 開発用CLIは`dev`とMacの`build macos`試作。実行はRustホスト直接起動または生成.app | Rust不要のネイティブCLI配置、`build windows`、ランタイム同梱、単一exe組立/展開/署名 |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
 
@@ -307,3 +307,7 @@ worker.logの日本語生バイトはCP932で読めるがUTF-8 strict decodeで�
 ### 2026-11-05 ワーカーログのUTF-8化
 
 利用者の依頼により、`8986fb5`で固定bootstrapによるstdout/stderrのUTF-8化と例外説明の重複を修正した。通常のファイル読み書き・隔離モード・起動期限・二重rAF・Python開始順を維持。WindowsでPython 112成功/19スキップ、Rust 10成功、MSVC release/Clippy/実GUIを確認した。日本語・絵文字・孤立サロゲート・大量出力後のRPC・パッケージimport失敗を検査し、実画面の例外とログ案内、通常/強制終了時のPython回収も確認した。[対象ハッシュ・環境・生ログ・限界](validation-worker-logs-2026-11-05.md)を記録。同日の追加依頼で`df2cded`を反復検証し、通常/import前5秒/起動フック5秒の各3回が9/9成功。Macの変更後の回帰確認とWindowsの未完了G1項目は残る。
+
+### 2026-11-05 Windowsの境界・異常系
+
+`f8e9893`で実WebView2のメンテナー用検証器を追加し、最終12ケース中11の所定の確認に成功。コピーだけへ障害を注入し、不正JSON/種別/サイズ、worker異常終了・不正フレーム、import期限、資産パス・遷移、子だけの無効プロキシを確認した。pipe-closeは2秒の呼出し期限までにEOFと障害通知がなく、終了コード1・未達として残した。独立再現でもvenv launcherのwriter保持と整合する結果を得て、ADR-019へ採否条件を記載。最初の緩い成功判定や終了後のネットワーク標本を採用せず、元ログを保持した。[最終結果・停止段階・残課題](validation-windows-boundary-2026-11-05.md)を参照。製品コードや期限は変更していない。
