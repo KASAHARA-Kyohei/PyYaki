@@ -484,12 +484,36 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     let active_assets = Arc::new(AtomicUsize::new(0));
                     let asset_trace = trace.clone();
                     let seen_assets = AtomicUsize::new(0);
+                    let download_trace = trace.clone();
+                    let navigation_trace = trace.clone();
+                    let popup_trace = trace.clone();
+                    let ipc_trace = trace.clone();
+                    let download_seen = AtomicBool::new(false);
+                    let navigation_seen = AtomicBool::new(false);
+                    let popup_seen = AtomicBool::new(false);
+                    let ipc_rejections = AtomicUsize::new(0);
                     let new_view =
                         platform_builder(WebViewBuilder::new_with_web_context(&mut context))
                             .with_devtools(false)
-                            .with_download_started_handler(|_, _| false)
-                            .with_navigation_handler(move |url| navigation.allow(&url))
-                            .with_new_window_req_handler(|_, _| wry::NewWindowResponse::Deny)
+                            .with_download_started_handler(move |_, _| {
+                                if !download_seen.swap(true, Ordering::AcqRel) {
+                                    download_trace.mark("download_rejected", Value::Null);
+                                }
+                                false
+                            })
+                            .with_navigation_handler(move |url| {
+                                let allowed = navigation.allow(&url);
+                                if !allowed && !navigation_seen.swap(true, Ordering::AcqRel) {
+                                    navigation_trace.mark("navigation_rejected", Value::Null);
+                                }
+                                allowed
+                            })
+                            .with_new_window_req_handler(move |_, _| {
+                                if !popup_seen.swap(true, Ordering::AcqRel) {
+                                    popup_trace.mark("new_window_rejected", Value::Null);
+                                }
+                                wry::NewWindowResponse::Deny
+                            })
                             .with_initialization_script(bootstrap())
                             .with_initialization_script(if smoke_test {
                                 include_str!("../smoke.js")
@@ -508,6 +532,18 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                                         let _ = ipc_proxy.send_event(HostEvent::Failed(
                                             "Native IPC queue limit exceeded".into(),
                                         ));
+                                    }
+                                } else {
+                                    // Record each fixed reason once, without URLs or message bodies.
+                                    let (bit, reason) =
+                                        if request.uri().to_string() != format!("{ORIGIN}/") {
+                                            (1, "origin")
+                                        } else {
+                                            (2, "message_too_large")
+                                        };
+                                    if ipc_rejections.fetch_or(bit, Ordering::AcqRel) & bit == 0 {
+                                        ipc_trace
+                                            .mark("native_ipc_rejected", json!({"reason":reason}));
                                     }
                                 }
                             })

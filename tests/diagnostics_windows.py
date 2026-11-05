@@ -13,6 +13,8 @@ from ctypes import wintypes as w
 from datetime import UTC, datetime
 from pathlib import Path
 
+from windows_handles import file_identity, identity_in_child
+
 ROOT = Path(__file__).resolve().parents[1]
 CASES = (
     "ui-json",
@@ -27,6 +29,10 @@ CASES = (
     "assets",
     "navigation",
     "invalid-proxy",
+    "handle-inheritance",
+    "user-actions",
+    "worker-grandchild",
+    "host-kill-tree",
 )
 
 
@@ -91,11 +97,16 @@ class Processes:
                     self.handles[pid] = handle
 
     def active(self):
-        return [
-            pid
-            for pid, handle in self.handles.items()
-            if self.kernel.WaitForSingleObject(handle, 0) == 258
-        ]
+        active = []
+        for pid, handle in self.handles.items():
+            status = self.kernel.WaitForSingleObject(handle, 0)
+            if status == 0xFFFFFFFF:
+                raise ctypes.WinError(ctypes.get_last_error())
+            if status == 258:
+                active.append(pid)
+            elif status != 0:
+                raise RuntimeError(f"Unexpected process wait result for {pid}: {status}")
+        return active
 
     def close(self):
         for handle in self.handles.values():
@@ -105,8 +116,8 @@ class Processes:
 def read_markers(path, prefix):
     return [
         json.loads(line[len(prefix) :])
-        for line in path.read_text(encoding="utf-8", errors="strict").splitlines()
-        if line.startswith(prefix)
+        for line in path.read_text(encoding="utf-8", errors="strict").splitlines(keepends=True)
+        if line.startswith(prefix) and line.endswith("\n")
     ]
 
 
@@ -141,12 +152,32 @@ def network_sample(folder, processes):
         )
 
 
-def run_case(binary, output, scenario):
+def run_case(binary, output, scenario, worker_python):
     folder = output / scenario
     project = folder / "project"
     folder.mkdir()
     shutil.copytree(ROOT / "tests/fixtures/windows-boundary", project)
-    (project / "probe.json").write_text(json.dumps({"scenario": scenario}), encoding="utf-8")
+    shutil.copy2(ROOT / "tests/windows_handles.py", project / "win_handles.py")
+    probe = {"scenario": scenario}
+    sentinel = None
+    startup_options = {}
+    sentinel_identity = None
+    if scenario == "handle-inheritance":
+        import msvcrt
+
+        sentinel = (project / "sentinel.bin").open("xb")
+        sentinel.write(b"owned-inheritable-sentinel")
+        sentinel.flush()
+        sentinel_handle = msvcrt.get_osfhandle(sentinel.fileno())
+        os.set_handle_inheritable(sentinel_handle, True)
+        sentinel_identity = file_identity(sentinel_handle)
+        if "error" in sentinel_identity:
+            raise RuntimeError(f"Sentinel identity unavailable: {sentinel_identity}")
+        probe.update(sentinel_handle=sentinel_handle, sentinel_identity=sentinel_identity)
+        startup = subprocess.STARTUPINFO()
+        startup.lpAttributeList = {"handle_list": [sentinel_handle]}
+        startup_options["startupinfo"] = startup
+    (project / "probe.json").write_text(json.dumps(probe), encoding="utf-8")
     (project / "pyproject.toml").write_text('[tool.pyyaki]\nentry="app:app"\n', encoding="utf-8")
     (project / "ui/config.js").write_text(
         f"export const scenario={json.dumps(scenario)};", encoding="utf-8"
@@ -167,7 +198,7 @@ def run_case(binary, output, scenario):
         "--project",
         str(project),
         "--python",
-        sys.executable,
+        str(worker_python),
         "--diagnostics",
     ]
     env = os.environ.copy()
@@ -181,9 +212,15 @@ def run_case(binary, output, scenario):
     observer = Processes()
     timed_out = False
     network = None
+    killed_owned_host = False
     with (folder / "launcher.log").open("wb") as log:
         host = subprocess.Popen(
-            command, stdout=log, stderr=log, env=env, creationflags=subprocess.CREATE_NO_WINDOW
+            command,
+            stdout=log,
+            stderr=log,
+            env=env,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            **startup_options,
         )
         (folder / "launch.json").write_text(
             json.dumps(
@@ -196,10 +233,29 @@ def run_case(binary, output, scenario):
             ),
             encoding="utf-8",
         )
-        deadline = time.monotonic() + 35
+        deadline = time.monotonic() + (180 if scenario == "user-actions" else 35)
         try:
+            sentinel_in_host = None
+            if sentinel is not None:
+                os.set_handle_inheritable(sentinel_handle, False)
+                sentinel_in_host = identity_in_child(host, sentinel_handle)
             while host.poll() is None:
                 observer.sample(host.pid)
+                if scenario == "host-kill-tree" and not killed_owned_host:
+                    markers = read_markers(folder / "launcher.log", "pyyaki_diagnostic=")
+                    spawned = [m["data"] for m in markers if m["phase"] == "fault_ready"]
+                    if spawned and spawned[-1]["pid"] in observer.handles:
+                        child = spawned[-1]
+                        worker_pid = child["worker_pid"]
+                        if (
+                            worker_pid not in observer.known
+                            or observer.known[child["pid"]]["ppid"] != worker_pid
+                            or observer.known[worker_pid]["name"] != "python.exe"
+                        ):
+                            raise RuntimeError("Child identity is outside our host's observed tree")
+                        # Only our root Popen handle; the Job Object owns descendant cleanup.
+                        host.kill()
+                        killed_owned_host = True
                 if scenario == "invalid-proxy" and network is None:
                     markers = read_markers(folder / "launcher.log", "pyyaki_diagnostic=")
                     if any(marker["phase"] == "ready" for marker in markers):
@@ -240,6 +296,7 @@ def run_case(binary, output, scenario):
                 "host_pid": host.pid,
                 "exit_code": host.returncode,
                 "watchdog": timed_out,
+                "killed_owned_host": killed_owned_host,
                 "instance": str(instance),
                 "stages": stages,
                 "diagnostics": diagnostics,
@@ -253,6 +310,43 @@ def run_case(binary, output, scenario):
                 and not active
                 and not missing,
             }
+            if scenario == "host-kill-tree":
+                record["ok"] = (
+                    killed_owned_host
+                    and not timed_out
+                    and host.returncode != 0
+                    and not active
+                    and not missing
+                )
+            if scenario in ("worker-grandchild", "host-kill-tree"):
+                spawned = [m["data"] for m in diagnostics if m["phase"] == "fault_ready"]
+                record["spawned_child"] = spawned[-1] if spawned else None
+                record["ok"] &= bool(
+                    spawned
+                    and spawned[-1]["pid"] in observer.handles
+                    and observer.known[spawned[-1]["pid"]]["ppid"] == spawned[-1]["worker_pid"]
+                )
+            if sentinel is not None:
+                record["sentinel_parent_identity"] = sentinel_identity
+                record["sentinel_host_identity"] = sentinel_in_host
+                record["ok"] &= sentinel_in_host == sentinel_identity
+            if scenario == "user-actions":
+                phases = [stage["phase"] for stage in stages]
+                record["ok"] &= all(
+                    phase in phases
+                    for phase in (
+                        "new_window_rejected",
+                        "download_rejected",
+                    )
+                )
+            if scenario == "navigation":
+                record["ok"] &= any(s["phase"] == "navigation_rejected" for s in stages)
+            if scenario == "oversize":
+                record["ok"] &= any(
+                    s["phase"] == "native_ipc_rejected"
+                    and s["data"] == {"reason": "message_too_large"}
+                    for s in stages
+                )
             if network is not None:
                 record["network_exit_code"] = network.returncode
                 sample = json.loads((folder / "network.json").read_text(encoding="utf-8-sig"))
@@ -279,6 +373,8 @@ def run_case(binary, output, scenario):
                 network.kill()
                 network.wait(timeout=5)
             observer.close()
+            if sentinel is not None:
+                sentinel.close()
 
 
 def main():
@@ -286,10 +382,12 @@ def main():
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--case", choices=CASES, action="append")
+    parser.add_argument("--python", type=Path, help="Explicit worker Python; defaults to this venv")
     args = parser.parse_args()
     if sys.platform != "win32":
         parser.error("Requires Windows/WebView2")
     binary = args.binary.resolve(strict=True)
+    worker_python = (args.python or Path(sys.executable)).resolve(strict=True)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     report = {
@@ -308,11 +406,16 @@ def main():
         },
         "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
         "python": sys.version,
+        "worker_python": str(worker_python),
+        "support_sha256": hashlib.sha256(
+            (ROOT / "tests/windows_handles.py").read_bytes()
+        ).hexdigest(),
         "runs": [],
     }
     try:
-        for scenario in args.case or CASES:
-            record = run_case(binary, output, scenario)
+        # The click case needs explicit selection and a human/Computer Use input session.
+        for scenario in args.case or [case for case in CASES if case != "user-actions"]:
+            record = run_case(binary, output, scenario, worker_python)
             report["runs"].append(record)
             print(
                 f"{scenario}: ok={record['ok']} exit={record['exit_code']} "

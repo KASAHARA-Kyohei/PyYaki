@@ -7,6 +7,8 @@ const report = (phase, data) => window.ipc.postMessage(JSON.stringify({
 }));
 const require = (value, message) => { if (!value) throw Error(message); };
 let done = false;
+let reachedReady = false;
+let injected = false;
 function finish(ok, details) {
   if (done) return;
   done = true;
@@ -26,25 +28,74 @@ window.addEventListener('__pyyaki_backend_failed__', () => {
   setTimeout(() => {
     const text = document.querySelector('[role=alert]')?.textContent ?? '';
     const expected = expectedFailure[scenario];
+    const afterReady = ['ui-json', 'ui-type', 'worker-crash', 'pipe-close'].includes(scenario);
+    const phase = afterReady ? 'Pythonとの接続' :
+      scenario === 'import-timeout' || scenario.startsWith('worker-frame-') ? 'アプリの読み込み' : '';
     finish(expected !== undefined && text.includes(expected) && text.includes('worker.log') &&
-      text.includes('host.log'), {failure_text: text});
+      text.includes('host.log') && text.includes(`停止した段階：${phase}`) &&
+      (!afterReady || (reachedReady && injected)), {failure_text: text, reachedReady, injected});
   }, 100);
 }, {once: true});
 
 try {
   await pyyaki.ready();
+  reachedReady = true;
   require(await pyyaki.invoke('probe.echo', {value: '接続 😀'}) === '接続 😀', 'RPC mismatch');
   report('ready', {scenario});
-  if (scenario === 'ui-json') window.ipc.postMessage('{');
-  else if (scenario === 'ui-type') window.ipc.postMessage(JSON.stringify({v: 1, type: 'unknown'}));
+  if (scenario === 'ui-json') { injected = true; window.ipc.postMessage('{'); }
+  else if (scenario === 'ui-type') {
+    injected = true; window.ipc.postMessage(JSON.stringify({v: 1, type: 'unknown'}));
+  }
   else if (scenario === 'worker-crash' || scenario === 'pipe-close') {
     const method = scenario === 'worker-crash' ? 'probe.crash' : 'probe.pipe-close';
+    injected = true;
     const pending = pyyaki.invoke(method, {}, {timeoutMs: 2000}).catch(error => ({code: error.code}));
     const outcome = await pending;
     report('sample', {pending: outcome});
     if (outcome?.code === 'TIMEOUT') finish(false, {
       limitation: 'Worker write fd closed but EOF not observed before the call deadline',
       pending: outcome,
+    });
+  } else if (scenario === 'worker-grandchild' || scenario === 'host-kill-tree') {
+    const child = await pyyaki.invoke('probe.spawn-child');
+    report('fault_ready', child);
+    if (scenario === 'worker-grandchild') {
+      await sleep(1200);
+      finish(true, {child});
+    }
+  } else if (scenario === 'handle-inheritance') {
+    const proof = JSON.parse(await pyyaki.invoke('probe.sentinel'));
+    require(proof.control_matches, 'Missing positive identity control');
+    require(!proof.inherited, 'Unlisted host handle reached worker');
+    finish(true, {proof});
+  } else if (scenario === 'user-actions') {
+    const clicks = [];
+    document.querySelector('#status').textContent = '接続済み：検証ボタンを順にクリック';
+    const button = (text, action) => {
+      const node = document.createElement('button'); node.textContent = text;
+      node.addEventListener('click', async event => {
+        const click = {text, trusted: event.isTrusted, active: navigator.userActivation.isActive};
+        clicks.push(click);
+        action();
+        report('sample', {click});
+        node.disabled = true;
+        if (clicks.length === 3) {
+          await sleep(1000);
+          require(await pyyaki.invoke('probe.echo', {value: 'after-user-actions'}) ===
+            'after-user-actions', 'RPC lost');
+          finish(clicks.every(value => value.trusted && value.active), {clicks});
+        }
+      }, {once: true});
+      document.body.append(node);
+    };
+    button('新規ウィンドウの拒否を確認', () => window.open('/other.html', '_blank'));
+    button('ローカル資産のダウンロード拒否を確認', () => {
+      const link = document.createElement('a'); link.href = '/probe.css';
+      link.download = 'pyyaki-boundary-local.css'; link.click();
+    });
+    button('data URLのダウンロード拒否を確認', () => {
+      const link = document.createElement('a'); link.href = 'data:text/plain;base64,UHlZYWtp';
+      link.download = 'pyyaki-boundary-data.txt'; link.click();
     });
   } else if (scenario === 'assets') {
     const paths = ['/probe.css', '/missing.css', '/%2e%2e/private.css', '/%252e%252e/private.css',

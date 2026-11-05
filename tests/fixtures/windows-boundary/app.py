@@ -10,7 +10,8 @@ from pathlib import Path
 from pyyaki import App
 
 root = Path(__file__).parent
-scenario = json.loads((root / "probe.json").read_text(encoding="utf-8"))["scenario"]
+probe = json.loads((root / "probe.json").read_text(encoding="utf-8"))
+scenario = probe["scenario"]
 
 if scenario == "import-timeout":
     import time
@@ -48,6 +49,7 @@ if scenario.startswith("worker-frame-"):
     time.sleep(30)
 
 app = App()
+children = []
 
 
 @app.command("probe.echo")
@@ -68,6 +70,9 @@ async def pipe_close() -> None:
     handle = int(sys.argv[sys.argv.index("--write-handle") + 1])
     fd = next(fd for fd in range(3, 64) if _matches_handle(msvcrt, fd, handle))
     os.close(fd)
+    (root / "pipe-closed.json").write_text(
+        json.dumps({"pid": os.getpid(), "ppid": os.getppid()}), encoding="utf-8"
+    )
     await asyncio.sleep(30)
 
 
@@ -76,3 +81,35 @@ def _matches_handle(msvcrt, fd, handle):
         return msvcrt.get_osfhandle(fd) == handle
     except OSError:
         return False
+
+
+@app.command("probe.sentinel")
+async def sentinel() -> str:
+    import msvcrt
+
+    from win_handles import file_identity
+
+    with (root / "sentinel.bin").open("rb") as control:
+        own = file_identity(msvcrt.get_osfhandle(control.fileno()))
+    candidate = file_identity(probe["sentinel_handle"])
+    return json.dumps(
+        {
+            "control_matches": own == probe["sentinel_identity"],
+            "inherited": candidate == probe["sentinel_identity"],
+            "candidate": candidate,
+            "control": own,
+        }
+    )
+
+
+@app.command("probe.spawn-child")
+async def spawn_child() -> dict[str, int]:
+    import subprocess
+
+    child = await asyncio.to_thread(
+        subprocess.Popen,
+        [sys.executable, "-I", "-c", "import time; time.sleep(60)"],
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    children.append(child)
+    return {"pid": child.pid, "worker_pid": os.getpid()}
