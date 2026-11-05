@@ -61,4 +61,30 @@ UTF-8化の対象はPythonのテキストストリーム。通常の`open()`の�
 
 生ログはGit管理外の`test-results/worker-logs-20261105/`に保存した。`build`/`pytest`/`rust-test`/`clippy`/`gui-*`のlogと実行JSON、`smoke/report.json`と各ログ、`manual-{normal,import-error,forced}/`のコピー・host/workerログ・生成PID・終了結果、`gui-import-0.png`・UIA記録、`evidence-summary.json`、`windows-environment.json`を保持する。GitHub経由では本書を共有できるが、生ログや画面は自動的には転送されない。
 
-今回未確認: Macの変更後の実ビルド・WKWebView・Python同梱.app、import/フック5秒の各3回反復、以前のWindows突発失敗の原因・解消、物理的先行描画と性能、ネットワーク/境界試験の残り、企業環境、長時間稼働。前回の9/9を今回の修正版の反復結果へ流用しない。次はMacで同じbootstrapの再ビルドと既存スモーク/.app再生成、またはWindowsの未完了G1検証を進める。単一exe生成は引き続き未実装。
+このログ修正直後にはimport/フック5秒の各3回反復を行わず、下記の追加追試で確認した。前回の9/9を修正版へ流用していない。引き続き未確認: Macの変更後の実ビルド・WKWebView・Python同梱.app、以前のWindows突発失敗の原因・解消、物理的先行描画と性能、ネットワーク/境界試験の残り、企業環境、長時間稼働。単一exe生成は引き続き未実装。
+
+## 修正版の起動反復の追試（2026-11-05）
+
+対象コミット`df2cded5bd25f3bc056b90cf38525a71d015394f`、開始時クリーン。上記と同一のexeハッシュ、Windows 11 x64・既存CPython 3.14.10通常GIL版のvenvを使用した。Rust/WebView2は上記の既存環境を継続利用し、追加ビルド・依存更新はしていない。他のビルド・試験と並行せず、次を実行した。
+
+```powershell
+.\.venv\Scripts\python.exe tests\startup_probe.py --binary native\target\release\pyyaki.exe --runs 3 --delay 5 --output test-results\windows-startup-20261105\startup
+```
+
+**通常3/3、import前5秒3/3、起動フック内5秒3/3、合計9/9成功**。全件で終了コード0、スモークok、watchdog終了なし、`sdk_welcome_posted`あり。二重rAFのscheduled/frame1/frame2、shell通知後のPython生成、workerの6段階の固定順序、UI/worker期限がともに10,000msであることを元ログから照合した。worker_failed/backend_failed/SDK期限/ホスト期限の記録は0件。
+
+| ケース | shell通知 | Python生成完了→worker通知 | import区間 | 起動フック区間 | SDK welcome送信 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| baseline-00 | 2101.7 | 1032.3 | 58.0 | 0.5 | 3223.3 |
+| baseline-01 | 2085.5 | 908.2 | 63.4 | 0.6 | 3090.4 |
+| baseline-02 | 2210.3 | 862.8 | 68.0 | 0.9 | 3173.0 |
+| import-00 | 1900.1 | 1222.6 | 5112.9 | 0.7 | 8273.0 |
+| import-01 | 1951.6 | 998.8 | 5124.5 | 1.3 | 8118.3 |
+| import-02 | 1791.4 | 1209.4 | 5158.8 | 1.4 | 8201.0 |
+| hooks-00 | 1871.2 | 920.2 | 87.8 | 5002.1 | 7922.0 |
+| hooks-01 | 1952.2 | 937.1 | 65.7 | 5009.2 | 8007.5 |
+| hooks-02 | 1972.4 | 952.8 | 70.7 | 5014.8 | 8050.4 |
+
+単位ms。shell/welcomeはホスト入口からの通知時刻、他は通知間の差で、スケジューリング・IPCを含む。物理的な画面提示やNFRの性能達成の測定ではない。以前の突発失敗は未再現であり、原因解消やMacのSpace問題との同因とは判断しない。
+
+元ログ・アプリのコピー・実行結果は`test-results/windows-startup-20261105/startup/`、実行全出力は同親の`startup.log`、コマンドと終了コードは`startup.json`、段階照合は`startup-summary.json`へ保存。Macには自動転送されない。今回は既存反復検証器を使い、追加のプロセス残留監視や録画は行っていない。

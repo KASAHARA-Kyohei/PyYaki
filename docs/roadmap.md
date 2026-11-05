@@ -20,7 +20,7 @@ Macの直近の自動検査はPython 127件、Rust 13件、Mac/Windows GNUター
 
 Windowsの環境確認と既存ホストのMSVCビルド・主要動作の実機検証を実施した。2026-11-04に起動段階ログ・通常例外の障害表示・反復検証器を追加し、Macで確認した。[この手順](startup-diagnostics.md)でWindowsの通常/import5秒/フック5秒を各3回再検証し、9/9成功した。以前の初回失敗の原因は未確定のまま、再発時の段階ログと文字コード等の[残課題](validation-windows-2026-11-04.md)を記録した。先行描画の実提示、ネットワーク/境界試験の残りも確認し、G1の最小単一exe検証へ進む。配布方式に依存する作り込みは、その結果を反映して行う。これは推奨順序であり、実装開始や検証環境の条件を新たに承認した記録ではない。
 
-11-05のログ修正後はWindowsでPython 112成功・19スキップ、Rust 10成功、MSVC/Clippy/既存実GUIスモークと通常/強制終了を確認した。文字コードの修正は[ADR-018と実機記録](validation-worker-logs-2026-11-05.md)に記載。Macの新bootstrap経路は再ビルド・WKWebView・生成.appの再確認が残る。
+11-05のログ修正後はWindowsでPython 112成功・19スキップ、Rust 10成功、MSVC/Clippy/既存実GUIスモークと通常/強制終了を確認した。同日の追加追試では修正版でも通常/import5秒/フック5秒が各3回、計9/9成功。文字コードの修正と[反復の段階表・元ログ](validation-worker-logs-2026-11-05.md)を記載。Macの新bootstrap経路は再ビルド・WKWebView・生成.appの再確認が残る。
 
 Macで先に進める場合の候補は、Space切替時の表示待ちと起動期限の扱い（ADR-017）、旧形式の要求ID制約の採否、自動再読込、起動時のフォーカス/Spaces・アプリ識別の調整要否の確認。後者は同じデスクトップに別ウィンドウが出ること自体を不具合扱いにするものではない。ready後のタイマーは[表示状態の比較](performance-macos.md#ウィンドウ状態とタイマーの比較)で最小化・非表示時に遅延を再現した。Python開始前の失敗は別途[初期描画待ちとSpaceの比較](startup-diagnostics.md)へ記録し、根本対応は未実装としている。優先順位は次の作業依頼で確認する。
 
@@ -306,4 +306,4 @@ worker.logの日本語生バイトはCP932で読めるがUTF-8 strict decodeで�
 
 ### 2026-11-05 ワーカーログのUTF-8化
 
-利用者の依頼により、`8986fb5`で固定bootstrapによるstdout/stderrのUTF-8化と例外説明の重複を修正した。通常のファイル読み書き・隔離モード・起動期限・二重rAF・Python開始順を維持。WindowsでPython 112成功/19スキップ、Rust 10成功、MSVC release/Clippy/実GUIを確認した。日本語・絵文字・孤立サロゲート・大量出力後のRPC・パッケージimport失敗を検査し、実画面の例外とログ案内、通常/強制終了時のPython回収も確認した。[対象ハッシュ・環境・生ログ・限界](validation-worker-logs-2026-11-05.md)を記録。Macの変更後の回帰確認、起動反復の再実行、Windowsの未完了G1項目は残る。
+利用者の依頼により、`8986fb5`で固定bootstrapによるstdout/stderrのUTF-8化と例外説明の重複を修正した。通常のファイル読み書き・隔離モード・起動期限・二重rAF・Python開始順を維持。WindowsでPython 112成功/19スキップ、Rust 10成功、MSVC release/Clippy/実GUIを確認した。日本語・絵文字・孤立サロゲート・大量出力後のRPC・パッケージimport失敗を検査し、実画面の例外とログ案内、通常/強制終了時のPython回収も確認した。[対象ハッシュ・環境・生ログ・限界](validation-worker-logs-2026-11-05.md)を記録。同日の追加依頼で`df2cded`を反復検証し、通常/import前5秒/起動フック5秒の各3回が9/9成功。Macの変更後の回帰確認とWindowsの未完了G1項目は残る。
