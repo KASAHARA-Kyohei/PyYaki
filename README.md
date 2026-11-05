@@ -12,7 +12,7 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 2026-11-05にワーカーのテキストログをUTF-8へ統一し、障害画面の説明の重複を整理しました。[Windowsでの検査・実GUI確認とMacで残る回帰確認](docs/validation-worker-logs-2026-11-05.md)を記録しています。反映にはRustホストの再ビルドが必要です。
 
-同日の追加作業では修正版の起動9/9と[境界・異常系の11確認・1未達](docs/validation-windows-boundary-2026-11-05.md)を記録し、[埋込Python・Fixed Version WebView2・固定wheelのフォルダー実行](docs/windows-onefile-prototype.md)も確認しました。単一exe生成は引き続き未実装です。
+同日の[境界追試](docs/validation-windows-boundary-followup-2026-11-05.md)では起動9/9、完全切断・不要ハンドル非継承・Job割当失敗時回収・実クリックでの新規窓/download拒否・アプリ孫の回収を確認しました。venvの部分closeにはwriter保持の制約が残ります。[埋込Python・Fixed Version WebView2・固定wheelのフォルダー実行](docs/windows-onefile-prototype.md)も確認しましたが、単一exe生成は引き続き未実装です。
 
 開発を再開するときは[開発ガイド](docs/development.md)、現在の実装と残作業は[ロードマップの現在地](docs/roadmap.md#現在地と次の作業)を参照してください。
 

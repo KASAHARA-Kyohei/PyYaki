@@ -104,7 +104,7 @@ Python版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exe�
 
 2026-11-05の修正では、ホストに埋め込む`worker_bootstrap.py`がPyYakiのimport前にPythonのstdout/stderrをUTF-8・backslashreplace・行バッファリングへ設定する。`-I`と通常ファイルの既定文字コードは維持し、固定コードを`-c`で起動する。生バイト出力・アプリによる再設定・bootstrap以前の障害は対象外。過去のCP932ログは変換しない。[Windowsの実機結果とMacで残る回帰確認](../docs/validation-worker-logs-2026-11-05.md)を参照。bootstrap変更後はRustホストを再ビルドする。
 
-同日の追加確認では、修正版の通常/import5秒/フック5秒の反復9/9に成功し、専用の`tests/diagnostics_windows.py`で不正UI/workerフレーム・期限・資産/遷移・無効プロキシを確認した。[境界・異常系の結果](../docs/validation-windows-boundary-2026-11-05.md)は11確認・1未達。venv launcherがwriterを保持するためworker側fdだけのcloseではEOF検出を確認できず、全ケースの終了コードは1として残す。端末全体のネットワークや保護設定は変えない。
+同日の[境界追試](../docs/validation-windows-boundary-followup-2026-11-05.md)では、通常/import5秒/フック5秒の反復9/9、自動境界15件中14、埋込Pythonの対照4/4、実クリックによる新規窓・download拒否を確認した。不要ハンドルの非継承、実APIでのJob割当失敗時回収、アプリの孫の通常/強制終了時回収も確認。venv launcherがwriterを保持する部分closeは制約として残り、自動15件の終了コードは1。全writerが閉じる埋込Pythonのパイプは障害通知・保留要求拒否・回収に成功した。新しい有限拒否ログの反映には再ビルドする。端末全体のネットワークや保護設定は変えない。
 
 ## 起動期限の再確認
 

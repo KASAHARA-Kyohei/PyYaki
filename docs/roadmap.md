@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れを実装。MacのPython/ブラウザで確認 | 自動再読込、本番Web運用、長時間/高負荷の評価 |
 | Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分/30分の連続試験、表示状態7条件、Python遅延/停止/クラッシュ・終了処理を確認。Python同梱.appのローカル生成・再配置と既定アイコンの同梱を確認 | Dock/Finderの目視、Space切替時の初期描画待ちと期限への対応、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
-| Windowsネイティブ | Windows 11 x64でMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・通常/強制終了回収を確認。11-05にUTF-8修正後の起動反復9/9、境界・異常系12ケース中11の確認を追加 | 以前の初回失敗は未再現で原因未確定。venvのwriter保持でpipe-closeは未達。GDI実提示・性能、ハンドル負例、download/全origin、ネットワーク切断・企業環境は残る。[境界確認の結果と限界](validation-windows-boundary-2026-11-05.md) |
+| Windowsネイティブ | MSVC release・実WebView2の共通動作、UTF-8ログ、起動反復9/9を確認。追試で完全切断・不要ハンドル非継承・Job割当失敗回収・実クリック拒否・アプリ孫の回収を追加 | venvの部分closeはwriter保持の制約として残る。以前の初回失敗の原因、GDI実提示・性能、Jobの全失敗条件・全origin、ネットワーク切断・企業環境は未確認。[追試の結果と限界](validation-windows-boundary-followup-2026-11-05.md) |
 | 導入 / 配布 | 開発用CLIは`dev`とMacの`build macos`試作。Windowsは公式埋込Python・Fixed Version・固定wheelのフォルダーで実GUIを確認し、検証用lockを保存 | Rust不要のネイティブCLI配置、`build windows`、汎用ランタイム同梱機能、単一exe組立/展開/署名。[前段確認](windows-onefile-prototype.md)をFR-08の合格にしない |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
 
@@ -20,7 +20,7 @@ Macの直近の自動検査はPython 127件、Rust 13件、Mac/Windows GNUター
 
 Windowsの環境確認と既存ホストのMSVCビルド・主要動作の実機検証を実施した。2026-11-04に起動段階ログ・通常例外の障害表示・反復検証器を追加し、Macで確認した。[この手順](startup-diagnostics.md)でWindowsの通常/import5秒/フック5秒を各3回再検証し、9/9成功した。以前の初回失敗の原因は未確定のまま、再発時の段階ログと文字コード等の[残課題](validation-windows-2026-11-04.md)を記録した。先行描画の実提示、ネットワーク/境界試験の残りも確認し、G1の最小単一exe検証へ進む。配布方式に依存する作り込みは、その結果を反映して行う。これは推奨順序であり、実装開始や検証環境の条件を新たに承認した記録ではない。
 
-11-05のログ修正後はWindowsでPython 112成功・19スキップ、Rust 10成功、MSVC/Clippy/既存実GUIスモークと通常/強制終了を確認した。同日の追加追試では修正版でも通常/import5秒/フック5秒が各3回、計9/9成功。文字コードの修正と[反復の段階表・元ログ](validation-worker-logs-2026-11-05.md)を記載。Macの新bootstrap経路は再ビルド・WKWebView・生成.appの再確認が残る。
+11-05のログ修正後はWindowsでPython 112成功・19スキップ、Rust 10成功を確認し、[反復の段階表・元ログ](validation-worker-logs-2026-11-05.md)を記録した。その後の`755630e`の[境界追試](validation-windows-boundary-followup-2026-11-05.md)はPython 112成功/19スキップ、Windows Rust 11成功/1 child用ignore、MSVC/Clippy、起動反復9/9、venv自動14/15・埋込対照4/4・実クリック1/1。Macの新bootstrap・有限拒否ログは、Macビルド・WKWebView・生成.appで再確認が残る。
 
 Macで先に進める場合の候補は、Space切替時の表示待ちと起動期限の扱い（ADR-017）、旧形式の要求ID制約の採否、自動再読込、起動時のフォーカス/Spaces・アプリ識別の調整要否の確認。後者は同じデスクトップに別ウィンドウが出ること自体を不具合扱いにするものではない。ready後のタイマーは[表示状態の比較](performance-macos.md#ウィンドウ状態とタイマーの比較)で最小化・非表示時に遅延を再現した。Python開始前の失敗は別途[初期描画待ちとSpaceの比較](startup-diagnostics.md)へ記録し、根本対応は未実装としている。優先順位は次の作業依頼で確認する。
 
@@ -315,3 +315,7 @@ worker.logの日本語生バイトはCP932で読めるがUTF-8 strict decodeで�
 ### 2026-11-05 Windows単一exeの資材準備
 
 優先の反復検証と境界確認の後、公式CPython 3.14.10 x64埋込ZIPとFixed Version WebView2 156.0.4314.58 x64を取得。公式Pythonハッシュと主要実行ファイルの署名を確認し、既存環境と同じ15依存とframework wheelをハッシュ固定・オフライン配置した。既存ホストを使い、同梱候補だけのPython探索パス・WebView2実行パス、native拡張・日本語ログ・既存実GUIスモーク・終了回収を確認。Windows用サンプルlockの15wheelもネットワークなしで再解決した。[入力・生ログ・未確認範囲・次の実装](windows-onefile-prototype.md)を記録。単一exe生成、非同期展開、安全なキャッシュ、署名後の読取り、未導入クリーン環境は未実装/未確認のまま。
+
+### 2026-11-05 境界・異常系の追加追試
+
+利用者の追加依頼で、`2f8a537`に実APIのJob割当失敗・停止中回収の正常/負対照を追加し、`755630e`に有限拒否ログと実操作・ハンドル同一性・孫回収の検証器を追加。最終ホストで起動9/9、venv自動14/15、埋込対照4/4、実クリック1/1を確認した。全writer closeのEOFは成功し、venv部分closeの制約と区別。各最終ケースで観測した自分のプロセスの残留なし。Rust 11成功/1 child用ignore、Python 112成功/19スキップ、MSVC/Clippyにも成功。[環境・SHA・停止段階・原ログと残課題](validation-windows-boundary-followup-2026-11-05.md)を記録。未確認のネットワーク切断・企業PAC・全origin/Job負例・Mac等を合格にせず、単一exeの実装は追加していない。

@@ -25,8 +25,12 @@
 | `sdk_welcome_posted` | 公開welcomeをWebViewへ送信。SDK受信完了の保証ではない |
 | `sdk_connect_timeout` / `host_initialization_timeout` | SDK接続期限の通知 / ホスト側の期限到達 |
 | `worker_failed` / `backend_failed` | ワーカー通信・初期化の失敗 / GUI側の障害処理 |
+| `navigation_rejected` / `new_window_rejected` / `download_rejected` | 対応するホストの拒否ハンドラーの初回呼出し。各WebViewで各1件だけ記録 |
+| `native_ipc_rejected` | originまたは本文サイズで入口拒否。reasonはorigin/message_too_largeで、各WebView・理由ごとに初回1件 |
 
 `host_elapsed_ms`はRustのrun入口を基準とした、その記録を行うスレッド上の経過時間。外部CreateProcess前のt0ではない。ワーカーの6段階には、内部hello検証後を基準とした`data.worker_elapsed_ms`も付く。差分にはパイプ送受信、スレッド/asyncioのスケジューリングも含む。Python生成から`worker_entered`までにはインタープリター・PyYaki自体のimportも含み、各々の純粋なCPU時間を分離した値ではない。
+
+拒否ログは2026-11-05の[境界追試](validation-windows-boundary-followup-2026-11-05.md)で追加した観測用の記録。URL・保存先・本文を含めず最大5件で、件数の総数やすべての操作の成否を表さない。拒否条件やCSP、初期化期限を変更する機能ではない。
 
 描画待ちの記録は2026-11-04の追加切り分け用。scheduledだけなら最初のrAF待ち、frame1だけなら2回目の待ち、frame2後ならshell通知の配送等を調べる。DOMの表示判定とネイティブ窓の状態は別々に記録し、物理的な提示の証明とはしない。JSの監視はshell通知前または接続終了時に解除する。記録を増やす変更であり、初期化期限とPythonを起動する順序は変えていない。
 

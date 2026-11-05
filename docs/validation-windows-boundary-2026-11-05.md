@@ -2,6 +2,8 @@
 
 実施日: 2026-11-05（日本時間）。優先依頼の[修正版の起動反復9/9](validation-worker-logs-2026-11-05.md#修正版の起動反復の追試2026-11-05)の後に実施した。**12ケース中11ケースの所定の確認に成功し、パイプ片側closeの1ケースは合格にしない。G1/G2全体の合格ではない。** 製品のRust/Python/SDKは変更せず、再実行できる専用検証器とfixtureを追加した。
 
+本書は初回検証時点の記録。同日の[追加追試](validation-windows-boundary-followup-2026-11-05.md)では埋込Pythonでの完全切断、不要ハンドル非継承、Job割当失敗時の回収、実クリック拒否、孫プロセス回収を確認した。venvの部分closeは制約として残している。
+
 ## 対象と実施方法
 
 最終検証器のコミットは`f8e9893e44de8be79f8af3a74ab8be8c92af3bcb`、開始時クリーン。MSVC releaseホストのSHA-256は`2f7e91d10c980daeec9356d60522bbc7ac5ac536a18ce437bcf3e8555687f5a5`で、起動反復と同一。Windows 11 Pro x64 / i5-8250U / CPython 3.14.10通常GIL版の既存venv / WebView2登録版156.0.4314.58を継続利用した。詳細な環境は[同日のログ修正記録](validation-worker-logs-2026-11-05.md)を参照する。Rustの再ビルドや依存更新はしていない。
