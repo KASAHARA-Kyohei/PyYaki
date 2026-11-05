@@ -145,6 +145,25 @@ pub struct Worker {
     pub write: File,
 }
 
+fn assign_and_resume(
+    job: &OwnedHandle,
+    process: &OwnedHandle,
+    thread: &OwnedHandle,
+) -> io::Result<()> {
+    // SAFETY: the caller owns these handles and the newly created process is suspended.
+    unsafe {
+        if AssignProcessToJobObject(job.as_raw_handle(), process.as_raw_handle()) == 0 {
+            let error = io::Error::last_os_error();
+            TerminateProcess(process.as_raw_handle(), 1);
+            return Err(error);
+        }
+        if ResumeThread(thread.as_raw_handle()) == u32::MAX {
+            return Err(io::Error::last_os_error());
+        }
+    }
+    Ok(())
+}
+
 impl Worker {
     pub fn spawn(python: &Path, project: &Path, log: &Path) -> io::Result<Self> {
         let (child_read, host_write) = pipe()?;
@@ -243,17 +262,7 @@ impl Worker {
         })?;
         let process = own(info.hProcess)?;
         let thread = own(info.hThread)?;
-        // SAFETY: process is suspended, job and thread are valid and exclusively owned here.
-        unsafe {
-            if AssignProcessToJobObject(job.as_raw_handle(), process.as_raw_handle()) == 0 {
-                let error = io::Error::last_os_error();
-                TerminateProcess(process.as_raw_handle(), 1);
-                return Err(error);
-            }
-            if ResumeThread(thread.as_raw_handle()) == u32::MAX {
-                return Err(io::Error::last_os_error());
-            }
-        }
+        assign_and_resume(&job, &process, &thread)?;
         Ok(Self {
             process,
             _job: job,
@@ -265,5 +274,142 @@ impl Worker {
     pub fn exited(&self) -> bool {
         // SAFETY: Worker owns the process handle for the entire call; zero timeout never blocks.
         unsafe { WaitForSingleObject(self.process.as_raw_handle(), 0) == WAIT_OBJECT_0 }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{env, fs, time::SystemTime};
+    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, STARTUPINFOW};
+
+    struct Probe {
+        process: OwnedHandle,
+        thread: OwnedHandle,
+        pid: u32,
+    }
+
+    impl Drop for Probe {
+        fn drop(&mut self) {
+            // SAFETY: only the child created below is targeted, including on a failed assertion.
+            unsafe { TerminateProcess(self.process.as_raw_handle(), 1) };
+        }
+    }
+
+    fn suspended_probe(marker: &Path) -> Probe {
+        let executable = wide(&env::current_exe().unwrap()).unwrap();
+        let mut command = quote(&executable[..executable.len() - 1]);
+        command.extend(" --ignored --exact process::tests::assignment_probe_child".encode_utf16());
+        command.push(0);
+        let mut entries: Vec<Vec<u16>> = env::vars_os()
+            .filter(|(key, _)| {
+                !key.to_string_lossy()
+                    .eq_ignore_ascii_case("PYYAKI_JOB_CHILD_MARKER")
+            })
+            .map(|(mut key, value)| {
+                key.push("=");
+                key.push(value);
+                key.encode_wide().chain(Some(0)).collect()
+            })
+            .collect();
+        let mut entry = std::ffi::OsString::from("PYYAKI_JOB_CHILD_MARKER=");
+        entry.push(marker);
+        entries.push(entry.encode_wide().chain(Some(0)).collect());
+        entries.sort_by_key(|entry| String::from_utf16_lossy(entry).to_uppercase());
+        let mut environment: Vec<u16> = entries.into_iter().flatten().collect();
+        environment.push(0);
+        let startup = STARTUPINFOW {
+            cb: size_of::<STARTUPINFOW>() as u32,
+            ..Default::default()
+        };
+        let mut info = PROCESS_INFORMATION::default();
+        // SAFETY: buffers live through CreateProcessW; no handles are inherited by this test child.
+        checked(unsafe {
+            CreateProcessW(
+                executable.as_ptr(),
+                command.as_mut_ptr(),
+                null(),
+                null(),
+                0,
+                CREATE_SUSPENDED | CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT,
+                environment.as_ptr().cast(),
+                null(),
+                &startup,
+                &mut info,
+            )
+        })
+        .unwrap();
+        Probe {
+            process: own(info.hProcess).unwrap(),
+            thread: own(info.hThread).unwrap(),
+            pid: info.dwProcessId,
+        }
+    }
+
+    #[test]
+    #[ignore = "child entry, invoked explicitly by the job assignment test"]
+    fn assignment_probe_child() {
+        let path = env::var_os("PYYAKI_JOB_CHILD_MARKER").expect("explicit child marker required");
+        fs::write(path, b"child executed").unwrap();
+    }
+
+    #[test]
+    fn assignment_failure_terminates_without_running_child() {
+        let id = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let folder = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("test-results")
+            .join(format!("windows-job-{}-{id}", std::process::id()));
+        fs::create_dir_all(&folder).unwrap();
+        let positive_marker = folder.join("positive.txt");
+        let positive = suspended_probe(&positive_marker);
+        // SAFETY: unnamed job with default security, exclusively owned by this test.
+        let job = own(unsafe { CreateJobObjectW(null(), null()) }).unwrap();
+        assign_and_resume(&job, &positive.process, &positive.thread).unwrap();
+        // SAFETY: a bounded wait on the owned child handle.
+        let positive_wait = unsafe { WaitForSingleObject(positive.process.as_raw_handle(), 5000) };
+        assert_eq!(positive_wait, WAIT_OBJECT_0);
+        assert!(
+            positive_marker.is_file(),
+            "positive control must execute the child entry"
+        );
+
+        let negative_marker = folder.join("must-not-run.txt");
+        let negative = suspended_probe(&negative_marker);
+        // A valid file handle is deliberately the wrong object type for a Job Object.
+        let not_a_job: OwnedHandle = File::open("NUL").unwrap().into();
+        let error = assign_and_resume(&not_a_job, &negative.process, &negative.thread).unwrap_err();
+        // SAFETY: waiting and reading the exit code of our own child only.
+        let (wait, code) = unsafe {
+            let wait = WaitForSingleObject(negative.process.as_raw_handle(), 5000);
+            let mut code = 0;
+            checked(GetExitCodeProcess(
+                negative.process.as_raw_handle(),
+                &mut code,
+            ))
+            .unwrap();
+            (wait, code)
+        };
+        assert_eq!(
+            wait, WAIT_OBJECT_0,
+            "suspended process must be terminated on assignment failure"
+        );
+        assert_eq!(code, 1);
+        assert!(!negative_marker.exists());
+        fs::write(
+            folder.join("result.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "positive_pid": positive.pid, "positive_executed": true,
+                "negative_pid": negative.pid, "negative_executed": false,
+                "assignment_os_error": error.raw_os_error(), "negative_exit_code": code,
+                "negative_terminated": true,
+            }))
+            .unwrap(),
+        )
+        .unwrap();
     }
 }
