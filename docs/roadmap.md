@@ -13,7 +13,7 @@
 | 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れを実装。MacのPython/ブラウザで確認 | 自動再読込、本番Web運用、長時間/高負荷の評価 |
 | Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分/30分の連続試験、表示状態7条件、Python遅延/停止/クラッシュ・終了処理を確認。Python同梱.appのローカル生成・再配置と既定アイコンの同梱を確認 | Dock/Finderの目視、Space切替時の初期描画待ちと期限への対応、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
 | Windowsネイティブ | Windows 11 x64でMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・通常/強制終了回収を確認。11-05にUTF-8修正後の起動反復9/9、境界・異常系12ケース中11の確認を追加 | 以前の初回失敗は未再現で原因未確定。venvのwriter保持でpipe-closeは未達。GDI実提示・性能、ハンドル負例、download/全origin、ネットワーク切断・企業環境は残る。[境界確認の結果と限界](validation-windows-boundary-2026-11-05.md) |
-| 導入 / 配布 | 開発用CLIは`dev`とMacの`build macos`試作。実行はRustホスト直接起動または生成.app | Rust不要のネイティブCLI配置、`build windows`、ランタイム同梱、単一exe組立/展開/署名 |
+| 導入 / 配布 | 開発用CLIは`dev`とMacの`build macos`試作。Windowsは公式埋込Python・Fixed Version・固定wheelのフォルダーで実GUIを確認し、検証用lockを保存 | Rust不要のネイティブCLI配置、`build windows`、汎用ランタイム同梱機能、単一exe組立/展開/署名。[前段確認](windows-onefile-prototype.md)をFR-08の合格にしない |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
 
 Macの直近の自動検査はPython 127件、Rust 13件、Mac/Windows GNUターゲットのClippyに成功。実WKWebViewでは初期診断15ケース、後続の30分診断6ケースと表示状態7条件を確認した。[初期描画待ちの比較](startup-diagnostics.md)では、同じバイナリで通常表示9/9成功・フルスクリーン2/3成功。Space移動後の描画待ち停止を確認したが、本対応は未実装。Windowsの更新版`ae3889c`はPython 108件成功・19件スキップ、MSVC Rustテスト10件、Clippy・実WebView2スモーク・起動反復9/9成功。失敗・修正・未確認事項は[Windows実機記録](validation-windows.md)を参照。性能の条件と限界は[Mac計測記録](performance-macos.md)を正とし、これらをWindowsのG1/G2合格とは扱わない。
@@ -311,3 +311,7 @@ worker.logの日本語生バイトはCP932で読めるがUTF-8 strict decodeで�
 ### 2026-11-05 Windowsの境界・異常系
 
 `f8e9893`で実WebView2のメンテナー用検証器を追加し、最終12ケース中11の所定の確認に成功。コピーだけへ障害を注入し、不正JSON/種別/サイズ、worker異常終了・不正フレーム、import期限、資産パス・遷移、子だけの無効プロキシを確認した。pipe-closeは2秒の呼出し期限までにEOFと障害通知がなく、終了コード1・未達として残した。独立再現でもvenv launcherのwriter保持と整合する結果を得て、ADR-019へ採否条件を記載。最初の緩い成功判定や終了後のネットワーク標本を採用せず、元ログを保持した。[最終結果・停止段階・残課題](validation-windows-boundary-2026-11-05.md)を参照。製品コードや期限は変更していない。
+
+### 2026-11-05 Windows単一exeの資材準備
+
+優先の反復検証と境界確認の後、公式CPython 3.14.10 x64埋込ZIPとFixed Version WebView2 156.0.4314.58 x64を取得。公式Pythonハッシュと主要実行ファイルの署名を確認し、既存環境と同じ15依存とframework wheelをハッシュ固定・オフライン配置した。既存ホストを使い、同梱候補だけのPython探索パス・WebView2実行パス、native拡張・日本語ログ・既存実GUIスモーク・終了回収を確認。Windows用サンプルlockの15wheelもネットワークなしで再解決した。[入力・生ログ・未確認範囲・次の実装](windows-onefile-prototype.md)を記録。単一exe生成、非同期展開、安全なキャッシュ、署名後の読取り、未導入クリーン環境は未実装/未確認のまま。

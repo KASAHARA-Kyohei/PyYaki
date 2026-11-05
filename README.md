@@ -12,6 +12,8 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 2026-11-05にワーカーのテキストログをUTF-8へ統一し、障害画面の説明の重複を整理しました。[Windowsでの検査・実GUI確認とMacで残る回帰確認](docs/validation-worker-logs-2026-11-05.md)を記録しています。反映にはRustホストの再ビルドが必要です。
 
+同日の追加作業では修正版の起動9/9と[境界・異常系の11確認・1未達](docs/validation-windows-boundary-2026-11-05.md)を記録し、[埋込Python・Fixed Version WebView2・固定wheelのフォルダー実行](docs/windows-onefile-prototype.md)も確認しました。単一exe生成は引き続き未実装です。
+
 開発を再開するときは[開発ガイド](docs/development.md)、現在の実装と残作業は[ロードマップの現在地](docs/roadmap.md#現在地と次の作業)を参照してください。
 
 2026-10-31の名称調査では、[PyPIの`pyyaki`公式API](https://pypi.org/pypi/pyyaki/json)は404で、[GitHubの名前検索](https://github.com/search?q=pyyaki+in%3Aname&type=repositories)でも該当する公開リポジトリは見つかりませんでした。名称は採用しましたが、PyPIでの登録可能性を保証するものではなく、公開時に再確認します。

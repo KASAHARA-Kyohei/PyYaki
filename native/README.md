@@ -88,7 +88,9 @@ cargo build --manifest-path native/Cargo.toml --release --locked
 .\native\target\release\pyyaki.exe run --project .\examples\hello --python .\.venv\Scripts\python.exe
 ```
 
-Python版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exeを直接起動する。Python経由のラッパーをWindows先行描画の入口にしない。開発用ホストは既存のWebView2を利用し、Fixed Version同梱やPython未導入端末ではまだ試せない。
+Python版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exeを直接起動する。Python経由のラッパーをWindows先行描画の入口にしない。この開発手順では既存のWebView2とvenvを使い、Fixed Version資材の準備・同梱や未導入端末の検証を含まない。
+
+11-05には配布準備の個別試験として、公式埋込Python・Fixed Version・wheelを別フォルダーへ配置し、同じホストへ明示して実GUIスモークを確認した。[資材と限界](../docs/windows-onefile-prototype.md)を参照する。上記は既存環境の開発run手順のままで、Fixed Versionの自動取得・単一exe生成・未導入クリーン端末での成功を提供するものではない。
 
 確認項目:
 

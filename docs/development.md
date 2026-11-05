@@ -126,3 +126,5 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 2026-11-05の修正後は、パッケージimport前の固定bootstrapがstdout/stderrをUTF-8へ設定する。WindowsのPython 112成功・19スキップ、Rust 10成功、MSVC/Clippy/実GUIを[確認](validation-worker-logs-2026-11-05.md)した。新しいworker.logはPowerShellの`Get-Content -Encoding UTF8 <パス>`等で読む。通常ファイルの既定encodingは変えず、アプリの生バイト出力・ストリーム再設定は対象外。Macではホスト再ビルド・スモーク・.app再生成の確認が残る。
 
 実ホストの境界・異常系は`tests/diagnostics_windows.py --binary native/target/release/pyyaki.exe --output <新規のtest-results配下>`で確認できる。実行は上記venvのPythonを使う。コピーに故意の異常終了・不正フレーム等を加えるメンテナー専用検証で、通常のpytestとは別。`--case`で絞り込める。11-05の[12ケースの記録](validation-windows-boundary-2026-11-05.md)は11確認・pipe-close 1未達で、全件実行の終了コードは1。venv launcherのwriter保持による制約を合格にせず残している。
+
+Windowsの配布試作に進む場合は[単一exeの前段確認](windows-onefile-prototype.md)を参照する。公式埋込Python・Fixed Version・固定wheelを配置したフォルダーで実GUIを確認し、検証した15依存のWindows用lockを保存した。これは正式な単一exe生成機能ではない。既存venvを上書きせず、準備した別フォルダーと同じ版のホスト・framework wheelを使う。

@@ -1,8 +1,8 @@
 # PyYaki ビルド・配布設計
 
-状態: 初期設計案 + Web用wheel・Windows開発用ホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-04 / Windows既存ホストのMSVCリンク・主要動作確認済み、単一exe・署名は未実施
+状態: 初期設計案 + Web用wheel・Windows開発用ホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-05 / Windows既存ホスト・同梱候補のフォルダー実行を確認、単一exe・署名は未実施
 
-Pythonパッケージ`0.1.0.dev0`に加え、`native/`にWindows開発用Rustホストのソースを追加した。Pythonワーカーはwheelへ含まれるが、ネイティブexe・ランタイム資材はまだ含まない。`requirements-dev.lock`はMac向け開発依存、`native/Cargo.lock`はホストのRust依存とチェックサムを固定する。Windows向けPython lock・ネイティブwheel配置・単一exe組立は未実装。Macの開発用lockをWindows配布の互換性証明に使わない。
+Pythonパッケージ`0.1.0.dev0`に加え、`native/`にWindows開発用Rustホストのソースを追加した。Pythonワーカーはwheelへ含まれるが、ネイティブexe・ランタイム資材はまだ含まない。`requirements-dev.lock`はMac向け開発依存、`native/Cargo.lock`はホストのRust依存とチェックサムを固定する。11-05にWindows x64/CPython 3.14の同梱候補確認用として`examples/hello/requirements-windows.lock`を追加した。ネイティブwheel配置・単一exe組立は未実装。Macの開発用lockをWindows配布の互換性証明に使わない。
 
 初期試作の`pyyaki`はPythonのconsole scriptで、実装済みはloopback向け`dev`と、Macの準備済み資材から生成する`build macos`のローカル試作。`run`/`build windows`は未実装エラーにする。これは以下に設計するWindowsネイティブCLIではなく、Pythonより先の描画を保証しない。試作wheelはJS SDKを含むが、Rustホスト・Pythonランタイム・WebView2は含まず、公開も行っていない。
 
@@ -11,6 +11,8 @@ Windowsの開発用確認はRust版`pyyaki.exe run --project <path> --python <ve
 Mac向けは開発機でCargoビルドしたホストを直接実行する段階。開発時のSDK再ビルド・変更反映は[開発ガイド](development.md#変更する場所と反映方法)、診断releaseビルドの実行結果は[Mac初期計測](performance-macos.md)を参照する。依存は同じCargo.lockで固定し、Pythonは事前導入したvenvを使用する。Python同梱.appのローカル生成を追加した。準備済み資材・ハッシュ固定wheelからオフラインで組み立て、アドホック署名と再配置を検証する。[入力・生成手順・限界](macos-build.md)を参照。Developer ID署名、notarization、第三者への正式配布は未対応。Windows向け単一exe要件は維持する。
 
 起動の観測と障害表示は[切り分け手順](startup-diagnostics.md)を参照。2026-11-04に内部起動通知を追加したため、ホストとPythonワーカーは同じソースから準備する。既存の.appや将来の配布exeへソース変更は自動反映されず、再生成が必要。
+
+2026-11-05に公式埋込Python 3.14.10、Fixed Version WebView2 156.0.4314.58 x64、固定wheelをフォルダーへ配置し、既存ホストの実GUIスモークを確認した。実プロセスとPython探索パスの帰属も確認したが、単一exe生成・展開キャッシュ・署名・未導入クリーン環境は未確認。[資材ハッシュ・比較・次の最小実装](windows-onefile-prototype.md)を参照する。以下の単一exeパイプラインは設計案のままである。
 
 Macのローカル生成は、staging内でレポートを書き終えてから新規hard linkと排他的renameで公開する。通常の失敗ではstagingと自分のレポートを回収し、既存の成果物へ置換しない。[失敗注入と実資材の追試](macos-build.md#失敗時処理の追試2026-11-04)を参照する。2ファイルの原子的公開や電源断復旧を保証するものではない。
 
