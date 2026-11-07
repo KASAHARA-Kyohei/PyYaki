@@ -36,7 +36,7 @@ include = ["app.py", "ui/**/*", "data/*.json"]
 
 ## 形式とキャッシュの制約
 
-format 1はPE本体→非圧縮blob群→JSON索引→64-byteフッター。追加の圧縮ライブラリは使わず、圧縮方式の正式選定を保留した。PE32+の証明書テーブルの**ファイルオフセット**を考慮して、署名前ペイロードの末尾を定位する。構造上の人工テストは実署名の検証と区別し、現時点の出力は未署名とする。ハッシュの一致は作成者の正当性を証明しない。署名する場合も組立後に行い、実署名後の読取・完全性の検証が別途必要。
+format 1はPE本体→非圧縮blob群→JSON索引→64-byteフッター。追加の圧縮ライブラリは使わず、圧縮方式の正式選定を保留した。[Microsoft PE仕様](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format)の証明書テーブルの**ファイルオフセット**を考慮して、署名前ペイロードの末尾を定位する（参照: 2026-11-05）。構造上の人工テストは実署名の検証と区別し、現時点の出力は未署名とする。ハッシュの一致は作成者の正当性を証明しない。署名する場合も組立後に行い、実署名後の読取・完全性の検証が別途必要。
 
 上限はexe全体2GiB、1ファイル512MiB、索引8MiB、通常ファイル10,000件、検証するディレクトリ20,000件、同梱相対パス220 ASCII bytes。blobを連続させ、整数overflow、範囲外、重複、大小文字衝突、ファイル/ディレクトリ衝突、絶対/親パス、ADS、予約デバイス名、リンク/reparse pointを拒否する。圧縮による過大展開はない。
 
@@ -55,4 +55,4 @@ format 1はPE本体→非圧縮blob群→JSON索引→64-byteフッター。追�
 .\.venv\Scripts\python.exe tests\onefile_windows.py --binary dist\Hello.exe --output test-results\onefile-cached --local test-results\onefile-first\local --case cached
 ```
 
-実機結果は後続の実施記録を参照する。未導入・オフラインのクリーンVM、実署名と署名後改ざん、DLL依存棚卸し、正式なLICENSE/NOTICE/SBOM、企業PAC/実行制限、MOTW、容量不足/電源断、使用中旧版の清掃、30回以上の性能測定は残る。現端末の成功や環境変数の負対照で代替しない。
+[実機結果・原ログ・失敗の切り分け](validation-windows-onefile-2026-11-07.md)を参照する。未導入・オフラインのクリーンVM、実署名と署名後改ざん、DLL依存棚卸し、正式なLICENSE/NOTICE/SBOM、企業PAC/実行制限、MOTW、容量不足/電源断、使用中旧版の清掃、30回以上の性能測定は残る。現端末の成功や環境変数の負対照で代替しない。

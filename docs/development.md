@@ -1,6 +1,6 @@
 # 開発と動作確認
 
-更新: 2026-11-05。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
+更新: 2026-11-07。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
 
 ## 最初に確認すること
 
@@ -127,4 +127,4 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 
 実ホストの境界・異常系は`tests/diagnostics_windows.py --binary native/target/release/pyyaki.exe --output <新規のtest-results配下>`で確認できる。実行は上記venvのPythonを使う。コピーに故意の異常終了・不正フレーム等を加えるメンテナー専用検証で、通常のpytestとは別。`--case`で絞り込める。11-05の[初回12ケース](validation-windows-boundary-2026-11-05.md)に続き、[追試](validation-windows-boundary-followup-2026-11-05.md)では既定の自動15件が14確認・pipe-close 1制約、終了コード1。`--python`でワーカーPythonを明示した埋込環境の対照4件は成功し、全writer切断とvenvの部分closeを区別した。実クリックは明示的な`--case user-actions`だけで実行する。先にRustホストを再ビルドし、拒否ハンドラーの有限ログも照合する。
 
-Windowsの配布試作に進む場合は[単一exeの前段確認](windows-onefile-prototype.md)を参照する。公式埋込Python・Fixed Version・固定wheelを配置したフォルダーで実GUIを確認し、検証した15依存のWindows用lockを保存した。これは正式な単一exe生成機能ではない。既存venvを上書きせず、準備した別フォルダーと同じ版のホスト・framework wheelを使う。
+Windows配布の[単一exe生成・起動手順](windows-onefile.md)を追加した。`build windows`へ未署名の対応ホスト・公式埋込Python・Fixed Version・ハッシュ固定wheelを明示するローカル試作。[前段のフォルダー確認](windows-onefile-prototype.md)は資材準備の履歴として残す。既存venvを上書きせず、同じソースのホストとframework wheelを使う。Windowsワーカーは`-I -B`で起動し、bytecodeを書かない。準備画面はlauncher.log、従来のGUI/Pythonは子ホストのhost.log/worker.logで切り分ける。実署名・クリーンVM等の未確認範囲を残す。

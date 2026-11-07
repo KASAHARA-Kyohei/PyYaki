@@ -1,19 +1,19 @@
 # PyYaki 開発ロードマップ
 
-状態: 初期設計案 + G2の共通API・Mac開発用ホスト・G1向けWindowsホストのソース実装 / 作成: 2026-10-30 / 更新: 2026-11-05 / G1・G2全体は未完了
+状態: 初期設計案 + G2の共通API・Mac開発用ホスト・G1向けWindowsホストのソース実装 / 作成: 2026-10-30 / 更新: 2026-11-07 / G1・G2全体は未完了
 
 日程や工数は見積もっていない。開発機はMacで、ある程度開発が進んだ段階で手元のWindowsを使って確認する体制が2026-10-31に確認された。同日、利用者の依頼により最初のMac向けWeb試作を開始した。Windows固有の実現性はG1で検証し、ゲートに不合格なら、その前提に依存する機能実装を進めず設計を更新する。以下は段階ごとの計画であり、完了した範囲は末尾の検証記録に記す。
 
 ## 現在地と次の作業
 
-2026-11-05時点。ここを現在の実装・検証状態の要約とし、末尾の記録は各作業時点の履歴として残す。開発・再確認の手順は[開発ガイド](development.md)、APIの詳細は[API設計](api-design.md)を参照。
+2026-11-07時点。ここを現在の実装・検証状態の要約とし、末尾の記録は各作業時点の履歴として残す。開発・再確認の手順は[開発ガイド](development.md)、APIの詳細は[API設計](api-design.md)を参照。
 
 | 領域 | 現在地 | 残る確認・実装 |
 | --- | --- | --- |
 | 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れを実装。MacのPython/ブラウザで確認 | 自動再読込、本番Web運用、長時間/高負荷の評価 |
 | Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分/30分の連続試験、表示状態7条件、Python遅延/停止/クラッシュ・終了処理を確認。Python同梱.appのローカル生成・再配置と既定アイコンの同梱を確認 | Dock/Finderの目視、Space切替時の初期描画待ちと期限への対応、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
 | Windowsネイティブ | MSVC release・実WebView2の共通動作、UTF-8ログ、起動反復9/9を確認。追試で完全切断・不要ハンドル非継承・Job割当失敗回収・実クリック拒否・アプリ孫の回収を追加 | venvの部分closeはwriter保持の制約として残る。以前の初回失敗の原因、GDI実提示・性能、Jobの全失敗条件・全origin、ネットワーク切断・企業環境は未確認。[追試の結果と限界](validation-windows-boundary-followup-2026-11-05.md) |
-| 導入 / 配布 | 開発用CLIは`dev`とMacの`build macos`試作。Windowsは公式埋込Python・Fixed Version・固定wheelのフォルダーで実GUIを確認し、検証用lockを保存 | Rust不要のネイティブCLI配置、`build windows`、汎用ランタイム同梱機能、単一exe組立/展開/署名。[前段確認](windows-onefile-prototype.md)をFR-08の合格にしない |
+| 導入 / 配布 | Macのbuild macosに加え、Windowsの明示資材から未署名単一exeを生成・全ハッシュ検証して展開するローカル試作を実装 | Rust不要のネイティブCLI配置、自動資材準備、実署名、未導入クリーンVM、性能・清掃等は未完了。[試作の手順と制約](windows-onefile.md)をFR-08全体の合格にしない |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
 
 Macの直近の自動検査はPython 127件、Rust 13件、Mac/Windows GNUターゲットのClippyに成功。実WKWebViewでは初期診断15ケース、後続の30分診断6ケースと表示状態7条件を確認した。[初期描画待ちの比較](startup-diagnostics.md)では、同じバイナリで通常表示9/9成功・フルスクリーン2/3成功。Space移動後の描画待ち停止を確認したが、本対応は未実装。Windowsの更新版`ae3889c`はPython 108件成功・19件スキップ、MSVC Rustテスト10件、Clippy・実WebView2スモーク・起動反復9/9成功。失敗・修正・未確認事項は[Windows実機記録](validation-windows.md)を参照。性能の条件と限界は[Mac計測記録](performance-macos.md)を正とし、これらをWindowsのG1/G2合格とは扱わない。
@@ -319,3 +319,7 @@ worker.logの日本語生バイトはCP932で読めるがUTF-8 strict decodeで�
 ### 2026-11-05 境界・異常系の追加追試
 
 利用者の追加依頼で、`2f8a537`に実APIのJob割当失敗・停止中回収の正常/負対照を追加し、`755630e`に有限拒否ログと実操作・ハンドル同一性・孫回収の検証器を追加。最終ホストで起動9/9、venv自動14/15、埋込対照4/4、実クリック1/1を確認した。全writer closeのEOFは成功し、venv部分closeの制約と区別。各最終ケースで観測した自分のプロセスの残留なし。Rust 11成功/1 child用ignore、Python 112成功/19スキップ、MSVC/Clippyにも成功。[環境・SHA・停止段階・原ログと残課題](validation-windows-boundary-followup-2026-11-05.md)を記録。未確認のネットワーク切断・企業PAC・全origin/Job負例・Mac等を合格にせず、単一exeの実装は追加していない。
+
+### 2026-11-07 Windows単一exeローカル試作
+
+利用者の依頼で、`f40bdc1`に事前取得資材からの`build windows`と先行GDI後の検証・非圧縮展開・GUI子ホスト/Jobを追加した。未署名747MBのexeで採用14ケース、既存ホスト反復9/9、Python 125成功/20スキップ、Rust 16成功/1子entry用ignore、MSVC/Clippyを確認。Close検証器がtaoの可視な内部イベント窓まで対象にした失敗は原ログを残して修正し、通常終了・実展開取消・強制終了回収を追試した。[対象SHA・件数・切り分け・原ログ・未確認事項](validation-windows-onefile-2026-11-07.md)を参照。実署名・未導入オフラインVM・正式性能・公開配布・Mac回帰は未完了で、G1/G3やFR-08全体を合格にしない。

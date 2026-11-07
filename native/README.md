@@ -1,6 +1,6 @@
 # PyYaki native host prototype
 
-2026-11-05時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**2026-11-03にWindows 11 x64のMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認した。G1/G2全体や単一exe配布は未完了。失敗・未確認事項は[Windows実機記録](../docs/validation-windows.md)を参照する。**
+2026-11-07時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**2026-11-03にWindows 11 x64のMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認した。G1/G2全体や単一exe配布は未完了。失敗・未確認事項は[Windows実機記録](../docs/validation-windows.md)を参照する。**
 
 共通APIの現在地は[ロードマップ](../docs/roadmap.md#現在地と次の作業)、SDK変更時の再ビルドや検査の使い分けは[開発ガイド](../docs/development.md)を参照する。
 
@@ -63,7 +63,7 @@ Rustの`--diagnostics --timer-probe-seconds <秒>`が必要で、通常起動で
 
 ## Windowsでの開発用確認
 
-2026-11-03にWindows 11 Pro 25H2 / Intel Core i5-8250U x64、CPython 3.14.10通常GIL版、Rust 1.89.0 MSVC、既存MSVCとWebView2でビルド・起動を確認した。詳細は[実機記録](../docs/validation-windows.md)。以下は開発用の汎用手順で、Windows単一exe生成は未実装。
+2026-11-03にWindows 11 Pro 25H2 / Intel Core i5-8250U x64、CPython 3.14.10通常GIL版、Rust 1.89.0 MSVC、既存MSVCとWebView2でビルド・起動を確認した。詳細は[実機記録](../docs/validation-windows.md)。以下は開発用の汎用手順。[単一exeローカル試作](../docs/windows-onefile.md)の資材生成・検証とは区別する。
 
 [MicrosoftのRust環境手順](https://learn.microsoft.com/en-us/windows/dev-environment/rust/setup)に従い、MSVC Build Toolsの「C++によるデスクトップ開発」（MSVC x64/x86とWindows SDKを含む）、RustのMSVCツールチェーン、CPython 3.14通常GIL版を用意する。導入後にPowerShellを開き直し、次を確認する。
 
@@ -90,7 +90,7 @@ cargo build --manifest-path native/Cargo.toml --release --locked
 
 Python版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exeを直接起動する。Python経由のラッパーをWindows先行描画の入口にしない。この開発手順では既存のWebView2とvenvを使い、Fixed Version資材の準備・同梱や未導入端末の検証を含まない。
 
-11-05には配布準備の個別試験として、公式埋込Python・Fixed Version・wheelを別フォルダーへ配置し、同じホストへ明示して実GUIスモークを確認した。[資材と限界](../docs/windows-onefile-prototype.md)を参照する。上記は既存環境の開発run手順のままで、Fixed Versionの自動取得・単一exe生成・未導入クリーン端末での成功を提供するものではない。
+11-05の[フォルダーでの資材確認](../docs/windows-onefile-prototype.md)に続き、`build windows`の[単一exeローカル試作](../docs/windows-onefile.md)を追加した。引数なし起動で先行GDI→別スレッド展開/全ハッシュ検証→同じexeのGUI子ホストへ渡す。停止状態の子ホストをランチャーのJobへ割り当ててから再開し、そのPython Jobも含めて回収する。Windowsワーカーは開発用runも含め`-B`でbytecodeを書かない。自動取得・実署名・未導入クリーン環境は未完了。
 
 確認項目:
 

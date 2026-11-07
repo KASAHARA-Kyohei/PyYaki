@@ -1,10 +1,10 @@
 # PyYaki ビルド・配布設計
 
-状態: 初期設計案 + Web用wheel・Windows開発用ホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-05 / Windows既存ホスト・同梱候補のフォルダー実行を確認、単一exe・署名は未実施
+状態: 初期設計案 + Web用wheel・Mac .app / Windows単一exeのローカル試作 / 技術調査日: 2026-10-30 / 更新: 2026-11-07 / 正式配布・実署名・未導入クリーン環境は未完了
 
-Pythonパッケージ`0.1.0.dev0`に加え、`native/`にWindows開発用Rustホストのソースを追加した。Pythonワーカーはwheelへ含まれるが、ネイティブexe・ランタイム資材はまだ含まない。`requirements-dev.lock`はMac向け開発依存、`native/Cargo.lock`はホストのRust依存とチェックサムを固定する。11-05にWindows x64/CPython 3.14の同梱候補確認用として`examples/hello/requirements-windows.lock`を追加した。ネイティブwheel配置・単一exe組立は未実装。Macの開発用lockをWindows配布の互換性証明に使わない。
+Pythonパッケージ`0.1.0.dev0`のwheelにはPythonワーカーとSDKを含むが、ネイティブexe・ランタイム資材は含まない。Windowsは事前ビルド済みホストと明示した資材から単一exeを組み立てるローカル試作を追加した。`native/Cargo.lock`はRust依存を固定し、`examples/hello/requirements-windows.lock`は今回のWindows x64 / CPython 3.14の組合せを固定する。ネイティブwheel配置は未実装。Macの`requirements-dev.lock`をWindows配布の互換性証明に使わない。
 
-初期試作の`pyyaki`はPythonのconsole scriptで、実装済みはloopback向け`dev`と、Macの準備済み資材から生成する`build macos`のローカル試作。`run`/`build windows`は未実装エラーにする。これは以下に設計するWindowsネイティブCLIではなく、Pythonより先の描画を保証しない。試作wheelはJS SDKを含むが、Rustホスト・Pythonランタイム・WebView2は含まず、公開も行っていない。
+初期試作の`pyyaki`はPython console scriptで、`dev`と`build macos`/`build windows`のローカル試作を実装。Python CLIの`run`は未実装で、以下に設計するWindowsネイティブCLIとは区別する。生成したWindows exeはPythonに依存せずRust側から起動する。wheelはRustホスト・Pythonランタイム・WebView2を含まず、公開も行っていない。
 
 Windowsの開発用確認はRust版`pyyaki.exe run --project <path> --python <venv-python.exe>`を直接使う。[メンテナー向け手順](../native/README.md)では事前導入したRust/MSVCでWindows上でビルドし、開発venvと既存WebView2で実行する。Macで行ったWindowsターゲットの型検査は、exeの生成や起動成功ではない。2026-11-03にこの手順でWindows 11 x64のMSVCリンク・実WebView2を確認した。[実機記録](validation-windows.md)を参照。アプリ利用者にRustを要求する正式配布へ方針変更したものではない。
 
@@ -12,11 +12,11 @@ Mac向けは開発機でCargoビルドしたホストを直接実行する段階
 
 起動の観測と障害表示は[切り分け手順](startup-diagnostics.md)を参照。2026-11-04に内部起動通知を追加したため、ホストとPythonワーカーは同じソースから準備する。既存の.appや将来の配布exeへソース変更は自動反映されず、再生成が必要。
 
-2026-11-05に公式埋込Python 3.14.10、Fixed Version WebView2 156.0.4314.58 x64、固定wheelをフォルダーへ配置し、既存ホストの実GUIスモークを確認した。実プロセスとPython探索パスの帰属も確認したが、単一exe生成・展開キャッシュ・署名・未導入クリーン環境は未確認。[資材ハッシュ・比較・次の最小実装](windows-onefile-prototype.md)を参照する。以下の単一exeパイプラインは設計案のままである。
+2026-11-05の[フォルダーでの資材確認](windows-onefile-prototype.md)に続き、[Windows単一exeローカル試作](windows-onefile.md)を実装した。非圧縮blob、PE証明書テーブルを考慮した索引、全ハッシュ検証、私有キャッシュ、別GUI子ホスト/Jobを使う。以下は製品化に向けた設計案であり、自動取得・実署名・未導入クリーン環境等の全工程を実装済みにはしない。
 
 Macのローカル生成は、staging内でレポートを書き終えてから新規hard linkと排他的renameで公開する。通常の失敗ではstagingと自分のレポートを回収し、既存の成果物へ置換しない。[失敗注入と実資材の追試](macos-build.md#失敗時処理の追試2026-11-04)を参照する。2ファイルの原子的公開や電源断復旧を保証するものではない。
 
-2026-11-04にC案の既定アイコンを追加した。Mac用ICNSはwheelに同梱し、.appのResourcesへ署名前に配置する。Mac開発ホストのDock用PNGとWindowsホストのICOはRustへ埋め込む。変換はメンテナー作業であり、ビルド/実行時のPillow依存を増やさない。Windowsのリソースコンパイラーは開発ホストのビルド時だけ必要。利用者の独自アイコン設定やWindows単一exe組立は未実装のまま。[手順と範囲](../native/README.md#アイコン)を参照。
+2026-11-04にC案の既定アイコンを追加した。Mac用ICNSはwheelに同梱し、.appのResourcesへ署名前に配置する。Mac開発ホストのDock用PNGとWindowsホストのICOはRustへ埋め込む。変換はメンテナー作業であり、ビルド/実行時のPillow依存を増やさない。Windowsのリソースコンパイラーは開発ホストのビルド時だけ必要。単一exe試作はテンプレートのC案を維持し、独自アイコン設定は未実装。[手順と範囲](../native/README.md#アイコン)を参照。
 
 ## 1. 配布単位と成立条件
 

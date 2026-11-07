@@ -4,7 +4,7 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 名称は「鯛焼き」にかけたものです。表示名を**PyYaki**、パッケージ・Python import・CLI・JavaScript SDKの識別子を**`pyyaki`**に統一します。
 
-**現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査に加え、2026-11-03にWindows 11 x64でMSVCビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認しました。[失敗・未確認事項](docs/validation-windows.md)が残り、G1/G2全体は未完了です。公開パッケージ・Windows単一exeビルドはありません。MacはPython同梱`.app`のローカル生成試作を追加しました。Macネイティブでは初期計測と5分・30分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
+**現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査に加え、2026-11-03にWindows 11 x64でMSVCビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認しました。[失敗・未確認事項](docs/validation-windows.md)が残り、G1/G2全体は未完了です。公開パッケージはありません。Windows単一exeは未署名のローカル生成試作です。MacはPython同梱`.app`のローカル生成試作を追加しました。Macネイティブでは初期計測と5分・30分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
 
 起動期限やPython起動失敗は[段階ログ・障害画面・反復検証の手順](docs/startup-diagnostics.md)で切り分けられます。Macではフルスクリーン時のSpace移動と初期描画待ちが止まる経路を確認し、通常表示では9回の起動に成功しました。Macの本対応は未実装です。Windows更新版は2026-11-04に[起動反復9/9と実画面・終了処理を再検証](docs/validation-windows-2026-11-04.md)しましたが、以前の失敗の原因解消は未確定です。
 
@@ -12,7 +12,7 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 2026-11-05にワーカーのテキストログをUTF-8へ統一し、障害画面の説明の重複を整理しました。[Windowsでの検査・実GUI確認とMacで残る回帰確認](docs/validation-worker-logs-2026-11-05.md)を記録しています。反映にはRustホストの再ビルドが必要です。
 
-同日の[境界追試](docs/validation-windows-boundary-followup-2026-11-05.md)では起動9/9、完全切断・不要ハンドル非継承・Job割当失敗時回収・実クリックでの新規窓/download拒否・アプリ孫の回収を確認しました。venvの部分closeにはwriter保持の制約が残ります。[埋込Python・Fixed Version WebView2・固定wheelのフォルダー実行](docs/windows-onefile-prototype.md)も確認しましたが、単一exe生成は引き続き未実装です。
+同日の[境界追試](docs/validation-windows-boundary-followup-2026-11-05.md)では起動9/9、完全切断・不要ハンドル非継承・Job割当失敗回収・実クリック拒否・孫回収を確認しました。venvの部分closeにはwriter保持の制約が残ります。[資材の前段確認](docs/windows-onefile-prototype.md)に続いて、[Windows単一exeの生成・検証付き展開](docs/windows-onefile.md)をローカル試作として追加しました。[実機の確認結果と失敗の切り分け](docs/validation-windows-onefile-2026-11-07.md)を記録しました。実署名・未導入クリーン環境・性能の受入は残っています。
 
 開発を再開するときは[開発ガイド](docs/development.md)、現在の実装と残作業は[ロードマップの現在地](docs/roadmap.md#現在地と次の作業)を参照してください。
 
@@ -39,7 +39,7 @@ pyyaki dev
 
 Mac向け`build macos`は、準備済みのホスト・standalone Python・wheelから`.app`を生成するローカル試作として実装済みです。[生成手順](docs/macos-build.md)を参照してください。
 
-未実装: 自動再読込、Windows `build windows`、ネイティブexeのpip配置。Python版CLIの`run`は未対応で、Mac/Windowsの開発用ホストは、別のRustバイナリを直接起動します。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
+未実装: 自動再読込、ネイティブexeのpip配置。Windows `build windows`は明示資材を使うローカル試作として実装済みです。Python版CLIの`run`は未対応で、Mac/Windowsの開発用ホストは、別のRustバイナリを直接起動します。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
 
 テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザ・ネイティブ検査の使い分けと、変更後の反映方法は[開発ガイド](docs/development.md#検証する)に記載しています。
 
@@ -59,7 +59,7 @@ cargo run --manifest-path native/Cargo.toml --locked -- run --project examples/h
 
 `native/`にRust製の起動画面・WebView2ホストと、専用パイプ経由で同じPythonコマンドを呼ぶ実装を追加しました。HTTP/WebSocketサーバーを起動するコードは使用しません。Windows 11 x64で既存ホストのMSVC releaseビルドと実WebView2の主要動作を確認しました。負荷時の接続期限、先行描画の実提示・性能、ネットワーク/企業環境などの残りは[Windows実機記録](docs/validation-windows.md)を参照してください。
 
-まだメンテナー向けの試作で、Rust/MSVCと開発用Python・既存WebView2が必要です。Windowsでのビルド・起動・確認項目は[native/README.md](native/README.md)を参照してください。Rust不要のpip導入や、Python/WebView2未導入端末向けの単一exeは後続作業です。
+まだメンテナー向けの試作で、Rust/MSVCと開発用Python・既存WebView2が必要です。Windowsでのビルド・起動・確認項目は[native/README.md](native/README.md)を参照してください。開発runと、明示資材から生成する[単一exe試作](docs/windows-onefile.md)を区別してください。Rust不要のpip導入、Python/WebView2未導入クリーン端末の受入は後続作業です。
 
 ## 目指す使い方（全体の設計）
 

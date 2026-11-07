@@ -1,6 +1,6 @@
 # PyYaki 公開API設計
 
-状態: 共通API・Mac開発用ホストを実装、配布等は設計案 / 作成: 2026-10-30 / 更新: 2026-11-04 / Windows開発用ホストの主要動作を実機確認
+状態: 共通API・Mac開発用ホストを実装、配布等は設計案 / 作成: 2026-10-30 / 更新: 2026-11-07 / Windows開発用ホストの主要動作を実機確認
 
 本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。Context・イベント・起動/終了フックも実装済みで、実行可能なサンプルは`examples/hello`。未対応のCLI・ビルド等は設計例として区別する。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
 
@@ -73,12 +73,12 @@ webview2 = "fixed"
 | --- | --- |
 | `entry` | PythonのWeb CLI/ワーカーが読み取る。既定は`app:app` |
 | `ui-dir` / `ui-entry` | PythonとRustが読み取る。既定は`ui` / `index.html`。プロジェクト外への参照を拒否 |
-| `window.title` / `width` / `height` | Rustホストのみ読み取る。既定は`PyYaki` / 960 / 720の論理サイズ。幅320〜4,096、高さ240〜4,096の整数を許可 |
-| `app-id` / `name` / `version` | 開発用ホストは直接使用しない。Macのbuildはbundle識別子・表示名・版へ使用し、window.title未指定ならnameを設定する。キャッシュは起動ごとのinstance方式 |
-| `build.windows` | 未実装。設定しても単一exeビルドや資材同梱は有効にならない |
+| `window.title` / `width` / `height` | Rustホストが読み取り、Mac/Windows buildも検査して生成設定へ保存する。既定の開発runは`PyYaki` / 960 / 720の論理サイズ。幅320〜4,096、高さ240〜4,096の整数を許可 |
+| `app-id` / `name` / `version` | 開発runは直接使用しない。Mac buildはbundle識別子・名・版へ使用。Windows試作はapp-idをキャッシュ、nameを既定ファイル名・窓titleへ使用し、versionの配布メタデータ反映は未実装 |
+| `build.windows.include` | 単一exeローカル試作の相対glob配列。上のpython/dependencies/webview2設定は設計例で未使用。資材はCLI引数で明示する。[詳細](windows-onefile.md)を参照 |
 | `build.macos.include` | .appローカル生成のプロジェクト相対glob配列。[詳細](macos-build.md#設定と制限)を参照 |
 
-`app-id`は、将来は配布者が管理する安定した識別子としてキャッシュ・プロファイル・アプリデータの名前空間に使う設計。現在のネイティブ試作は起動ごとのランダムなinstanceを使用する。ここで示す識別子は例であり、正式な配布者を示さない。
+`app-id`は配布者が管理する安定した識別子として使う設計。Windows単一exe試作は検証済みapp-idと索引SHA-256で実行キャッシュを分離する。ログ/プロファイルと開発runは起動ごとのinstance方式。業務データ保存先の公開APIは未実装。例の識別子は正式な配布者を示さない。
 
 `entry`はモジュールと`App`オブジェクトを表す。現在のRustホストはUI/window設定を読み、HTMLマーカー後に生成するPythonワーカーがentryを読み取ってimportする。UIパスはプロジェクトルート基準で検証する。将来のビルドではPythonパッチ版、Rustホスト版、WebView2版とハッシュをリリース資材と解決結果に記録する。
 
