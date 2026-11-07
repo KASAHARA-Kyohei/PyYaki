@@ -69,6 +69,10 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
     u.PostMessageW.argtypes = [w.HWND, w.UINT, w.WPARAM, w.LPARAM]
     u.IsWindowVisible.argtypes = [w.HWND]
     u.IsWindowVisible.restype = w.BOOL
+    u.GetClassNameW.argtypes = [w.HWND, w.LPWSTR, ctypes.c_int]
+    u.GetWindowTextW.argtypes = [w.HWND, w.LPWSTR, ctypes.c_int]
+    u.GetWindowLongPtrW.argtypes = [w.HWND, ctypes.c_int]
+    u.GetWindowLongPtrW.restype = ctypes.c_ssize_t
     images = {}
     before = set((local / "PyYaki/prototype").glob("*"))
     command = [str(binary), *(["--smoke-test"] if smoke else [])]
@@ -135,16 +139,47 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
                         action = "killed_owned_launcher_during_preparation"
                 if close_pid:
                     candidates = []
+                    window_details = []
 
                     @callback
-                    def collect_window(hwnd, _, target_pid=close_pid, results=candidates):
+                    def collect_window(
+                        hwnd, _, target_pid=close_pid, results=candidates, details=window_details
+                    ):
                         pid = w.DWORD()
                         u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-                        if pid.value == target_pid and u.IsWindowVisible(hwnd):
-                            results.append(hwnd)
+                        if pid.value == target_pid:
+                            class_name = ctypes.create_unicode_buffer(256)
+                            title = ctypes.create_unicode_buffer(1024)
+                            u.GetClassNameW(hwnd, class_name, len(class_name))
+                            u.GetWindowTextW(hwnd, title, len(title))
+                            visible = bool(u.IsWindowVisible(hwnd))
+                            style = u.GetWindowLongPtrW(hwnd, -16)
+                            details.append(
+                                {
+                                    "hwnd": hwnd,
+                                    "class": class_name.value,
+                                    "title": title.value,
+                                    "visible": visible,
+                                    "style": style,
+                                }
+                            )
+                            # tao 0.34.8's locked default window class; never close
+                            # WebView/COM/IME helpers owned by the same process.
+                            if (
+                                visible
+                                and class_name.value == "Window Class"
+                                and style & 0xC00000 == 0xC00000
+                            ):
+                                results.append(hwnd)
                         return True
 
                     u.EnumWindows(collect_window, 0)
+                    control = {
+                        "target_pid": close_pid,
+                        "windows": window_details,
+                        "candidates": candidates,
+                        "posted": False,
+                    }
                     # Closing hidden COM/IME/helper windows is not a user close.
                     # Do not select arbitrarily if a modal or second visible window exists.
                     if len(candidates) == 1:
@@ -152,6 +187,14 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
                         u.GetWindowThreadProcessId(candidates[0], ctypes.byref(pid))
                         if pid.value == close_pid and u.PostMessageW(candidates[0], 0x10, 0, 0):
                             action = f"posted_close_to_owned_visible_pid_{close_pid}"
+                            control["posted"] = True
+                    (folder / "control.json").write_text(
+                        json.dumps(control, ensure_ascii=False, indent=2), encoding="utf-8"
+                    )
+                    if len(candidates) != 1:
+                        raise RuntimeError(
+                            "No unique visible tao main window; inspect control.json"
+                        )
                 if time.monotonic() - started > 120:
                     timed_out = True
                     child.kill()
