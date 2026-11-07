@@ -67,6 +67,8 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
     u.EnumWindows.argtypes = [callback, w.LPARAM]
     u.GetWindowThreadProcessId.argtypes = [w.HWND, ctypes.POINTER(w.DWORD)]
     u.PostMessageW.argtypes = [w.HWND, w.UINT, w.WPARAM, w.LPARAM]
+    u.IsWindowVisible.argtypes = [w.HWND]
+    u.IsWindowVisible.restype = w.BOOL
     images = {}
     before = set((local / "PyYaki/prototype").glob("*"))
     command = [str(binary), *(["--smoke-test"] if smoke else [])]
@@ -132,19 +134,24 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
                         child.kill()
                         action = "killed_owned_launcher_during_preparation"
                 if close_pid:
-                    sent = []
+                    candidates = []
 
                     @callback
-                    def close(hwnd, _, target_pid=close_pid, results=sent):
+                    def collect_window(hwnd, _, target_pid=close_pid, results=candidates):
                         pid = w.DWORD()
                         u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-                        if pid.value == target_pid:
-                            results.append(bool(u.PostMessageW(hwnd, 0x10, 0, 0)))
+                        if pid.value == target_pid and u.IsWindowVisible(hwnd):
+                            results.append(hwnd)
                         return True
 
-                    u.EnumWindows(close, 0)
-                    if any(sent):
-                        action = f"posted_close_to_owned_pid_{close_pid}"
+                    u.EnumWindows(collect_window, 0)
+                    # Closing hidden COM/IME/helper windows is not a user close.
+                    # Do not select arbitrarily if a modal or second visible window exists.
+                    if len(candidates) == 1:
+                        pid = w.DWORD()
+                        u.GetWindowThreadProcessId(candidates[0], ctypes.byref(pid))
+                        if pid.value == close_pid and u.PostMessageW(candidates[0], 0x10, 0, 0):
+                            action = f"posted_close_to_owned_visible_pid_{close_pid}"
                 if time.monotonic() - started > 120:
                     timed_out = True
                     child.kill()
