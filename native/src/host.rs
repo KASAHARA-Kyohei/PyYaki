@@ -156,7 +156,7 @@ pub fn show_error(message: &str) {
 }
 
 #[cfg(windows)]
-fn paint(window: &Window, message: &str) {
+pub(crate) fn paint(window: &Window, message: &str) {
     let hwnd = window.hwnd() as _;
     // SAFETY: tao owns hwnd on this GUI thread; DC and brush are released exactly once.
     unsafe {
@@ -335,6 +335,11 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let started_at = Instant::now();
     let mut args = std::env::args_os().skip(1);
     let first = args.next();
+    #[cfg(windows)]
+    if first.as_deref() == Some(std::ffi::OsStr::new("--onefile-format")) {
+        println!("PYYAKI01");
+        return Ok(());
+    }
     if first.as_deref() == Some(std::ffi::OsStr::new("--version")) {
         println!("PyYaki native host {VERSION}");
         return Ok(());

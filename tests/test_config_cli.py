@@ -52,10 +52,13 @@ def cli(*arguments, cwd=ROOT / "examples/hello"):
 
 def test_cli_version_and_unsupported_commands():
     assert "PyYaki 0.1.0.dev0" in cli("--version").stdout
-    for arguments in (("run",), ("build",), ("build", "windows")):
+    for arguments in (("run",), ("build",)):
         result = cli(*arguments)
         assert result.returncode != 0
         assert "not implemented" in result.stderr
+    result = cli("build", "windows")
+    assert result.returncode != 0
+    assert "requires --host" in result.stderr
     assert cli("dev", "--port", "0").returncode != 0
 
 

@@ -4,6 +4,7 @@ import argparse
 import errno
 import importlib
 import socket
+import struct
 import subprocess
 import sys
 import zipfile
@@ -27,11 +28,45 @@ def main() -> int:
     build.add_argument("--project", type=Path, default=Path.cwd())
     build.add_argument("--host", type=Path)
     build.add_argument("--runtime", type=Path)
+    build.add_argument("--webview2", type=Path)
     build.add_argument("--wheelhouse", type=Path)
     build.add_argument("--framework-wheel", type=Path)
     build.add_argument("--requirements", type=Path)
     build.add_argument("--output", type=Path)
     args = parser.parse_args()
+    if args.command == "build" and args.target == "windows":
+        required = ("host", "runtime", "webview2", "wheelhouse", "framework_wheel", "requirements")
+        if any(getattr(args, name) is None for name in required):
+            parser.error(
+                "build windows requires --host, --runtime, --webview2, --wheelhouse, "
+                "--framework-wheel and --requirements"
+            )
+        from .build_windows import build as build_windows
+
+        try:
+            result = build_windows(
+                args.project,
+                args.host,
+                args.runtime,
+                args.webview2,
+                args.wheelhouse,
+                args.framework_wheel,
+                args.requirements,
+                args.output,
+            )
+        except (
+            OSError,
+            ValueError,
+            TypeError,
+            AttributeError,
+            KeyError,
+            zipfile.BadZipFile,
+            subprocess.SubprocessError,
+            struct.error,
+        ) as exc:
+            parser.exit(1, f"pyyaki: cannot build Windows exe: {exc}\n")
+        print(f"Built local Windows onefile prototype (unsigned): {result}")
+        return 0
     if args.command == "build" and args.target == "macos":
         required = ("host", "runtime", "wheelhouse", "framework_wheel", "requirements")
         if any(getattr(args, name) is None for name in required):
@@ -64,7 +99,7 @@ def main() -> int:
         print(f"Built local macOS prototype (ad-hoc signed, not notarized): {result}")
         return 0
     if args.command != "dev":
-        parser.error("Windows run/build are not implemented in this prototype")
+        parser.error("run and build without a target are not implemented in this prototype")
     if not 1 <= args.port <= 65535:
         parser.error("port must be between 1 and 65535")
     config_path = Path.cwd() / "pyproject.toml"

@@ -196,6 +196,7 @@ impl Worker {
         let arguments: Vec<Vec<u16>> = vec![
             program[..program.len() - 1].to_vec(),
             "-I".encode_utf16().collect(),
+            "-B".encode_utf16().collect(),
             "-c".encode_utf16().collect(),
             include_str!("../worker_bootstrap.py")
                 .encode_utf16()
@@ -274,6 +275,122 @@ impl Worker {
     pub fn exited(&self) -> bool {
         // SAFETY: Worker owns the process handle for the entire call; zero timeout never blocks.
         unsafe { WaitForSingleObject(self.process.as_raw_handle(), 0) == WAIT_OBJECT_0 }
+    }
+}
+
+/// Owns the GUI child of a onefile launcher, including its nested worker Job.
+/// No handles are inherited; environment changes are confined to this child.
+pub struct HostChild {
+    process: OwnedHandle,
+    _job: OwnedHandle,
+    pub pid: u32,
+}
+
+impl HostChild {
+    pub fn spawn(
+        executable: &Path,
+        cache: &Path,
+        mode: Option<&std::ffi::OsStr>,
+    ) -> io::Result<Self> {
+        use windows_sys::Win32::System::Threading::STARTUPINFOW;
+        let program = wide(executable)?;
+        let mut arguments = vec![
+            executable.as_os_str().to_os_string(),
+            "run".into(),
+            "--project".into(),
+            cache.join("app").into_os_string(),
+            "--python".into(),
+            cache.join("runtime/python/python.exe").into_os_string(),
+        ];
+        if let Some(mode) = mode {
+            arguments.push(mode.into());
+        }
+        let mut command = Vec::new();
+        for argument in arguments {
+            if !command.is_empty() {
+                command.push(32);
+            }
+            command.extend(quote(&argument.encode_wide().collect::<Vec<_>>()));
+        }
+        command.push(0);
+        let mut environment: Vec<(std::ffi::OsString, std::ffi::OsString)> = std::env::vars_os()
+            .filter(|(key, _)| {
+                !key.to_string_lossy()
+                    .to_ascii_uppercase()
+                    .starts_with("WEBVIEW2_")
+            })
+            .collect();
+        environment.push((
+            "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER".into(),
+            cache.join("runtime/webview2").into_os_string(),
+        ));
+        environment.sort_by_key(|(key, _)| key.to_string_lossy().to_ascii_uppercase());
+        let mut block = Vec::new();
+        for (mut key, value) in environment {
+            key.push("=");
+            key.push(value);
+            block.extend(key.encode_wide());
+            block.push(0);
+        }
+        block.push(0);
+        // SAFETY: null name/security creates a new private job with the token's default ACL.
+        let job = own(unsafe { CreateJobObjectW(null(), null()) })?;
+        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        // SAFETY: readable initialized limits of the exact stated size.
+        checked(unsafe {
+            SetInformationJobObject(
+                job.as_raw_handle(),
+                JobObjectExtendedLimitInformation,
+                (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+                size_of_val(&limits) as u32,
+            )
+        })?;
+        let startup = STARTUPINFOW {
+            cb: size_of::<STARTUPINFOW>() as u32,
+            ..Default::default()
+        };
+        let mut info = PROCESS_INFORMATION::default();
+        let cwd = wide(cache)?;
+        // SAFETY: all buffers live through CreateProcessW; no handles are inherited.
+        checked(unsafe {
+            CreateProcessW(
+                program.as_ptr(),
+                command.as_mut_ptr(),
+                null(),
+                null(),
+                0,
+                CREATE_SUSPENDED | CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT,
+                block.as_ptr().cast(),
+                cwd.as_ptr(),
+                &startup,
+                &mut info,
+            )
+        })?;
+        let process = own(info.hProcess)?;
+        let thread = own(info.hThread)?;
+        assign_and_resume(&job, &process, &thread)?;
+        Ok(Self {
+            process,
+            _job: job,
+            pid: info.dwProcessId,
+        })
+    }
+
+    pub fn exit_code(&self) -> io::Result<Option<u32>> {
+        use windows_sys::Win32::System::Threading::GetExitCodeProcess;
+        // SAFETY: owned process handle is valid; zero timeout does not block.
+        let state = unsafe { WaitForSingleObject(self.process.as_raw_handle(), 0) };
+        if state == windows_sys::Win32::Foundation::WAIT_TIMEOUT {
+            return Ok(None);
+        }
+        if state != WAIT_OBJECT_0 {
+            return Err(io::Error::last_os_error());
+        }
+        let mut code = 0;
+        // SAFETY: output points to a live u32 and process is still owned.
+        checked(unsafe { GetExitCodeProcess(self.process.as_raw_handle(), &mut code) })?;
+        Ok(Some(code))
     }
 }
 

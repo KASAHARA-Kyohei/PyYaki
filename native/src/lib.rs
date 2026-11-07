@@ -3,6 +3,8 @@ pub mod command_line;
 pub mod config;
 pub mod framing;
 pub mod navigation;
+#[cfg(windows)]
+pub mod package;
 pub mod startup;
 
 pub const VERSION: &str = "0.1.0.dev0";
