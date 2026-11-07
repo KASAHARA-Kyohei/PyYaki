@@ -2,6 +2,7 @@
 
 import argparse
 import ctypes
+import hashlib
 import json
 import os
 import shutil
@@ -44,6 +45,8 @@ def phase_order(phases, *names):
 
 
 def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_error=None):
+    with binary.open("rb") as stream:
+        binary_sha256 = hashlib.file_digest(stream, "sha256").hexdigest()
     folder = output / name
     folder.mkdir()
     local.mkdir(parents=True, exist_ok=True)
@@ -212,6 +215,7 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
             record = {
                 "name": name,
                 "command": command,
+                "binary_sha256": binary_sha256,
                 "host_pid": child.pid,
                 "exit_code": child.returncode,
                 "elapsed_seconds": time.monotonic() - started,
