@@ -78,6 +78,7 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
     command = [str(binary), *(["--smoke-test"] if smoke else [])]
     timed_out = False
     action = None
+    interrupted_staging = []
     started = time.monotonic()
     observed = {}
     with (folder / "launcher-stdio.log").open("wb") as log:
@@ -114,9 +115,19 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
                         observed.setdefault(f"{kind}:{phase['phase']}", time.monotonic() - started)
                 close_pid = None
                 if action is None:
-                    if stop == "cancel" and any(
-                        p["phase"] == "preparation_started" for p in launch
+                    extracting = []
+                    if stop in {"cancel-extract", "interrupt-extract"}:
+                        extracting = [
+                            str(path)
+                            for path in (local / "PyYakiOnefile").glob("*/staging-*")
+                            if (path / "app/app.py").is_file()
+                        ]
+                    if (
+                        stop in {"cancel", "cancel-extract"}
+                        and any(p["phase"] == "preparation_started" for p in launch)
+                        and (stop == "cancel" or extracting)
                     ):
+                        interrupted_staging = extracting
                         close_pid = child.pid
                     elif expected_error and any(p["phase"] == "preparation_failed" for p in launch):
                         close_pid = child.pid
@@ -132,9 +143,12 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
                                 for p in launch
                                 if p["phase"] == "gui_child_started"
                             )
-                    elif stop == "interrupt" and any(
-                        p["phase"] == "preparation_started" for p in launch
+                    elif (
+                        stop in {"interrupt", "interrupt-extract"}
+                        and any(p["phase"] == "preparation_started" for p in launch)
+                        and (stop == "interrupt" or extracting)
                     ):
+                        interrupted_staging = extracting
                         child.kill()
                         action = "killed_owned_launcher_during_preparation"
                 if close_pid:
@@ -235,8 +249,10 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
                     and not prepared
                     and not hosts
                 )
-            elif stop in {"cancel", "interrupt"}:
+            elif stop in {"cancel", "interrupt", "cancel-extract", "interrupt-extract"}:
                 ok = common and action is not None and not prepared and not hosts
+                if stop.endswith("-extract"):
+                    ok &= bool(interrupted_staging)
             else:
                 ok = (
                     common
@@ -273,6 +289,7 @@ def run_case(binary, output, name, local, *, stop=None, smoke=True, expected_err
                 "first_observed_seconds": observed,
                 "watchdog": timed_out,
                 "action": action,
+                "interrupted_staging": interrupted_staging,
                 "processes": observer.known,
                 "process_images": images,
                 "remaining": remain,
@@ -298,7 +315,17 @@ def main():
     parser.add_argument("--local", type=Path)
     parser.add_argument(
         "--case",
-        choices=["smoke", "cached", "close", "kill", "cancel", "interrupt", "corrupt"],
+        choices=[
+            "smoke",
+            "cached",
+            "close",
+            "kill",
+            "cancel",
+            "interrupt",
+            "corrupt",
+            "cancel-extract",
+            "interrupt-extract",
+        ],
         default="smoke",
     )
     parser.add_argument("--expected-error")
@@ -315,7 +342,10 @@ def main():
         output,
         args.case,
         local,
-        stop=args.case if args.case in {"close", "kill", "cancel", "interrupt"} else None,
+        stop=args.case
+        if args.case
+        in {"close", "kill", "cancel", "interrupt", "cancel-extract", "interrupt-extract"}
+        else None,
         smoke=args.case in {"smoke", "cached", "corrupt"},
         expected_error=args.expected_error,
     )
