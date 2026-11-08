@@ -8,6 +8,8 @@
 
 その後、`9e9302a`で[初期Space配置の対策](validation-macos-space-2026-11-08.md)を追加し、Rust 14件・Python 145件、独立したfullscreen開始3組を含む比較、5秒遅延反復、失敗/終了時の設定復元と更新.appを確認した。反映にはRustホストの再ビルド、生成.appを使う場合は新しいホストでの再生成が必要。利用者のSpace移動/復帰等の未確認範囲は同記録を参照する。
 
+回帰検証の再実行は[Mac自動検証](macos-regression.md)へ整理した。検証器の`be7e26f`ではPython 181件・Rust 14件と16/16項目の[最終確認](validation-macos-automation-2026-11-08.md)を実施し、負対照・中断時の未完了と原ログ保存も確認した。
+
 ## 最初に確認すること
 
 1. [AGENTS.md](../AGENTS.md)の作業ルールを読む。実装開始は承認済みで、作業した変更は目的ごとにコミットする。
@@ -100,6 +102,8 @@ Webを起動した状態で、別ターミナルのルートから次を実行�
 ```console
 ./native/target/debug/pyyaki run --project examples/hello --python .venv/bin/python --smoke-test
 ```
+
+Macの通常/遅延/fullscreen開始と任意の既存.appの署名・全manifest・再配置は、[自動回帰検証](macos-regression.md)へまとめた。`.venv/bin/python tests/macos_regression.py --checks --build --output test-results/macos-regression-new`で検査とビルドから直列実行できる。fullscreenでは自分の検証窓が切り替わる。目視や利用者のSpace移動を確認した扱いにはしない。
 
 速度・連続試験には専用アプリとrelease版を使う。30分の追試では`--duration 1800 --startup-runs 1 --prevent-idle-sleep`を指定する。[計測手順](../native/README.md#macの速度安定性を計測する)と[初期結果](performance-macos.md)を参照し、通常のスモーク確認と区別する。
 

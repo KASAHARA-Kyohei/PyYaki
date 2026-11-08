@@ -34,6 +34,10 @@ Windows専用処理を`process.rs`、Macを`process_macos.rs`に分け、イベ�
 
 `--smoke-test`を末尾に追加すると、`examples/hello`専用の実WebView確認（MacはWKWebView、WindowsはWebView2）を行い、自動終了する。あいさつ・エラー・並行呼び出し・進捗イベントの順序/購読解除・取消に成功すれば`native_smoke`のokがtrueとなり、終了コード0を返す。通常起動ではこの確認用スクリプト・終了通知は使用しない。
 
+## Macの回帰検証をまとめて実行する
+
+リモートでも自分の検証窓で再実行する[自動回帰検証](../docs/macos-regression.md)を追加した。`.venv/bin/python tests/macos_regression.py --checks --build --output test-results/macos-regression-new`でソース検査とhost/専用exampleのビルドから直列実行する。通常/遅延9起動と独立したfullscreen開始3件を確認し、既存.appとmanifestを渡せば署名・全件照合・再配置コピーのスモークも追加する。実画面や利用者のSpace操作は未確認として残す。製品CLIや公開APIの追加ではない。
+
 ## Macの速度・安定性を計測する
 
 メンテナー用の測定器はrelease版ホストと実WKWebViewを使う。リポジトリ直下で実行する。この開発機では前述の`SDKROOT`指定もビルド時に必要。

@@ -236,6 +236,8 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 
 ゲートの定義は[roadmap.md](roadmap.md)を参照する。
 
+ADR-017の起動順・Space復元・独立したfullscreen開始と既存.appは、[Mac自動回帰検証](macos-regression.md)で再実行できる。専用の制御fixtureはメンテナー用exampleで、製品窓・公開API・起動期限へ検証フラグを増やさない。画面の実提示や利用者のSpace操作の検証とは区別する。
+
 2026-11-05のログ方式比較: CPython標準機能を使い、新しい依存は追加しない。[`-I`](https://docs.python.org/3.14/using/cmdline.html#cmdoption-I)はPYTHON系環境変数を無視するためPYTHONIOENCODINGだけでは設定できない。[UTF-8 mode](https://docs.python.org/3.14/library/os.html#python-utf-8-mode)は通常のopen等にも影響するため、今回のログだけの変更には採らない。[TextIOWrapper.reconfigure](https://docs.python.org/3.14/library/io.html#io.TextIOWrapper.reconfigure)で両テキストストリームだけを設定する。worker.py内での設定では先行するPyYakiパッケージのimport失敗を捕捉できないため、ホストに埋め込む固定bootstrapで設定後にrunpyを使う。行バッファリングによる書込み頻度への影響があり、性能効果は未測定。公開APIへ任意評価を追加するものではない。資料参照日: 2026-11-05。
 
 2026-11-04のアイコン実装比較: [embed-resource 3](https://docs.rs/embed-resource/3.0.12/embed_resource/)は既存RCのコンパイルとMSVC/GNUのツール探索を扱い、[winresource](https://docs.rs/winresource/0.1.34/winresource/)はRC生成とバージョン情報も提供する。今回は固定したICON定義1件だけなので前者を使い、ツール探索の自作を避けた。Macは[CFBundleIconFile](https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundleiconfile)と[applicationIconImage](https://developer.apple.com/documentation/appkit/nsapplication/applicationiconimage)を使い、既存のobjc2 0.6/objc2-app-kit 0.3へ必要な依存を明示した。形式変換はsips/iconutilでのMac限定手順と[PillowのICO/ICNS対応](https://pillow.readthedocs.io/en/12.3.0/handbook/image-file-formats.html)を比較し、Windows用PNGのRGBA化と複数サイズの出力を同じスクリプトで扱えるPillowを開発用だけに採用した。PNG形式のWindowsアイコンには[32bpp ARGBが必要](https://devblogs.microsoft.com/oldnewthing/20101022-00/?p=12473)なため、不透明な原本にもalpha=255を持たせる。原本の再生成・デザイン変更はしない。

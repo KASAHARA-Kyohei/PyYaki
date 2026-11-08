@@ -18,6 +18,8 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 開発を再開するときは[開発ガイド](docs/development.md)、現在の実装と残作業は[ロードマップの現在地](docs/roadmap.md#現在地と次の作業)を参照してください。
 
+Macの通常・遅延・fullscreen起動と既存.appの署名・ハッシュ・再配置は、[自動回帰検証](docs/macos-regression.md)でまとめて再実行できます。検証用の自分の窓だけを操作し、実画面や利用者のSpace操作は未確認として区別します。
+
 2026-10-31の名称調査では、[PyPIの`pyyaki`公式API](https://pypi.org/pypi/pyyaki/json)は404で、[GitHubの名前検索](https://github.com/search?q=pyyaki+in%3Aname&type=repositories)でも該当する公開リポジトリは見つかりませんでした。名称は採用しましたが、PyPIでの登録可能性を保証するものではなく、公開時に再確認します。
 
 ## Macで試作を動かす

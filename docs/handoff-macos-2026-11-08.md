@@ -6,6 +6,8 @@
 
 その後に利用者が依頼したADR-017の調査・ローカル対策は、[初期Space配置の比較記録](validation-macos-space-2026-11-08.md)を参照する。
 
+さらに、通常/遅延/fullscreenと任意の既存.appを再実行する[Mac自動回帰検証](macos-regression.md)を追加した。以下の引き継ぎ時点の結果を新しい合格へ流用せず、新規出力で実行する。
+
 ## 最初に読む
 
 1. [AGENTS.md](../AGENTS.md)、[開発ガイド](development.md)、[ロードマップ](roadmap.md)

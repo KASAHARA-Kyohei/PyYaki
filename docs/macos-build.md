@@ -73,6 +73,8 @@ with tarfile.open(archive) as stream:
 
 ## 設定と制限
 
+生成済み.appの全manifest・署名・再配置コピーの実WKWebView起動は、[Mac自動回帰検証](macos-regression.md#既存appも検証する)でも再実行できる。入力.appと生成時の.build.jsonを明示し、入力を改変せずtest-results内のコピーだけを起動する。.app生成や資材準備を自動で代行するオプションではない。
+
 - `tool.pyyaki.name`、reverse-DNS形式の`app-id`、3つの数値からなる`version`をbundleメタデータに使う。window.title未指定時はnameを使う。開発用ホストがnameを直接読む動作とは区別する。
 - 既定アイコンは[選択したC案](../assets/branding/README.md)。wheel内の`static/pyyaki.icns`を`Contents/Resources/PyYaki.icns`へ署名前に配置し、`CFBundleIconFile`で参照する。通常ファイルとしてレポートへハッシュを記録する。変換済み資産を使うため、生成時のPillowやiconutilは不要。独自アイコン指定の設定は未実装。
 - `tool.pyyaki.build.macos.include`はプロジェクト相対globの配列。既定はentryのPythonファイルとUI配下。domainやデータ等が必要なら明示し、pyproject.toml自体はincludeしない。実行用設定はentry/UI/windowだけから生成する。

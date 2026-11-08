@@ -16,7 +16,9 @@
 | 導入 / 配布 | Macのbuild macosに加え、Windowsの明示資材から未署名単一exeを生成・全ハッシュ検証して展開するローカル試作を実装 | Rust不要のネイティブCLI配置、自動資材準備、実署名、未導入クリーンVM、性能・清掃等は未完了。[試作の手順と制約](windows-onefile.md)をFR-08全体の合格にしない |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
 
-Macの直近の[初期Space配置の対策・比較](validation-macos-space-2026-11-08.md)は`9e9302a`。Python 145成功（スキップ0）、Rust 14成功、Mac Clippy/release、二重rAFのブラウザ契約検査に成功した。自作fullscreen窓からの変更前は初回0/2成功、最終対策は独立した開始3組で初回3/3成功・連続対照を含め9/9成功。通常/import前5秒/フック5秒も各3回、9/9成功。成功・通知欠落の10秒失敗・起動途中のSIGTERM終了で窓設定の復元を確認し、更新.appのスモーク・署名・全ハッシュも成功した。二重rAF・10秒期限・Python開始順は維持。利用者のCodex fullscreen・Space移動、目視・実close/download等は未確認。Windows GNU検査やWindows実機は今回未実施。
+Macの検証は、`be7e26f`で[自動回帰検証器](macos-regression.md)へ整理した。[最終実行](validation-macos-automation-2026-11-08.md)はPython 181成功（スキップ0）、Rust 14成功、Ruff/fmt/Clippy/release・ブラウザ契約、GUI起動13件と整合性検査3件の計16/16項目に成功。旧ホストと不正controlの負対照は正しく拒否し、実中断は終了130・未完了3件・原ログ保存を確認した。目視、利用者のCodex/Space操作、故障注入GUI・長時間/性能、正式配布、Windows実機はこのpassedに含めない。製品ソースの追加変更はない。
+
+製品の[初期Space配置の対策・比較](validation-macos-space-2026-11-08.md)は`9e9302a`。当時のPython 145成功（スキップ0）、Rust 14成功、Mac Clippy/release、二重rAFのブラウザ契約検査に成功した。自作fullscreen窓からの変更前は初回0/2成功、最終対策は独立した開始3組で初回3/3成功・連続対照を含め9/9成功。通常/import前5秒/フック5秒も各3回、9/9成功。成功・通知欠落の10秒失敗・起動途中のSIGTERM終了で窓設定の復元を確認し、更新.appのスモーク・署名・全ハッシュも成功した。二重rAF・10秒期限・Python開始順は維持。利用者のCodex fullscreen・Space移動、目視・実close/download等は未確認。Windows GNU検査やWindows実機は今回未実施。
 
 対策前の[11-08回帰確認](validation-macos-2026-11-08.md)は`008ec68`でPython 145件・Rust 13件、WKWebView反復9/9、UTF-8/例外DOM/SIGTERM終了、.app再生成・署名・全ハッシュ・日本語パス再配置を確認した。初回のactive Space外のrAF停止・Python開始前の10秒失敗は元ログのまま残す。後続対策で過去の失敗を成功へ読み替えていない。
 
@@ -337,3 +339,7 @@ worker.logの日本語生バイトはCP932で読めるがUTF-8 strict decodeで�
 ### 2026-11-08 初期Space配置の調査・ローカル対策
 
 利用者の追加依頼で、`9e9302a`にMac起動中だけMoveToActiveSpaceを設定し、shell/失敗/終了時に元へ戻す処理を追加した。自作fullscreen窓から変更前の初回0/2成功を再現し、表示をtao Initまで遅らせる案も初回失敗が残った。最小配置対策を比較した最終版は独立したfullscreen開始3/3成功（連続対照含む9/9）、5秒遅延反復9/9、通知欠落の10秒期限と復元、起動途中の終了時復元に成功。Rust 14件・Python 145件、Mac Clippy/release/fmt・SDKブラウザ契約、更新.appの署名・全manifest・fullscreenスモークも確認した。旧.appも同条件では成功しており、.appの失敗解消とは扱わない。二重rAF・10秒期限・Python開始順・Windows経路は変更していない。[根拠・比較・原ログ・未確認範囲](validation-macos-space-2026-11-08.md)を参照。利用者のCodex fullscreen・Space移動/復帰・複数画面等や、物理的な提示・性能の確認は残る。
+
+### 2026-11-08 Mac回帰検証の自動化
+
+利用者の優先指定に従い、`be7e26f`でメンテナー用Mac検証器・専用Tao制御example・共有段階/manifest検査・誤合格防止テストをGit管理へ追加した。source checks/buildをGUIと直列実行し、予定ケース名・件数・起動順・期限・Space復元・署名/全ハッシュを照合する。実行オプション・未確認・未完了・中断を明記し、入力.appを改変せず日本語パスのコピーを検証する。最終16/16項目、Python 181件、Rust14件と静的検査に成功。負対照と実中断も別記録で確認した。[手順](macos-regression.md)と[実行記録・限界](validation-macos-automation-2026-11-08.md)を参照。製品API・期限・描画順・依存は変更していない。共有startup_probeのWindows実機での更新後検証は未実施。

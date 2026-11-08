@@ -68,6 +68,8 @@ cargo +1.89.0 build --manifest-path native/Cargo.toml --release --locked
 
 自動スモークが30秒以内に終了しなければ、検証器が自分の子だけを終了させ、`closed_by_harness: true`の失敗として残す。タイマーの実行遅延等も含めた原因はログを調べる。終了コード0だけで合格にはせず、スモーク結果とwelcome送信も確認する。失敗後も残りのケースを続け、いずれか失敗なら検証器の終了コードは1となる。失敗ログを上書きせず、まず他のビルド/試験と並行させずに測り、その後必要に応じて負荷条件を分ける。
 
+2026-11-08の検証器整備では、二重rAF・shell/Python/worker/welcomeの順序と両10,000ms期限の照合を追加した。reportのstatus/expected_runsで未完了と失敗を区別し、Ctrl+Cは原ログを保存してinterrupted・終了130とする。例外で全ケースを完了できない場合はerrorで打ち切り、未実行を成功にしない。Macでは[自動回帰検証](macos-regression.md)を使うと、Space設定の復元・独立したfullscreen開始・任意の.appも照合できる。共有startup_probeの変更をWindows実機で再確認した結果ではない。
+
 共有するのはreport.jsonと該当ケースのhost/workerログを基本とする。ログにはローカルパスやアプリ例外が含まれるため、共有前に内容を確認する。結果を受けてから、遅延がHTML/SDK取得、shell通知、Python起動、import、起動フック、welcome配送のどこにあるかを切り分ける。
 
 ## Macで確認した範囲（2026-11-04）
