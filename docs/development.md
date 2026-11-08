@@ -1,8 +1,10 @@
 # 開発と動作確認
 
-更新: 2026-11-07。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
+更新: 2026-11-08。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
 
 2026-11-08にWindowsからMacへ戻る際の準備・回帰確認の順序と貼り付け用プロンプトは、[Mac作業引き継ぎ](handoff-macos-2026-11-08.md)を参照する。
+
+同日の[Mac回帰結果](validation-macos-2026-11-08.md)はPython 145件・Rust 13件、WKWebView反復9/9、UTF-8/例外DOM/終了、再生成.appの署名・全ハッシュ・再配置を確認。初回のSpace関連失敗と目視等の未確認範囲も保持している。既存standalone Pythonのencodings欠落で再取得が必要だったため、過去の資材パスの存在だけで再利用可能と判断せず、同書の失敗と公式ハッシュを確認する。
 
 ## 最初に確認すること
 
@@ -64,8 +66,8 @@ SDKと`native/failure.js`・`native/failure.css`・`native/worker_bootstrap.py`�
 
 ```console
 .venv/bin/python -m pytest -q -W error::DeprecationWarning
-.venv/bin/ruff check src examples tests
-.venv/bin/ruff format --check src examples tests
+.venv/bin/ruff check src examples tests native/worker_bootstrap.py
+.venv/bin/ruff format --check src examples tests native/worker_bootstrap.py
 cargo fmt --manifest-path native/Cargo.toml -- --check
 cargo test --manifest-path native/Cargo.toml --locked
 cargo clippy --manifest-path native/Cargo.toml --locked --all-targets -- -D warnings
@@ -125,7 +127,7 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 
 起動期限の再現確認には[起動の切り分け](startup-diagnostics.md)の`tests/startup_probe.py`を使う。2026-11-04に`ae3889c`をWindowsで再検証し、起動9/9、Python 108件成功・19件スキップ、Rust 10件、Clippyと実GUIスモークに成功した。[再検証記録](validation-windows-2026-11-04.md)を参照。以前の初回失敗は未再現で、原因解消とは扱わない。当日のworker.logはCP932だったため、過去ログをUTF-8と決めつけて上書きしない。
 
-2026-11-05の修正後は、パッケージimport前の固定bootstrapがstdout/stderrをUTF-8へ設定する。WindowsのPython 112成功・19スキップ、Rust 10成功、MSVC/Clippy/実GUIを[確認](validation-worker-logs-2026-11-05.md)した。新しいworker.logはPowerShellの`Get-Content -Encoding UTF8 <パス>`等で読む。通常ファイルの既定encodingは変えず、アプリの生バイト出力・ストリーム再設定は対象外。Macではホスト再ビルド・スモーク・.app再生成の確認が残る。
+2026-11-05の修正後は、パッケージimport前の固定bootstrapがstdout/stderrをUTF-8へ設定する。WindowsのPython 112成功・19スキップ、Rust 10成功、MSVC/Clippy/実GUIを[確認](validation-worker-logs-2026-11-05.md)した。新しいworker.logはPowerShellの`Get-Content -Encoding UTF8 <パス>`等で読む。通常ファイルの既定encodingは変えず、アプリの生バイト出力・ストリーム再設定は対象外。Macの再ビルド・WKWebView・.app再生成は[11-08に回帰確認](validation-macos-2026-11-08.md)した。ビルド時のentry importはworker bootstrap外なので、そこでのstdoutのencodingまで変更する機能ではない。
 
 実ホストの境界・異常系は`tests/diagnostics_windows.py --binary native/target/release/pyyaki.exe --output <新規のtest-results配下>`で確認できる。実行は上記venvのPythonを使う。コピーに故意の異常終了・不正フレーム等を加えるメンテナー専用検証で、通常のpytestとは別。`--case`で絞り込める。11-05の[初回12ケース](validation-windows-boundary-2026-11-05.md)に続き、[追試](validation-windows-boundary-followup-2026-11-05.md)では既定の自動15件が14確認・pipe-close 1制約、終了コード1。`--python`でワーカーPythonを明示した埋込環境の対照4件は成功し、全writer切断とvenvの部分closeを区別した。実クリックは明示的な`--case user-actions`だけで実行する。先にRustホストを再ビルドし、拒否ハンドラーの有限ログも照合する。
 

@@ -10,9 +10,11 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 [C案の既定アイコン](assets/branding/README.md)を、Mac .app・開発ホストのDock設定と、Windows開発ホストのexe・ウィンドウ・タスクバーへ組み込む実装を追加しました。[反映方法と検証範囲](native/README.md#アイコン)を参照してください。WindowsのExplorer/ウィンドウは実画面で、タスクバーは利用者の目視回答でC案の表示を確認しました。
 
-2026-11-05にワーカーのテキストログをUTF-8へ統一し、障害画面の説明の重複を整理しました。[Windowsでの検査・実GUI確認とMacで残る回帰確認](docs/validation-worker-logs-2026-11-05.md)を記録しています。反映にはRustホストの再ビルドが必要です。
+2026-11-05にワーカーのテキストログをUTF-8へ統一し、障害画面の説明の重複を整理しました。[Windowsでの検査・実GUI確認](docs/validation-worker-logs-2026-11-05.md)を記録しています。反映にはRustホストの再ビルドが必要です。
 
-同日の[境界追試](docs/validation-windows-boundary-followup-2026-11-05.md)では起動9/9、完全切断・不要ハンドル非継承・Job割当失敗回収・実クリック拒否・孫回収を確認しました。venvの部分closeにはwriter保持の制約が残ります。[資材の前段確認](docs/windows-onefile-prototype.md)に続いて、[Windows単一exeの生成・検証付き展開](docs/windows-onefile.md)をローカル試作として追加しました。[実機の確認結果と失敗の切り分け](docs/validation-windows-onefile-2026-11-07.md)を記録しました。実署名・未導入クリーン環境・性能の受入は残っています。
+2026-11-08に[Mac回帰確認](docs/validation-macos-2026-11-08.md)を実施し、Python 145件・Rust 13件、実WKWebView起動反復9/9、UTF-8ログ・例外DOM・SIGTERM終了、再生成したPython同梱.appの署名・全ハッシュ・日本語パス再配置を確認しました。初回はactive Space外で描画待ちが止まり失敗しており、本対応は未実装です。目視・実クリックclose/download・Dock/Finder表示、正式署名・公証等は未確認です。
+
+2026-11-05の[境界追試](docs/validation-windows-boundary-followup-2026-11-05.md)では起動9/9、完全切断・不要ハンドル非継承・Job割当失敗回収・実クリック拒否・孫回収を確認しました。venvの部分closeにはwriter保持の制約が残ります。[資材の前段確認](docs/windows-onefile-prototype.md)に続いて、[Windows単一exeの生成・検証付き展開](docs/windows-onefile.md)をローカル試作として追加しました。[実機の確認結果と失敗の切り分け](docs/validation-windows-onefile-2026-11-07.md)を記録しました。実署名・未導入クリーン環境・性能の受入は残っています。
 
 開発を再開するときは[開発ガイド](docs/development.md)、現在の実装と残作業は[ロードマップの現在地](docs/roadmap.md#現在地と次の作業)を参照してください。
 

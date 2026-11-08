@@ -1,6 +1,6 @@
 # PyYaki ビルド・配布設計
 
-状態: 初期設計案 + Web用wheel・Mac .app / Windows単一exeのローカル試作 / 技術調査日: 2026-10-30 / 更新: 2026-11-07 / 正式配布・実署名・未導入クリーン環境は未完了
+状態: 初期設計案 + Web用wheel・Mac .app / Windows単一exeのローカル試作 / 技術調査日: 2026-10-30 / 更新: 2026-11-08 / 正式配布・実署名・未導入クリーン環境は未完了
 
 Pythonパッケージ`0.1.0.dev0`のwheelにはPythonワーカーとSDKを含むが、ネイティブexe・ランタイム資材は含まない。Windowsは事前ビルド済みホストと明示した資材から単一exeを組み立てるローカル試作を追加した。`native/Cargo.lock`はRust依存を固定し、`examples/hello/requirements-windows.lock`は今回のWindows x64 / CPython 3.14の組合せを固定する。ネイティブwheel配置は未実装。Macの`requirements-dev.lock`をWindows配布の互換性証明に使わない。
 
@@ -9,6 +9,8 @@ Pythonパッケージ`0.1.0.dev0`のwheelにはPythonワーカーとSDKを含む
 Windowsの開発用確認はRust版`pyyaki.exe run --project <path> --python <venv-python.exe>`を直接使う。[メンテナー向け手順](../native/README.md)では事前導入したRust/MSVCでWindows上でビルドし、開発venvと既存WebView2で実行する。Macで行ったWindowsターゲットの型検査は、exeの生成や起動成功ではない。2026-11-03にこの手順でWindows 11 x64のMSVCリンク・実WebView2を確認した。[実機記録](validation-windows.md)を参照。アプリ利用者にRustを要求する正式配布へ方針変更したものではない。
 
 Mac向けは開発機でCargoビルドしたホストを直接実行する段階。開発時のSDK再ビルド・変更反映は[開発ガイド](development.md#変更する場所と反映方法)、診断releaseビルドの実行結果は[Mac初期計測](performance-macos.md)を参照する。依存は同じCargo.lockで固定し、Pythonは事前導入したvenvを使用する。Python同梱.appのローカル生成を追加した。準備済み資材・ハッシュ固定wheelからオフラインで組み立て、アドホック署名と再配置を検証する。[入力・生成手順・限界](macos-build.md)を参照。Developer ID署名、notarization、第三者への正式配布は未対応。Windows向け単一exe要件は維持する。
+
+2026-11-08の[Mac回帰確認](validation-macos-2026-11-08.md)では、同じHEADのホスト/wheelから再生成し、署名・全manifest・日本語パス再配置・実WKWebViewを確認した。既存runtimeの欠落による初回失敗と、同じ公式版のハッシュ照合・再取得も記録している。今回の資材準備全体がオフラインだったという結果ではない。
 
 起動の観測と障害表示は[切り分け手順](startup-diagnostics.md)を参照。2026-11-04に内部起動通知を追加したため、ホストとPythonワーカーは同じソースから準備する。既存の.appや将来の配布exeへソース変更は自動反映されず、再生成が必要。
 

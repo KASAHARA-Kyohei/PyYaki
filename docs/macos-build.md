@@ -2,6 +2,8 @@
 
 状態: 2026-10-31にApple Siliconの開発機で実装・確認。Pythonを同梱した`.app`（macOSのアプリ用ディレクトリ構造）を生成する。Developer ID署名・公証・他のMacへの正式配布は未対応。Windowsの単一exeは別のG1/G3で検証する。
 
+2026-11-08に`008ec68`からホストとframework wheelを再生成し、[Mac回帰確認](validation-macos-2026-11-08.md)を行った。実WKWebViewスモーク、同梱workerのUTF-8/探索パス/終了、アドホック署名、全manifest（通常ファイル2,508件・symlink 8件）、日本語パス再配置後の再照合に成功。初回の既存runtimeはencodings欠落で生成に失敗したため、下記の同じ公式アーカイブをハッシュ照合して新規展開した。元資材と失敗ログは保持し、欠落原因は未確定。既存パスの存在だけで正常な資材と判断しない。Dock/Finderの実表示・Developer ID署名・公証等は引き続き未確認。
+
 ## 生成するもの
 
 `pyyaki build macos`は、同じMacのCPU向けに用意したRustホスト、standalone CPython 3.14通常GIL版、ハッシュ固定した依存wheel、PyYaki wheel、明示したアプリ資産から`.app`を組み立てる。開発venv全体のコピーや、Pythonを先に起動するシェルランチャーは使わない。

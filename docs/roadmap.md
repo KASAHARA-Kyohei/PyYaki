@@ -1,12 +1,12 @@
 # PyYaki 開発ロードマップ
 
-状態: 初期設計案 + G2の共通API・Mac開発用ホスト・G1向けWindowsホストのソース実装 / 作成: 2026-10-30 / 更新: 2026-11-07 / G1・G2全体は未完了
+状態: 初期設計案 + G2の共通API・Mac開発用ホスト・G1向けWindowsホストのソース実装 / 作成: 2026-10-30 / 更新: 2026-11-08 / G1・G2全体は未完了
 
 日程や工数は見積もっていない。開発機はMacで、ある程度開発が進んだ段階で手元のWindowsを使って確認する体制が2026-10-31に確認された。同日、利用者の依頼により最初のMac向けWeb試作を開始した。Windows固有の実現性はG1で検証し、ゲートに不合格なら、その前提に依存する機能実装を進めず設計を更新する。以下は段階ごとの計画であり、完了した範囲は末尾の検証記録に記す。
 
 ## 現在地と次の作業
 
-2026-11-07時点。ここを現在の実装・検証状態の要約とし、末尾の記録は各作業時点の履歴として残す。開発・再確認の手順は[開発ガイド](development.md)、APIの詳細は[API設計](api-design.md)を参照。
+2026-11-08時点。ここを現在の実装・検証状態の要約とし、末尾の記録は各作業時点の履歴として残す。開発・再確認の手順は[開発ガイド](development.md)、APIの詳細は[API設計](api-design.md)を参照。
 
 | 領域 | 現在地 | 残る確認・実装 |
 | --- | --- | --- |
@@ -16,11 +16,13 @@
 | 導入 / 配布 | Macのbuild macosに加え、Windowsの明示資材から未署名単一exeを生成・全ハッシュ検証して展開するローカル試作を実装 | Rust不要のネイティブCLI配置、自動資材準備、実署名、未導入クリーンVM、性能・清掃等は未完了。[試作の手順と制約](windows-onefile.md)をFR-08全体の合格にしない |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
 
-Macの直近の自動検査はPython 127件、Rust 13件、Mac/Windows GNUターゲットのClippyに成功。実WKWebViewでは初期診断15ケース、後続の30分診断6ケースと表示状態7条件を確認した。[初期描画待ちの比較](startup-diagnostics.md)では、同じバイナリで通常表示9/9成功・フルスクリーン2/3成功。Space移動後の描画待ち停止を確認したが、本対応は未実装。Windowsの更新版`ae3889c`はPython 108件成功・19件スキップ、MSVC Rustテスト10件、Clippy・実WebView2スモーク・起動反復9/9成功。失敗・修正・未確認事項は[Windows実機記録](validation-windows.md)を参照。性能の条件と限界は[Mac計測記録](performance-macos.md)を正とし、これらをWindowsのG1/G2合格とは扱わない。
+Macの直近の[11-08回帰確認](validation-macos-2026-11-08.md)は`008ec68`でPython 145件（スキップ0）、Rust 13件、Mac Clippy/releaseに成功。実WKWebView起動反復は通常/import前5秒/フック5秒を各3回、9/9成功し、UTF-8ログ・例外DOM・SIGTERM終了とPython回収、同じソースのPython同梱.app再生成・アドホック署名・全ハッシュ・日本語パス再配置を確認した。初回スモークはactive Space外でrAFが止まり、Python開始前に10秒期限へ到達して失敗。利用者の表示モード申告は未取得で、目視・実クリックclose/download・Dock/Finder表示も未確認。二重rAF・10秒期限・Python開始順は変更していない。Windows GNU検査やWindows実機は今回未実施。
+
+過去の実WKWebViewでは初期診断15ケース、後続の30分診断6ケースと表示状態7条件を確認した。[11-04の初期描画待ち比較](startup-diagnostics.md)では、同じバイナリで通常表示9/9成功・フルスクリーン2/3成功。Space移動後の描画待ち停止を確認したが、本対応は未実装。Windowsの更新版`ae3889c`はPython 108件成功・19件スキップ、MSVC Rustテスト10件、Clippy・実WebView2スモーク・起動反復9/9成功。失敗・修正・未確認事項は[Windows実機記録](validation-windows.md)を参照。性能の条件と限界は[Mac計測記録](performance-macos.md)を正とし、これらをWindowsのG1/G2合格とは扱わない。
 
 Windowsの環境確認と既存ホストのMSVCビルド・主要動作の実機検証を実施した。2026-11-04に起動段階ログ・通常例外の障害表示・反復検証器を追加し、Macで確認した。[この手順](startup-diagnostics.md)でWindowsの通常/import5秒/フック5秒を各3回再検証し、9/9成功した。以前の初回失敗の原因は未確定のまま、再発時の段階ログと文字コード等の[残課題](validation-windows-2026-11-04.md)を記録した。先行描画の実提示、ネットワーク/境界試験の残りも確認し、G1の最小単一exe検証へ進む。配布方式に依存する作り込みは、その結果を反映して行う。これは推奨順序であり、実装開始や検証環境の条件を新たに承認した記録ではない。
 
-11-05のログ修正後はWindowsでPython 112成功・19スキップ、Rust 10成功を確認し、[反復の段階表・元ログ](validation-worker-logs-2026-11-05.md)を記録した。その後の`755630e`の[境界追試](validation-windows-boundary-followup-2026-11-05.md)はPython 112成功/19スキップ、Windows Rust 11成功/1 child用ignore、MSVC/Clippy、起動反復9/9、venv自動14/15・埋込対照4/4・実クリック1/1。Macの新bootstrap・有限拒否ログは、Macビルド・WKWebView・生成.appで再確認が残る。
+11-05のログ修正後はWindowsでPython 112成功・19スキップ、Rust 10成功を確認し、[反復の段階表・元ログ](validation-worker-logs-2026-11-05.md)を記録した。その後の`755630e`の[境界追試](validation-windows-boundary-followup-2026-11-05.md)はPython 112成功/19スキップ、Windows Rust 11成功/1 child用ignore、MSVC/Clippy、起動反復9/9、venv自動14/15・埋込対照4/4・実クリック1/1。新bootstrapは11-08にMacビルド・WKWebView・生成.appで回帰確認した。Macの有限拒否ログは遷移・新規窓・過大IPCを確認し、download/origin拒否ハンドラーと実クリックは未確認。
 
 Macで先に進める場合の候補は、Space切替時の表示待ちと起動期限の扱い（ADR-017）、旧形式の要求ID制約の採否、自動再読込、起動時のフォーカス/Spaces・アプリ識別の調整要否の確認。後者は同じデスクトップに別ウィンドウが出ること自体を不具合扱いにするものではない。ready後のタイマーは[表示状態の比較](performance-macos.md#ウィンドウ状態とタイマーの比較)で最小化・非表示時に遅延を再現した。Python開始前の失敗は別途[初期描画待ちとSpaceの比較](startup-diagnostics.md)へ記録し、根本対応は未実装としている。優先順位は次の作業依頼で確認する。
 
@@ -323,3 +325,9 @@ worker.logの日本語生バイトはCP932で読めるがUTF-8 strict decodeで�
 ### 2026-11-07 Windows単一exeローカル試作
 
 利用者の依頼で、`f40bdc1`に事前取得資材からの`build windows`と先行GDI後の検証・非圧縮展開・GUI子ホスト/Jobを追加した。未署名747MBのexeで採用14ケース、既存ホスト反復9/9、Python 125成功/20スキップ、Rust 16成功/1子entry用ignore、MSVC/Clippyを確認。Close検証器がtaoの可視な内部イベント窓まで対象にした失敗は原ログを残して修正し、通常終了・実展開取消・強制終了回収を追試した。[対象SHA・件数・切り分け・原ログ・未確認事項](validation-windows-onefile-2026-11-07.md)を参照。実署名・未導入オフラインVM・正式性能・公開配布・Mac回帰は未完了で、G1/G3やFR-08全体を合格にしない。
+
+### 2026-11-08 Windows変更後のMac回帰確認
+
+クリーンなmainでorigin/mainを取得・ff-only照合し、`008ec68`を対象に実施した。Python 145成功/スキップ0、Mac Rust 13成功、Ruff/fmt/Clippy/release、実WKWebView反復9/9、UTF-8・例外DOM・SIGTERM終了を確認。同じソースのPython同梱.appを再生成し、アドホック署名・全manifest 2,508通常ファイル/8 symlink、日本語パス再配置と再照合に成功した。初回のactive Space外でのrAF停止、既定SDKリンク失敗、既存runtime欠落、検証コードのビルド時出力失敗、画面取得失敗を保持し、解消や目視成功へ読み替えていない。製品コード・二重rAF・10秒期限・Python開始順は変更なし。詳細と未確認範囲は`7d2c221`の[検証記録](validation-macos-2026-11-08.md)、原ログはGit管理外の`test-results/macos-regression-20261108/`。本更新は現在地と関連文書の整合を取る文書コミットとして分ける。
+
+最終確認では関連11文書のローカルリンク180件（ファイル・見出し）とdiff空白検査に成功し、今回観測した15 PIDは開始時刻を照合して残留0だった。startup_probeの未観測の子や帰属不明WebKit全体をこの15 PIDへ含めていない。結果は同保存先の`docs-verification.json`、`final-owned-process-check.json`に保存した。

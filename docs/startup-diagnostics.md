@@ -2,7 +2,9 @@
 
 Windows単一exeの[ローカル試作](windows-onefile.md)では、既存GUIホストの前に`launcher.log`を追加する。行頭`pyyaki_onefile=`のJSONへ`elapsed_ms`、固定phase、dataを記録する。順序は`launcher_started`→`launcher_native_draw`→`preparation_started`→`preparation_completed`（cache/reused）→`gui_child_started`（PID）→`gui_child_exited`。失敗は`preparation_failed`、閉じる操作は`launcher_close`。準備中にPythonは開始しない。初回描画後の別スレッドで検証/展開し、従来の二重rAFと10秒期限はGUI子ホストでそのまま使う。外部起動からmain到達までの待ち時間をこのelapsed_msだけで測ったことにせず、GDIの実提示とも区別する。
 
-更新: 2026-11-07。Windows実機検証で発生した「5秒遅延の初回だけ接続期限に到達」の原因を追うため、共通ホストとワーカーに段階記録を追加した。原因やWindowsでの解消を確認したものではない。元の失敗条件は[Windows実機記録](validation-windows.md)を参照する。
+更新: 2026-11-08。Windows実機検証で発生した「5秒遅延の初回だけ接続期限に到達」の原因を追うため、共通ホストとワーカーに段階記録を追加した。原因やWindowsでの解消を確認したものではない。元の失敗条件は[Windows実機記録](validation-windows.md)を参照する。
+
+2026-11-08の更新ホストによる[Mac回帰確認](validation-macos-2026-11-08.md)では、起動反復9/9、UTF-8・例外DOM・SIGTERM終了を確認した。初回スモークはscheduled/DOM hiddenからframe1/frame2へ進まず、active Space外・Visible遮蔽ビットなしでPython開始前の10秒期限に到達した。利用者の表示モード申告は未取得で、11-04のモード別対照とは区別する。二重rAF・期限・開始順やADR-017の採否は変更していない。画面取得のツール失敗とwatchdog終了も同記録へ保存した。
 
 ## 記録と障害画面（実装済み）
 

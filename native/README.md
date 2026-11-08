@@ -28,6 +28,8 @@ Windows専用処理を`process.rs`、Macを`process_macos.rs`に分け、イベ�
 
 ログは`~/Library/Application Support/PyYaki/prototype/<instance>/`。Python同梱.appのローカル生成試作は[専用手順](../docs/macos-build.md)を参照。Developer ID署名/公証・他Macへの正式配布は未対応。SDK 27とのリンクエラーが出るこの開発機では、インストール済みSDK 26.5を`SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk`で選択してビルドした。
 
+2026-11-08の[Mac回帰確認](../docs/validation-macos-2026-11-08.md)は、更新ホストでPython 145件・Rust 13件・Mac Clippy/release、実WKWebView反復9/9、UTF-8/例外DOM/SIGTERM終了、再生成.appの署名・全ハッシュ・再配置を確認した。初回のSpace関連失敗を保持し、利用者の表示モード申告・目視・実close/download拒否等は未確認。今回も既定SDK 27のリンクが失敗し、実在を確認した26.5をコマンド単位で指定した。Windows GNU/MSVC検査を今回実行した記録ではない。
+
 `--smoke-test`を末尾に追加すると、`examples/hello`専用の実WebView確認（MacはWKWebView、WindowsはWebView2）を行い、自動終了する。あいさつ・エラー・並行呼び出し・進捗イベントの順序/購読解除・取消に成功すれば`native_smoke`のokがtrueとなり、終了コード0を返す。通常起動ではこの確認用スクリプト・終了通知は使用しない。
 
 ## Macの速度・安定性を計測する
@@ -137,4 +139,4 @@ Windowsターゲットは型検査用に事前導入する。Windows向けexeの
 
 `browser_native_bridge.py`はChromium上の仮のWebView2ブリッジを使う契約テストで、実際のWindows/WebView2実行ではない。`test_worker.py`はPOSIX fd継承専用。`test_worker_logging.py`はWindowsの継承ハンドル/POSIX fdの両方を扱い、ログ・RPC・通常例外を実ワーカーで確認する。実GUIとホストのJob Object回収は別の実機確認が必要。
 
-未実装: ネイティブexeのpip配置、汎用ホスト資材の配布、単一exe組立・展開・署名、Fixed Version WebView2/Python同梱。詳細な配布方針は[ビルド設計](../docs/build-system.md)を正とする。
+未実装: ネイティブexeのpip配置、汎用ホスト資材の配布、資材の自動準備、実署名。単一exe組立・検証付き展開・Fixed Version WebView2/Python同梱は明示資材を使う[Windowsローカル試作](../docs/windows-onefile.md)として実装済みで、クリーン環境等の受入は残る。詳細な配布方針は[ビルド設計](../docs/build-system.md)を正とする。

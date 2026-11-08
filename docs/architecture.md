@@ -1,6 +1,6 @@
 # PyYaki アーキテクチャ設計
 
-状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-07 / Windows既存ホストの実機確認済み・Windowsベンチマーク未実施
+状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-08 / Windows既存ホストの実機確認済み・Windowsベンチマーク未実施
 
 初期試作では、`web.py`と通信に依存しない`app.py`、共有セッション`_rpc.py`、匿名パイプの`worker.py`、Windows用Rustホスト`native/`を実装した。RPC、接続単位のContext、順序付きイベントとSDK購読、起動・終了フックを提供する。MacのWeb/ワーカー試験とWindowsの型検査に加え、WindowsのGUI/RPCと通常終了・ホスト強制終了時のPython回収を2026-11-03に[実機確認](validation-windows.md)した。ネイティブwheel・ネットワーク/企業環境等は未完了で、Windows用のADRやMVP全体の採択とは扱わない。
 
@@ -228,7 +228,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-015 | 要求IDの全履歴 / 有限履歴 / 交渉した単調連番 | 公開前試作では標準SDKがsequenceを交渉し、最後の番号だけで再送を拒否。旧形式は4,096件上限を維持。有限履歴の単純な破棄は古い再送を受理するため採らない。全面的なID形式変更と比べ既存クライアントを維持できるが、2モードの保守が必要 | Webと実パイプで4,100件・重複拒否、再入SDK呼出しを確認。Mac実機の連続試験とWindows更新版を確認して正式採択を判断 |
 | ADR-016 | 既定アイコン / 独自アイコン設定、RC直接呼出し / embed-resource / winresource | 初期試作は利用者が選んだC案を既定として埋め込み。Mac .appはbundle資産、開発Dockは既存objc2バインディング。Windowsはembed-resourceで事前変換ICOをコンパイルする。開発時にリソースコンパイラーを要するが、実行時の画像変換やアプリごとのRust不要という配布方針は変えない | Mac生成・署名とGNU版PEの画像照合を確認。2026-11-04にWindows MSVCとExplorer/ウィンドウを実画面、タスクバーを利用者目視で確認（[記録](validation-windows-2026-11-04.md)）。Mac Dock目視は残る。独自設定と署名前のコンパイラー不要の差替えは別途判断 |
 | ADR-017 | 非表示時の表示待ちと期限の分離 / 初回の前面化 / DOM準備で描画を代替 | Space移動で二重rAF待ちが止まる[Macの失敗経路](startup-diagnostics.md)を確認。表示待ちの状態を接続・バックエンド待ちから分ける案を次に検討する。SDK接続期限・公開ready期限・ホストUI期限の整合が必要。一度だけの前面化は試験でも失敗し不採用。DOM準備を描画扱いにする変更は先行描画条件を弱めるため採らない | 未実装・未採択。Macの通常/フルスクリーン・表示復帰・利用者のSpace移動、初期化通知欠落・Python遅延を検証し、Windows実機の描画順と公開readyの期限契約も維持できることを確認 |
-| ADR-018 | PYTHONIOENCODING / -X utf8 / worker内reconfigure / パッケージimport前の固定bootstrap | 固定bootstrapでstdout/stderrだけをUTF-8・backslashreplace・行バッファリングへ設定する試作。-Iと通常ファイルの既定encodingを維持し、パッケージimport失敗も対象にする。生バイト出力とアプリによる再設定は対象外 | 2026-11-05にWindowsの実パイプ4検査・実WebView2・通常/強制終了・日本語例外を確認（[記録](validation-worker-logs-2026-11-05.md)）。Macのビルド・WKWebView・生成.appは未確認で、正式採択にはその回帰確認が必要 |
+| ADR-018 | PYTHONIOENCODING / -X utf8 / worker内reconfigure / パッケージimport前の固定bootstrap | 固定bootstrapでstdout/stderrだけをUTF-8・backslashreplace・行バッファリングへ設定する試作。-Iと通常ファイルの既定encodingを維持し、パッケージimport失敗も対象にする。生バイト出力とアプリによる再設定は対象外 | 2026-11-05にWindowsの実パイプ4検査・実WebView2・通常/強制終了・日本語例外を確認（[記録](validation-worker-logs-2026-11-05.md)）。11-08にMacのビルド・WKWebView・再生成.appのUTF-8/隔離/探索パス/終了を[回帰確認](validation-macos-2026-11-08.md)。目視・実close等は未確認で、正式採択とは区別する |
 | ADR-019 | EOFのみの障害検出 / 明示的異常通知 / venvの起動入口変更 | 11-05の[初回調査](validation-windows-boundary-2026-11-05.md)ではvenv launcherがwriterを保持する制約を確認。[追試](validation-windows-boundary-followup-2026-11-05.md)で埋込Pythonの全writer closeは障害通知・保留RPC拒否・回収に成功し、venvの部分closeとは区別した。追加通知や入口変更は未実装・未採択 | 生存中の部分closeへどの通知が必要かを、全writer切断・worker/launcher終了と区別して判断する。入口変更ならvenvのsys.prefix・依存探索・隔離・GIL・終了回収と先行描画順の維持が必要。元の独立再現と公式ソース、実パイプ対照は上記記録を参照 |
 | ADR-020 | 非圧縮blob / ZIP等の圧縮、同一窓での展開 / 別GUI子ホスト | [単一exeローカル試作](windows-onefile.md)は新しい圧縮ライブラリを選定せず、非圧縮blobを採用。準備GDI窓→別スレッド検証/展開→同じexeのGUI子ホストで、既存の描画順/期限を維持する。全件検証のI/Oと容量、2段階の窓・ホストが増える | 試作限定。正式採択には圧縮形式との比較、1窓合流、実署名後読取、初回/キャッシュ起動の定義した計測、未導入クリーンVM、容量不足/電源断と安全な清掃を確認する |
 
