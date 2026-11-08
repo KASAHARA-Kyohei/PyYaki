@@ -85,6 +85,7 @@ fn ui_window_state(window: &Window, webview: &WebView) -> Value {
                     .contains(objc2_app_kit::NSWindowOcclusionState::Visible)
             );
             state["window_on_active_space"] = json!(attached.isOnActiveSpace());
+            state["window_collection_behavior_bits"] = json!(attached.collectionBehavior().bits());
         }
     }
     state
@@ -436,6 +437,15 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             )?))
     };
     let window = builder.build(&event_loop)?;
+    #[cfg(target_os = "macos")]
+    let mut initial_space_behavior = {
+        let (original, applied) = crate::startup_macos::prepare(&window);
+        trace.mark(
+            "macos_initial_space_behavior",
+            json!({"action":"applied","original_bits":original.bits(),"applied_bits":applied.bits()}),
+        );
+        Some(original)
+    };
     let proxy = event_loop.create_proxy();
     #[cfg(target_os = "macos")]
     let mut timer_probe = if let Some(seconds) = timer_probe_seconds {
@@ -716,6 +726,15 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     } else if message == json!({"v":1,"type":"pyyaki_shell_ready"}) && !started {
                         started = true;
                         trace.mark("shell_marker", Value::Null);
+                        #[cfg(target_os = "macos")]
+                        if let Some(bits) =
+                            crate::startup_macos::restore(&window, &mut initial_space_behavior)
+                        {
+                            trace.mark(
+                                "macos_initial_space_behavior",
+                                json!({"action":"restored","reason":"shell","restored_bits":bits}),
+                            );
+                        }
                         if let Some(view) = &view {
                             trace.mark("ui_window_state", ui_window_state(&window, view));
                         }
@@ -766,6 +785,10 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     }
                 }
                 Event::UserEvent(HostEvent::BackendReady) if !failed && shutdown_at.is_none() => {
+                    #[cfg(target_os = "macos")]
+                    if let Some(view) = &view {
+                        trace.mark("ui_window_state", ui_window_state(&window, view));
+                    }
                     trace.mark("backend_ready", Value::Null);
                     last_worker_phase = "connection";
                     window.set_title(&config.window.title);
@@ -833,6 +856,15 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                 shutdown_at = Some(Instant::now() + Duration::from_secs(2));
             }
             if let Some(until) = shutdown_at {
+                #[cfg(target_os = "macos")]
+                if let Some(bits) =
+                    crate::startup_macos::restore(&window, &mut initial_space_behavior)
+                {
+                    trace.mark(
+                        "macos_initial_space_behavior",
+                        json!({"action":"restored","reason":"shutdown","restored_bits":bits}),
+                    );
+                }
                 if worker.as_ref().is_none_or(Worker::exited) || Instant::now() >= until {
                     worker.take();
                     input.take();
@@ -850,6 +882,14 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             Ok(())
         })();
         if let Err(error) = result {
+            #[cfg(target_os = "macos")]
+            if let Some(bits) = crate::startup_macos::restore(&window, &mut initial_space_behavior)
+            {
+                trace.mark(
+                    "macos_initial_space_behavior",
+                    json!({"action":"restored","reason":"failure","restored_bits":bits}),
+                );
+            }
             #[cfg(target_os = "macos")]
             if let Some(probe) = &mut timer_probe {
                 probe.cancel(&window);

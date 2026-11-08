@@ -14,6 +14,8 @@ mod process;
 #[path = "process_macos.rs"]
 mod process;
 #[cfg(target_os = "macos")]
+mod startup_macos;
+#[cfg(target_os = "macos")]
 mod timer_probe;
 
 #[cfg(any(windows, target_os = "macos"))]
