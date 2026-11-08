@@ -152,6 +152,8 @@ Mac専用wheelのオフライン導入・実WKWebView・例外DOM・終了・同
 
 ## Windows実機での再確認
 
+2026-11-08のMac作業後にWindowsのpip導入・ネイティブCLIを進める場合は、[Windows作業引き継ぎ](handoff-windows-2026-11-08.md)を参照する。取得するコミット、Macから移らない資材、今回の区切り、貼り付け用プロンプトをまとめている。
+
 2026-11-03にWindows 11 x64のMSVC releaseビルドと実WebView2の主要動作を確認した。[実機記録](validation-windows.md)に端末のPythonパス、既定Rustを変えない`+1.89.0`指定、実行コマンド、失敗と残課題を記載している。`pip install`の完了後、`python -I -c "import pyyaki"`も確認してからホストを起動する。
 
 当日のPython検査はWindowsで67件成功・14件スキップ。symlink作成がWinError 1314ならリンク専用2件だけをスキップし、他のWeb検査は実行する。当日はPOSIXワーカー等12件もWindows対象外だった。新規検査を含む更新版の件数は再実行で確認する。権限やOS設定を変えて回避しない。
