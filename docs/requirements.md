@@ -134,7 +134,7 @@ CPython 3.14通常GIL版を使い、HTMLから明示登録したPythonコマン�
 
 2026-10-31、`examples/hello`とheadless Chromiumでこの最初の到達点を確認した。この最初の試作時点の実装範囲はRPCだけで、イベント・Context・ライフサイクルフック・自動再読込は未実装だった。WindowsやG2全体の合格とは扱わない。詳細は[検証記録](roadmap.md#2026-10-31-最初のmac向けweb試作)を参照。
 
-同日の後続実装でContext・イベント・ライフサイクルフックを追加した。最新の実装範囲は[共通APIの検証記録](roadmap.md#2026-10-31-共通apiのcontextイベントフック)を参照し、自動再読込とWindows実機確認は引き続き未完了とする。
+同日の後続実装でContext・イベント・ライフサイクルフックを追加した。[当時の共通APIの検証記録](roadmap.md#2026-10-31-共通apiのcontextイベントフック)と最新の[現在地](roadmap.md#現在地と次の作業)を区別する。2026-11-08にFR-06のWeb開発用自動再読込を追加し、[Macで確認](validation-web-reload-2026-11-08.md)した。この機能のWindows実機確認や、G1/G2全体の合格を含まない。
 
 ### 6.2 MVP全体の範囲
 

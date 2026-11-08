@@ -10,11 +10,13 @@
 
 | 領域 | 現在地 | 残る確認・実装 |
 | --- | --- | --- |
-| 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れを実装。MacのPython/ブラウザで確認 | 自動再読込、本番Web運用、長時間/高負荷の評価 |
+| 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れ、Web devの自動再読込を実装。MacのPython/ブラウザで確認 | Web dev更新のWindows実機・大規模監視、本番Web運用、長時間/高負荷の評価 |
 | Macネイティブ | WKWebViewと専用パイプで実行。起動・連続試験・障害/終了、Python同梱.appの生成・再配置を確認。初期描画中だけMoveToActiveSpaceを設定し、shell/失敗/終了時に復元する対策を追加 | 利用者のSpace移動/復帰・複数画面等の未確認条件、Dock/Finderの目視、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
 | Windowsネイティブ | MSVC release・実WebView2の共通動作、UTF-8ログ、起動反復9/9を確認。追試で完全切断・不要ハンドル非継承・Job割当失敗回収・実クリック拒否・アプリ孫の回収を追加 | venvの部分closeはwriter保持の制約として残る。以前の初回失敗の原因、GDI実提示・性能、Jobの全失敗条件・全origin、ネットワーク切断・企業環境は未確認。[追試の結果と限界](validation-windows-boundary-followup-2026-11-05.md) |
 | 導入 / 配布 | Macのbuild macosに加え、Windowsの明示資材から未署名単一exeを生成・全ハッシュ検証して展開するローカル試作を実装 | Rust不要のネイティブCLI配置、自動資材準備、実署名、未導入クリーンVM、性能・清掃等は未完了。[試作の手順と制約](windows-onefile.md)をFR-08全体の合格にしない |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
+
+Web devの自動更新は`f8ed948`で追加した。[Mac検証](validation-web-reload-2026-11-08.md)はPython 191成功（スキップ0）、Ruff/lint・format、sandbox有効のheadless Chromiumで9/9項目成功。HTML/CSS/JS変更、2ページ更新、Python依存・追加/削除、古いpyc、構文/設定エラー後の修正復帰、RPC再接続と終了、`--no-reload`を確認した。UIはページ全体を更新し、Python/設定は子サーバーを再起動する。Windows実機・大規模監視負荷・親SIGKILL回収は未確認。ネイティブの自動更新やHMRは対象外で、今回はRust・実WKWebView・.appを再検証していない。
 
 Macの検証は、`be7e26f`で[自動回帰検証器](macos-regression.md)へ整理した。[最終実行](validation-macos-automation-2026-11-08.md)はPython 181成功（スキップ0）、Rust 14成功、Ruff/fmt/Clippy/release・ブラウザ契約、GUI起動13件と整合性検査3件の計16/16項目に成功。旧ホストと不正controlの負対照は正しく拒否し、実中断は終了130・未完了3件・原ログ保存を確認した。目視、利用者のCodex/Space操作、故障注入GUI・長時間/性能、正式配布、Windows実機はこのpassedに含めない。製品ソースの追加変更はない。
 
@@ -28,7 +30,7 @@ Windowsの環境確認と既存ホストのMSVCビルド・主要動作の実機
 
 11-05のログ修正後はWindowsでPython 112成功・19スキップ、Rust 10成功を確認し、[反復の段階表・元ログ](validation-worker-logs-2026-11-05.md)を記録した。その後の`755630e`の[境界追試](validation-windows-boundary-followup-2026-11-05.md)はPython 112成功/19スキップ、Windows Rust 11成功/1 child用ignore、MSVC/Clippy、起動反復9/9、venv自動14/15・埋込対照4/4・実クリック1/1。新bootstrapは11-08にMacビルド・WKWebView・生成.appで回帰確認した。Macの有限拒否ログは遷移・新規窓・過大IPCを確認し、download/origin拒否ハンドラーと実クリックは未確認。
 
-Macの次の候補は、初期配置対策後の利用者のCodex fullscreen・Space移動/復帰の確認、必要なら表示待ちと期限の分離（ADR-017）、旧形式の要求ID制約の採否、自動再読込、アプリ識別の調整要否。起動時の配置対策は全Spaces条件の解消ではなく、別ウィンドウが出ること自体を不具合扱いにしない。ready後のタイマーは[表示状態の比較](performance-macos.md#ウィンドウ状態とタイマーの比較)で最小化・非表示時の遅延を再現しており、今回の初期配置対策はその抑制を変更しない。
+Macの次の候補は、初期配置対策後の利用者のCodex fullscreen・Space移動/復帰の確認、必要なら表示待ちと期限の分離（ADR-017）、旧形式の要求ID制約の採否、アプリ識別の調整要否。Web dev自動更新は実装済みで、次はWindows実機と監視負荷の確認が残る。起動時の配置対策は全Spaces条件の解消ではなく、別ウィンドウが出ること自体を不具合扱いにしない。ready後のタイマーは[表示状態の比較](performance-macos.md#ウィンドウ状態とタイマーの比較)で最小化・非表示時の遅延を再現しており、今回の初期配置対策はその抑制を変更しない。
 
 ## 1. ゲートと成果物
 

@@ -35,7 +35,7 @@ cd examples/hello
 pyyaki dev
 ```
 
-ブラウザで`http://127.0.0.1:8000`を開きます。あいさつ、想定内エラー、3秒待機中のUI操作を確認できます。ポート変更は`pyyaki dev --port 8001`、終了は`Ctrl+C`です。ファイル変更後は手動でサーバー再起動・ページ再読み込みを行ってください。
+ブラウザで`http://127.0.0.1:8000`を開きます。あいさつ、想定内エラー、3秒待機中のUI操作を確認できます。ポート変更は`pyyaki dev --port 8001`、終了は`Ctrl+C`です。UI変更はページを自動更新し、プロジェクト内のPython・`pyproject.toml`変更はサーバーを再起動してページを更新します。入力やContextは引き継ぎません。無効化は`--no-reload`。監視範囲やエラー時の挙動は[開発時の自動更新](docs/development.md#web開発時の自動更新)を参照してください。
 
 起動できない場合、`pyproject.toml`が見つからなければプロジェクトのディレクトリで実行し、設定エラーの場合は表示されたファイルと項目を確認してください。ポートが使用中の場合は、使用しているプロセスを終了するか`--port`で別の番号を指定できます。アプリ読み込みに失敗した場合は、設定の`entry`と必要な依存を確認してください。
 
@@ -43,7 +43,7 @@ pyyaki dev
 
 Mac向け`build macos`は、準備済みのホスト・standalone Python・wheelから`.app`を生成するローカル試作として実装済みです。[生成手順](docs/macos-build.md)を参照してください。
 
-未実装: 自動再読込、ネイティブexeのpip配置。Windows `build windows`は明示資材を使うローカル試作として実装済みです。Python版CLIの`run`は未対応で、Mac/Windowsの開発用ホストは、別のRustバイナリを直接起動します。`app.asgi()`も現在はloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
+未実装: ネイティブの自動再読込、ネイティブexeのpip配置。Windows `build windows`は明示資材を使うローカル試作として実装済みです。Python版CLIの`run`は未対応で、Mac/Windowsの開発用ホストは、別のRustバイナリを直接起動します。`app.asgi()`は自動更新を挿入しないloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
 
 テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザ・ネイティブ検査の使い分けと、変更後の反映方法は[開発ガイド](docs/development.md#検証する)に記載しています。
 

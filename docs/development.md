@@ -29,6 +29,20 @@ cd examples/hello
 
 `http://127.0.0.1:8000`をブラウザで開く。ポート変更は末尾に`--port 8001`、終了はCtrl+C。ブラウザは自動では開かない。
 
+### Web開発時の自動更新
+
+`pyyaki dev`は既定で自動更新する。無効化は`pyyaki dev --no-reload`。`app.asgi()`やネイティブ実行には適用しない。[実装・検証記録](validation-web-reload-2026-11-08.md)も参照する。
+
+- プロジェクト配下の`.py`の変更・追加・削除、ルートの`pyproject.toml`変更でPython子サーバーを再起動する。毎回アプリをimportし直し、起動・終了フックを実行する。親は先に確保したloopbackソケットを維持する。
+- 設定したUIディレクトリ内のファイル変更はPythonを再起動せず、開いているページ全体を更新する。監視は250ms間隔、ページからの更新確認は500ms間隔で、反映時間の保証値ではない。
+- 再起動後に応答できるサーバーの世代が変わるとページを更新し、SDKを新しく接続する。入力値・画面状態・Context・イベント購読・処理中のRPCは引き継がない。HMRではない。
+- 初回の設定/import/起動失敗はエラー終了する。一度起動できた後の構文・設定・起動エラーでは親を残し、Pythonまたは設定の修正を待つ。既存ページは保ち、復帰後に自動更新する。原因はターミナルのログを確認する。
+- ドットで始まるファイル/ディレクトリ、`__pycache__`、`node_modules`、`venv`、`env`、`test-results`、`build`、`dist`のディレクトリ、シンボリックリンク、末尾`~`/`.swp`/`.tmp`を監視から除外する。プロジェクト外のPython依存やeditable導入したPyYaki本体の変更は手動で再起動する。
+
+終了時は所有する子だけへ停止を依頼し、Uvicornの処理中接続の終了待ちは従来どおり2秒。親は最大5秒待ち、応答しない子をterminate、さらに1秒後も残る場合はkillする。同期処理の停止・巻戻しや、業務コードが生成した孫プロセスの回収は保証しない。親のSIGKILL時の回収、Windows実機、巨大なプロジェクトでの監視負荷は未確認。
+
+HTMLの応答に同一originの外部moduleを挿入し、元ファイルは変更しない。CSP・Host/Origin検査・nonce付きRPCは維持する。更新通知は開発専用の内部経路で、本番公開や公開SDKの再接続機能ではない。
+
 Macネイティブはリポジトリのルートから、ビルド済みのRustバイナリを直接起動する。
 
 ```console
@@ -49,14 +63,14 @@ cargo build --manifest-path native/Cargo.toml --locked
 
 | 変更内容 | 主な場所 | 現在の反映方法 |
 | --- | --- | --- |
-| 業務コマンド / UI | `examples/hello/app.py`、`examples/hello/ui/` | Webはサーバー再起動とページ再読込。ネイティブはホストを終了して再起動 |
+| 業務コマンド / UI | `examples/hello/app.py`、`examples/hello/ui/` | Web devはPython変更で再起動、UI変更でページ自動更新。ネイティブはホストを終了して再起動 |
 | 共通Python処理 | `src/pyyaki/app.py`、`context.py`、`_rpc.py` | editable導入したvenvでサーバー/ホストを再起動 |
 | Web / ワーカー | `src/pyyaki/web.py`、`worker.py` | サーバー/ホストを再起動 |
 | SDK | `src/pyyaki/static/sdk.js` | Webはサーバー再起動とページ再読込。ネイティブはRustの再ビルドと再起動 |
 | ウィンドウ / プロセス / 資産配信 | `native/src/` | Rustの再ビルドと再起動 |
 | 専用スモーク確認 | `native/smoke.js` | Rustの再ビルド後、`--smoke-test`で起動 |
 
-SDKと`native/failure.js`・`native/failure.css`・`native/worker_bootstrap.py`はネイティブホストへコンパイル時に埋め込まれる。これらの変更はRustの再ビルドが必要。通常のPythonパッケージや利用者UIはホスト生成時に同梱しない開発方式なので、その変更は再起動で反映する。自動再読込は未実装で、ネイティブのページ再読み込み・別ページへの遷移も許可していない。
+SDKと`native/failure.js`・`native/failure.css`・`native/worker_bootstrap.py`はネイティブホストへコンパイル時に埋め込まれる。これらの変更はRustの再ビルドが必要。通常のPythonパッケージや利用者UIはホスト生成時に同梱しない開発方式なので、その変更は再起動で反映する。ネイティブの自動再読込は未実装で、ページ再読み込み・別ページへの遷移も許可していない。
 
 アイコン資産も埋め込まれるため、[変換手順](../assets/branding/README.md)を実行したらRustホストとwheel/.appを再生成する。Windowsターゲットの検査・ビルドではリソース用のrc.exe（MSVC）またはwindres（GNU）も必要。[アイコンの組み込み](../native/README.md#アイコン)を参照。
 
@@ -91,6 +105,14 @@ Webを起動した状態で、別ターミナルのルートから次を実行�
 .venv/bin/python tests/browser_smoke.py
 ```
 
+Web devの自動更新は、サーバーを事前に起動せず次で確認できる。新しい`test-results`配下にhelloのコピーを作り、そのコピーだけを編集する。自分で起動した空きポートのサーバーとsandbox有効のheadless Chromiumを使い、原ログ・report・画像・成功時のtraceを保存する。
+
+```console
+.venv/bin/python tests/browser_dev_reload.py --output test-results/web-reload-new
+```
+
+HTML/CSS/JS、2ページ更新、古いpycと同サイズの依存ファイル変更、Python追加/削除、構文/設定エラー後の復帰、RPC再接続と終了フック、`--no-reload`を確認する。既存出力は上書きしない。Windowsの実行確認を代替しない。
+
 仮のWebView2ブリッジ確認はWebサーバーを必要としない。これはChromium上のSDK契約試験で、WindowsでのWebView2実行ではない。
 
 ```console
@@ -117,6 +139,7 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 | --- | --- |
 | `pyproject.toml`が見つからない | Web CLIはプロジェクトのディレクトリで実行。Rustホストはルートから`--project`を指定 |
 | ポートが使用中 | Webの`--port`を変更。ネイティブのRPCはHTTP/WebSocket待受を使わない |
+| Web devの更新が反映されない | `--no-reload`、監視対象外のパス、構文/設定エラーを確認する。初回失敗で終了していればCLIを再実行する |
 | コマンドが見つからない / 型検証で失敗 | `entry`と登録名、名前付きparams、型注釈を確認。ContextはJSONから渡さない |
 | ネイティブにJS変更が反映されない | SDK変更ならRustホストを再ビルド。通常のUI変更ならホストを再起動 |
 | Macで初回だけPython開始前に期限へ達する | ホストを再ビルドし、`macos_initial_space_behavior`の適用/復元と、二重rAF・Space/遮蔽状態を照合する。[初期配置対策と比較](validation-macos-space-2026-11-08.md)を参照。利用者のSpace移動や長い非表示は未確認で、10秒期限は維持。旧失敗の元ログを新しい成功で置き換えない |
