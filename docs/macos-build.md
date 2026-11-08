@@ -4,6 +4,8 @@
 
 2026-11-08に`008ec68`からホストとframework wheelを再生成し、[Mac回帰確認](validation-macos-2026-11-08.md)を行った。実WKWebViewスモーク、同梱workerのUTF-8/探索パス/終了、アドホック署名、全manifest（通常ファイル2,508件・symlink 8件）、日本語パス再配置後の再照合に成功。初回の既存runtimeはencodings欠落で生成に失敗したため、下記の同じ公式アーカイブをハッシュ照合して新規展開した。元資材と失敗ログは保持し、欠落原因は未確定。既存パスの存在だけで正常な資材と判断しない。Dock/Finderの実表示・Developer ID署名・公証等は引き続き未確認。
 
+同日の`9e9302a`による[初期Space配置対策](validation-macos-space-2026-11-08.md)は、新規`test-results/adr017-20261108/dist/ADR017 PyYaki.app`で再生成・署名・全manifest・自作fullscreen窓からのスモークと終了回収を確認した。旧.appも同条件では成功し、開発ホストでの初回失敗の比較とは区別する。対策を反映するには新しいホストで.appを再生成する。
+
 ## 生成するもの
 
 `pyyaki build macos`は、同じMacのCPU向けに用意したRustホスト、standalone CPython 3.14通常GIL版、ハッシュ固定した依存wheel、PyYaki wheel、明示したアプリ資産から`.app`を組み立てる。開発venv全体のコピーや、Pythonを先に起動するシェルランチャーは使わない。

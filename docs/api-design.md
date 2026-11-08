@@ -1,6 +1,6 @@
 # PyYaki 公開API設計
 
-状態: 共通API・Mac開発用ホストを実装、配布等は設計案 / 作成: 2026-10-30 / 更新: 2026-11-07 / Windows開発用ホストの主要動作を実機確認
+状態: 共通API・Mac開発用ホストを実装、配布等は設計案 / 作成: 2026-10-30 / 更新: 2026-11-08 / Windows開発用ホストの主要動作を実機確認
 
 本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。Context・イベント・起動/終了フックも実装済みで、実行可能なサンプルは`examples/hello`。未対応のCLI・ビルド等は設計例として区別する。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
 
@@ -246,6 +246,8 @@ Mac/Windowsホストとワーカーには、公開メッセージとは別の制
 ホストは同じトップページからの`{"v":1,"type":"pyyaki_shell_ready"}`を起動用制御マーカーとして別処理する。SDKがレイアウト後に送信し、ホストはその後にPythonを生成する。画面提示の保証は録画・トレースが必要。ネイティブの公開helloはnonceなし、公開welcomeのmodeは`windows`または`macos`、capabilitiesは`["rpc", "events"]`とする。メンテナー用の明示フラグでのみ使う確認マーカーは[native/README.md](../native/README.md)を参照。
 
 2026-11-04に追加した起動段階は`worker_entered → config_loaded → app_import_started → app_imported → startup_hooks_started → startup_hooks_completed`。通知の繰返し・逆順・追加フィールドを拒否し、公開SDKへ中継しない。SDKからホストへの`{"v":1,"type":"pyyaki_connect_started"}`と`{"v":1,"type":"pyyaki_connect_timeout"}`も内部専用で、接続開始と内部10秒期限を記録する。期限通知時は障害画面とワーカー回収へ進む。呼出し単位のready待機期限とは区別する。記録の基準時刻・再検証方法は[起動の切り分け](startup-diagnostics.md)を参照。開発中の内部契約変更なので、ホストとワーカーを同じソースから更新する。
+
+2026-11-08のMac初期Space配置対策は、ホストログに`macos_initial_space_behavior`の適用/復元を記録する。ワーカー通知や公開APIの追加ではない。最初の二重rAF後のshell通知で元の窓設定へ戻してからPythonを生成し、既存の各10秒期限を維持する。[比較・未確認範囲](validation-macos-space-2026-11-08.md)を参照。
 
 SDKの描画待ち観測は内部専用の`pyyaki_shell_progress`で送り、フィールドは`v=1`、`type`、`stage`、`visibility`、`focused`だけとする。stageはscheduled/frame1/frame2/visibility/focus/blur、visibilityはvisible/hidden、focusedはbooleanに限定する。ホストのログは最大16件で、Pythonへ転送しない。監視の追加でshell通知・helloを先送りまたは前倒しせず、公開APIとして扱わない。
 

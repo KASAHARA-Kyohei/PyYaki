@@ -6,6 +6,8 @@ Windows単一exeの[ローカル試作](windows-onefile.md)では、既存GUIホ
 
 2026-11-08の更新ホストによる[Mac回帰確認](validation-macos-2026-11-08.md)では、起動反復9/9、UTF-8・例外DOM・SIGTERM終了を確認した。初回スモークはscheduled/DOM hiddenからframe1/frame2へ進まず、active Space外・Visible遮蔽ビットなしでPython開始前の10秒期限に到達した。利用者の表示モード申告は未取得で、11-04のモード別対照とは区別する。二重rAF・期限・開始順やADR-017の採否は変更していない。画面取得のツール失敗とwatchdog終了も同記録へ保存した。
 
+その後、`9e9302a`で[初期Space配置のローカル対策](validation-macos-space-2026-11-08.md)を追加した。起動中だけMoveToActiveSpaceを設定し、shell/失敗/終了時に元のcollectionBehaviorへ復元する。自作fullscreen窓から変更前の初回失敗2/2を再現し、最終対策は独立した開始3組で初回3/3成功・連続対照込み9/9成功。5秒遅延反復、通知欠落・終了時復元、更新.app回帰も確認した。利用者のSpace移動等の未確認条件を含めた全体解消ではなく、二重rAF・既存期限・Python開始順は維持している。以下の過去の失敗記録は上書きしない。
+
 ## 記録と障害画面（実装済み）
 
 通常起動でも、各instanceの`host.log`へ`pyyaki_startup=`に続く1行JSONを出力する。保存先はWindowsでは`%LOCALAPPDATA%\PyYaki\prototype\<instance>\`、Macでは`~/Library/Application Support/PyYaki/prototype/<instance>/`。`--diagnostics`指定時だけ同じ段階を`pyyaki_diagnostic=`としてstderrにも出力する。nonce・RPC引数は起動記録に含めない。
@@ -18,7 +20,8 @@ Windows単一exeの[ローカル試作](windows-onefile.md)では、既存GUIホ
 | `ui_deadline_started` | WebView生成後のHTML準備期限（10秒）の開始 |
 | `sdk_connect_started` | SDKが接続を開始した旨の通知をホストで受信 |
 | `sdk_shell_progress` | 二重rAFのscheduled/frame1/frame2と、待機中のvisibility/focus/blur。DOMのvisibility・focusを最大16件記録 |
-| `ui_window_state` | HTML準備待ちの間、約1秒ごと、およびshell通知時のネイティブ窓のvisible/focused/minimized。Macはアプリのactive/hidden、WebViewのhidden祖先・visibleRect寸法、所属NSWindowのocclusionStateのbits/Visible判定とisOnActiveSpaceも記録 |
+| `ui_window_state` | HTML準備待ちの間、約1秒ごと、およびshell通知時のvisible/focused/minimized。Macはアプリのactive/hidden、WebViewのhidden祖先・visibleRect寸法、NSWindowのocclusionStateのbits/Visible・isOnActiveSpace・collectionBehaviorのbitsを記録し、backend_ready直前にも1件採取 |
+| `macos_initial_space_behavior` | Macだけ。action=appliedでoriginal_bits/applied_bits、action=restoredでrestored_bitsとreason=shell/failure/shutdownを記録。通常各1件で、Python生成前の復元を照合できる |
 | `shell_marker` / `sdk_hello_received` | レイアウト後の通知 / 公開helloをホストで受信 |
 | `backend_deadline_started` | shell通知後のワーカー準備期限（10秒）の開始 |
 | `python_spawn_started` / `python_spawned` | バックグラウンドでのワーカー生成呼出し前後 |

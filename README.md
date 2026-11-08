@@ -6,13 +6,13 @@ Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、Windowsデ�
 
 **現在は初期試作です。Mac向けWeb・ネイティブ経路に加え、Windows開発用Rustホスト・専用パイプのワーカー・ネイティブSDK経路のソースを実装しました。Windowsの型検査に加え、2026-11-03にWindows 11 x64でMSVCビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認しました。[失敗・未確認事項](docs/validation-windows.md)が残り、G1/G2全体は未完了です。公開パッケージはありません。Windows単一exeは未署名のローカル生成試作です。MacはPython同梱`.app`のローカル生成試作を追加しました。Macネイティブでは初期計測と5分・30分の連続試験を実施しましたが、Windowsの性能・時間単位の稼働は未検証です。**
 
-起動期限やPython起動失敗は[段階ログ・障害画面・反復検証の手順](docs/startup-diagnostics.md)で切り分けられます。Macではフルスクリーン時のSpace移動と初期描画待ちが止まる経路を確認し、通常表示では9回の起動に成功しました。Macの本対応は未実装です。Windows更新版は2026-11-04に[起動反復9/9と実画面・終了処理を再検証](docs/validation-windows-2026-11-04.md)しましたが、以前の失敗の原因解消は未確定です。
+起動期限やPython起動失敗は[段階ログ・障害画面・反復検証の手順](docs/startup-diagnostics.md)で切り分けられます。MacではSpace移動で初期描画待ちが止まる経路を確認し、2026-11-08に[起動中だけ窓配置を調整する対策](docs/validation-macos-space-2026-11-08.md)を追加しました。自作fullscreen窓で比較確認しましたが、利用者のSpace移動等の未確認条件は残ります。Windows更新版は2026-11-04に[起動反復9/9と実画面・終了処理を再検証](docs/validation-windows-2026-11-04.md)しましたが、以前の失敗の原因解消は未確定です。
 
 [C案の既定アイコン](assets/branding/README.md)を、Mac .app・開発ホストのDock設定と、Windows開発ホストのexe・ウィンドウ・タスクバーへ組み込む実装を追加しました。[反映方法と検証範囲](native/README.md#アイコン)を参照してください。WindowsのExplorer/ウィンドウは実画面で、タスクバーは利用者の目視回答でC案の表示を確認しました。
 
 2026-11-05にワーカーのテキストログをUTF-8へ統一し、障害画面の説明の重複を整理しました。[Windowsでの検査・実GUI確認](docs/validation-worker-logs-2026-11-05.md)を記録しています。反映にはRustホストの再ビルドが必要です。
 
-2026-11-08に[Mac回帰確認](docs/validation-macos-2026-11-08.md)を実施し、Python 145件・Rust 13件、実WKWebView起動反復9/9、UTF-8ログ・例外DOM・SIGTERM終了、再生成したPython同梱.appの署名・全ハッシュ・日本語パス再配置を確認しました。初回はactive Space外で描画待ちが止まり失敗しており、本対応は未実装です。目視・実クリックclose/download・Dock/Finder表示、正式署名・公証等は未確認です。
+2026-11-08の対策前の[Mac回帰確認](docs/validation-macos-2026-11-08.md)では、Python 145件・Rust 13件、実WKWebView反復9/9、UTF-8ログ・例外DOM・SIGTERM終了、同梱.appの署名・全ハッシュ・再配置を確認しました。初回のSpace関連失敗は保持しています。その後の配置対策ではRust 14件、独立したfullscreen開始3組と5秒遅延の反復がそれぞれ9/9成功しました。二重rAF・10秒期限・Python開始順は維持しています。目視・実クリックclose/download・Dock/Finder表示、正式署名・公証等は未確認です。
 
 2026-11-05の[境界追試](docs/validation-windows-boundary-followup-2026-11-05.md)では起動9/9、完全切断・不要ハンドル非継承・Job割当失敗回収・実クリック拒否・孫回収を確認しました。venvの部分closeにはwriter保持の制約が残ります。[資材の前段確認](docs/windows-onefile-prototype.md)に続いて、[Windows単一exeの生成・検証付き展開](docs/windows-onefile.md)をローカル試作として追加しました。[実機の確認結果と失敗の切り分け](docs/validation-windows-onefile-2026-11-07.md)を記録しました。実署名・未導入クリーン環境・性能の受入は残っています。
 

@@ -30,6 +30,8 @@ Windows専用処理を`process.rs`、Macを`process_macos.rs`に分け、イベ�
 
 2026-11-08の[Mac回帰確認](../docs/validation-macos-2026-11-08.md)は、更新ホストでPython 145件・Rust 13件・Mac Clippy/release、実WKWebView反復9/9、UTF-8/例外DOM/SIGTERM終了、再生成.appの署名・全ハッシュ・再配置を確認した。初回のSpace関連失敗を保持し、利用者の表示モード申告・目視・実close/download拒否等は未確認。今回も既定SDK 27のリンクが失敗し、実在を確認した26.5をコマンド単位で指定した。Windows GNU/MSVC検査を今回実行した記録ではない。
 
+続く`9e9302a`の[初期Space配置対策](../docs/validation-macos-space-2026-11-08.md)は、Mac主窓のcollectionBehaviorをtao起動activate前から最初のshell通知までMoveToActiveSpaceへ一時変更し、成功/失敗/終了時に元へ復元する。追加の前面化、全Space常時表示、二重rAF・10秒期限・Python開始順の変更はない。Rust 14件、自作fullscreen窓から独立した開始3組（連続対照含む9/9）、5秒遅延反復9/9、生成.app回帰を確認した。利用者のCodex fullscreen・Space移動/復帰等は未確認。旧バイナリ・.appは再ビルド・再生成しないと変わらない。
+
 `--smoke-test`を末尾に追加すると、`examples/hello`専用の実WebView確認（MacはWKWebView、WindowsはWebView2）を行い、自動終了する。あいさつ・エラー・並行呼び出し・進捗イベントの順序/購読解除・取消に成功すれば`native_smoke`のokがtrueとなり、終了コード0を返す。通常起動ではこの確認用スクリプト・終了通知は使用しない。
 
 ## Macの速度・安定性を計測する

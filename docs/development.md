@@ -6,6 +6,8 @@
 
 同日の[Mac回帰結果](validation-macos-2026-11-08.md)はPython 145件・Rust 13件、WKWebView反復9/9、UTF-8/例外DOM/終了、再生成.appの署名・全ハッシュ・再配置を確認。初回のSpace関連失敗と目視等の未確認範囲も保持している。既存standalone Pythonのencodings欠落で再取得が必要だったため、過去の資材パスの存在だけで再利用可能と判断せず、同書の失敗と公式ハッシュを確認する。
 
+その後、`9e9302a`で[初期Space配置の対策](validation-macos-space-2026-11-08.md)を追加し、Rust 14件・Python 145件、独立したfullscreen開始3組を含む比較、5秒遅延反復、失敗/終了時の設定復元と更新.appを確認した。反映にはRustホストの再ビルド、生成.appを使う場合は新しいホストでの再生成が必要。利用者のSpace移動/復帰等の未確認範囲は同記録を参照する。
+
 ## 最初に確認すること
 
 1. [AGENTS.md](../AGENTS.md)の作業ルールを読む。実装開始は承認済みで、作業した変更は目的ごとにコミットする。
@@ -113,7 +115,7 @@ Markdownだけの変更では、関連文書・ローカルリンク・見出し
 | ポートが使用中 | Webの`--port`を変更。ネイティブのRPCはHTTP/WebSocket待受を使わない |
 | コマンドが見つからない / 型検証で失敗 | `entry`と登録名、名前付きparams、型注釈を確認。ContextはJSONから渡さない |
 | ネイティブにJS変更が反映されない | SDK変更ならRustホストを再ビルド。通常のUI変更ならホストを再起動 |
-| Macで初回だけPython開始前に期限へ達する | `sdk_shell_progress`のscheduled/frame1/frame2と`ui_window_state`のSpace・遮蔽状態を照合する。フルスクリーンからの起動で描画待ちが止まる例を確認済み。通常ウィンドウ表示で再試験できるが、本対応は未実装。[同じバイナリでの比較](startup-diagnostics.md)を参照 |
+| Macで初回だけPython開始前に期限へ達する | ホストを再ビルドし、`macos_initial_space_behavior`の適用/復元と、二重rAF・Space/遮蔽状態を照合する。[初期配置対策と比較](validation-macos-space-2026-11-08.md)を参照。利用者のSpace移動や長い非表示は未確認で、10秒期限は維持。旧失敗の元ログを新しい成功で置き換えない |
 | ready失敗 / BACKEND_FAILED | [段階ログ・反復検証](startup-diagnostics.md)で切り分け、entry・依存・起動フックを確認。Macのホスト/ワーカーログは`~/Library/Application Support/PyYaki/prototype/<instance>/` |
 | 呼び出しを重ねた後に切断 | 標準SDKは連番IDで履歴を蓄積しない。旧SDK/独自クライアントのlegacyモードには4,096件の上限が残る。SDK・Python・Rustホストを同じソースで更新する |
 

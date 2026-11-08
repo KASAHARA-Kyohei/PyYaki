@@ -11,20 +11,22 @@
 | 領域 | 現在地 | 残る確認・実装 |
 | --- | --- | --- |
 | 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れを実装。MacのPython/ブラウザで確認 | 自動再読込、本番Web運用、長時間/高負荷の評価 |
-| Macネイティブ | WKWebViewと専用パイプで実行。起動10回と5分/30分の連続試験、表示状態7条件、Python遅延/停止/クラッシュ・終了処理を確認。Python同梱.appのローカル生成・再配置と既定アイコンの同梱を確認 | Dock/Finderの目視、Space切替時の初期描画待ちと期限への対応、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
+| Macネイティブ | WKWebViewと専用パイプで実行。起動・連続試験・障害/終了、Python同梱.appの生成・再配置を確認。初期描画中だけMoveToActiveSpaceを設定し、shell/失敗/終了時に復元する対策を追加 | 利用者のSpace移動/復帰・複数画面等の未確認条件、Dock/Finderの目視、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
 | Windowsネイティブ | MSVC release・実WebView2の共通動作、UTF-8ログ、起動反復9/9を確認。追試で完全切断・不要ハンドル非継承・Job割当失敗回収・実クリック拒否・アプリ孫の回収を追加 | venvの部分closeはwriter保持の制約として残る。以前の初回失敗の原因、GDI実提示・性能、Jobの全失敗条件・全origin、ネットワーク切断・企業環境は未確認。[追試の結果と限界](validation-windows-boundary-followup-2026-11-05.md) |
 | 導入 / 配布 | Macのbuild macosに加え、Windowsの明示資材から未署名単一exeを生成・全ハッシュ検証して展開するローカル試作を実装 | Rust不要のネイティブCLI配置、自動資材準備、実署名、未導入クリーンVM、性能・清掃等は未完了。[試作の手順と制約](windows-onefile.md)をFR-08全体の合格にしない |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
 
-Macの直近の[11-08回帰確認](validation-macos-2026-11-08.md)は`008ec68`でPython 145件（スキップ0）、Rust 13件、Mac Clippy/releaseに成功。実WKWebView起動反復は通常/import前5秒/フック5秒を各3回、9/9成功し、UTF-8ログ・例外DOM・SIGTERM終了とPython回収、同じソースのPython同梱.app再生成・アドホック署名・全ハッシュ・日本語パス再配置を確認した。初回スモークはactive Space外でrAFが止まり、Python開始前に10秒期限へ到達して失敗。利用者の表示モード申告は未取得で、目視・実クリックclose/download・Dock/Finder表示も未確認。二重rAF・10秒期限・Python開始順は変更していない。Windows GNU検査やWindows実機は今回未実施。
+Macの直近の[初期Space配置の対策・比較](validation-macos-space-2026-11-08.md)は`9e9302a`。Python 145成功（スキップ0）、Rust 14成功、Mac Clippy/release、二重rAFのブラウザ契約検査に成功した。自作fullscreen窓からの変更前は初回0/2成功、最終対策は独立した開始3組で初回3/3成功・連続対照を含め9/9成功。通常/import前5秒/フック5秒も各3回、9/9成功。成功・通知欠落の10秒失敗・起動途中のSIGTERM終了で窓設定の復元を確認し、更新.appのスモーク・署名・全ハッシュも成功した。二重rAF・10秒期限・Python開始順は維持。利用者のCodex fullscreen・Space移動、目視・実close/download等は未確認。Windows GNU検査やWindows実機は今回未実施。
 
-過去の実WKWebViewでは初期診断15ケース、後続の30分診断6ケースと表示状態7条件を確認した。[11-04の初期描画待ち比較](startup-diagnostics.md)では、同じバイナリで通常表示9/9成功・フルスクリーン2/3成功。Space移動後の描画待ち停止を確認したが、本対応は未実装。Windowsの更新版`ae3889c`はPython 108件成功・19件スキップ、MSVC Rustテスト10件、Clippy・実WebView2スモーク・起動反復9/9成功。失敗・修正・未確認事項は[Windows実機記録](validation-windows.md)を参照。性能の条件と限界は[Mac計測記録](performance-macos.md)を正とし、これらをWindowsのG1/G2合格とは扱わない。
+対策前の[11-08回帰確認](validation-macos-2026-11-08.md)は`008ec68`でPython 145件・Rust 13件、WKWebView反復9/9、UTF-8/例外DOM/SIGTERM終了、.app再生成・署名・全ハッシュ・日本語パス再配置を確認した。初回のactive Space外のrAF停止・Python開始前の10秒失敗は元ログのまま残す。後続対策で過去の失敗を成功へ読み替えていない。
+
+過去の実WKWebViewでは初期診断15ケース、後続の30分診断6ケースと表示状態7条件を確認した。[11-04の初期描画待ち比較](startup-diagnostics.md)では、同じバイナリで通常表示9/9成功・フルスクリーン2/3成功。Space移動後の描画待ち停止を確認したが、当時は本対応未実装だった。Windowsの更新版`ae3889c`はPython 108件成功・19件スキップ、MSVC Rustテスト10件、Clippy・実WebView2スモーク・起動反復9/9成功。失敗・修正・未確認事項は[Windows実機記録](validation-windows.md)を参照。性能の条件と限界は[Mac計測記録](performance-macos.md)を正とし、これらをWindowsのG1/G2合格とは扱わない。
 
 Windowsの環境確認と既存ホストのMSVCビルド・主要動作の実機検証を実施した。2026-11-04に起動段階ログ・通常例外の障害表示・反復検証器を追加し、Macで確認した。[この手順](startup-diagnostics.md)でWindowsの通常/import5秒/フック5秒を各3回再検証し、9/9成功した。以前の初回失敗の原因は未確定のまま、再発時の段階ログと文字コード等の[残課題](validation-windows-2026-11-04.md)を記録した。先行描画の実提示、ネットワーク/境界試験の残りも確認し、G1の最小単一exe検証へ進む。配布方式に依存する作り込みは、その結果を反映して行う。これは推奨順序であり、実装開始や検証環境の条件を新たに承認した記録ではない。
 
 11-05のログ修正後はWindowsでPython 112成功・19スキップ、Rust 10成功を確認し、[反復の段階表・元ログ](validation-worker-logs-2026-11-05.md)を記録した。その後の`755630e`の[境界追試](validation-windows-boundary-followup-2026-11-05.md)はPython 112成功/19スキップ、Windows Rust 11成功/1 child用ignore、MSVC/Clippy、起動反復9/9、venv自動14/15・埋込対照4/4・実クリック1/1。新bootstrapは11-08にMacビルド・WKWebView・生成.appで回帰確認した。Macの有限拒否ログは遷移・新規窓・過大IPCを確認し、download/origin拒否ハンドラーと実クリックは未確認。
 
-Macで先に進める場合の候補は、Space切替時の表示待ちと起動期限の扱い（ADR-017）、旧形式の要求ID制約の採否、自動再読込、起動時のフォーカス/Spaces・アプリ識別の調整要否の確認。後者は同じデスクトップに別ウィンドウが出ること自体を不具合扱いにするものではない。ready後のタイマーは[表示状態の比較](performance-macos.md#ウィンドウ状態とタイマーの比較)で最小化・非表示時に遅延を再現した。Python開始前の失敗は別途[初期描画待ちとSpaceの比較](startup-diagnostics.md)へ記録し、根本対応は未実装としている。優先順位は次の作業依頼で確認する。
+Macの次の候補は、初期配置対策後の利用者のCodex fullscreen・Space移動/復帰の確認、必要なら表示待ちと期限の分離（ADR-017）、旧形式の要求ID制約の採否、自動再読込、アプリ識別の調整要否。起動時の配置対策は全Spaces条件の解消ではなく、別ウィンドウが出ること自体を不具合扱いにしない。ready後のタイマーは[表示状態の比較](performance-macos.md#ウィンドウ状態とタイマーの比較)で最小化・非表示時の遅延を再現しており、今回の初期配置対策はその抑制を変更しない。
 
 ## 1. ゲートと成果物
 
@@ -331,3 +333,7 @@ worker.logの日本語生バイトはCP932で読めるがUTF-8 strict decodeで�
 クリーンなmainでorigin/mainを取得・ff-only照合し、`008ec68`を対象に実施した。Python 145成功/スキップ0、Mac Rust 13成功、Ruff/fmt/Clippy/release、実WKWebView反復9/9、UTF-8・例外DOM・SIGTERM終了を確認。同じソースのPython同梱.appを再生成し、アドホック署名・全manifest 2,508通常ファイル/8 symlink、日本語パス再配置と再照合に成功した。初回のactive Space外でのrAF停止、既定SDKリンク失敗、既存runtime欠落、検証コードのビルド時出力失敗、画面取得失敗を保持し、解消や目視成功へ読み替えていない。製品コード・二重rAF・10秒期限・Python開始順は変更なし。詳細と未確認範囲は`7d2c221`の[検証記録](validation-macos-2026-11-08.md)、原ログはGit管理外の`test-results/macos-regression-20261108/`。本更新は現在地と関連文書の整合を取る文書コミットとして分ける。
 
 最終確認では関連11文書のローカルリンク180件（ファイル・見出し）とdiff空白検査に成功し、今回観測した15 PIDは開始時刻を照合して残留0だった。startup_probeの未観測の子や帰属不明WebKit全体をこの15 PIDへ含めていない。結果は同保存先の`docs-verification.json`、`final-owned-process-check.json`に保存した。
+
+### 2026-11-08 初期Space配置の調査・ローカル対策
+
+利用者の追加依頼で、`9e9302a`にMac起動中だけMoveToActiveSpaceを設定し、shell/失敗/終了時に元へ戻す処理を追加した。自作fullscreen窓から変更前の初回0/2成功を再現し、表示をtao Initまで遅らせる案も初回失敗が残った。最小配置対策を比較した最終版は独立したfullscreen開始3/3成功（連続対照含む9/9）、5秒遅延反復9/9、通知欠落の10秒期限と復元、起動途中の終了時復元に成功。Rust 14件・Python 145件、Mac Clippy/release/fmt・SDKブラウザ契約、更新.appの署名・全manifest・fullscreenスモークも確認した。旧.appも同条件では成功しており、.appの失敗解消とは扱わない。二重rAF・10秒期限・Python開始順・Windows経路は変更していない。[根拠・比較・原ログ・未確認範囲](validation-macos-space-2026-11-08.md)を参照。利用者のCodex fullscreen・Space移動/復帰・複数画面等や、物理的な提示・性能の確認は残る。

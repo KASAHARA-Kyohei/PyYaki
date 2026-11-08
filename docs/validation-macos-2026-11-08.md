@@ -2,6 +2,8 @@
 
 実施日: 2026-11-08（日本時間）。[引き継ぎ手順](handoff-macos-2026-11-08.md)に従い、共通検査、実WKWebView、起動反復、ログ・例外・終了、Python同梱.appの再生成と再配置を確認した。**初回のSpace関連の起動失敗を保持し、目視・実クリック・正式配布等の未確認範囲を残す。G1/G2/G3全体の合格や性能達成の記録ではない。**
 
+この記録後、利用者の追加依頼で行ったADR-017の[初期Space配置の比較・対策](validation-macos-space-2026-11-08.md)は別記録とする。以下の件数・失敗・未確認事項は対策前の結果として保持する。
+
 ## 対象・環境
 
 着手時の`main`はクリーン。`git fetch origin`後にHEADとorigin/mainの左右差分が0/0であることを確認し、`git pull --ff-only origin main`はAlready up to dateだった。対象は`008ec68cd48e9122574f38a611deb7b8740c601b`。`008ec68`を含み、引き継ぎの基点`8986fb5`、`755630e`、`f40bdc1`、`430240c`、`dd9c66f`も履歴内にある。製品ソースは変更せず、このHEADからホストとframework wheelを再生成した。
