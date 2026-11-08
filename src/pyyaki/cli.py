@@ -21,7 +21,12 @@ def main() -> int:
     dev.add_argument(
         "--no-reload", action="store_true", help="Disable automatic development reload"
     )
-    commands.add_parser("run", help="Windows GUI (not implemented)")
+    run = commands.add_parser("run", help="Run the bundled macOS native host")
+    run.add_argument("--project", type=Path, default=Path.cwd())
+    run.add_argument("--python", type=Path)
+    diagnostics = run.add_mutually_exclusive_group()
+    diagnostics.add_argument("--diagnostics", action="store_true")
+    diagnostics.add_argument("--smoke-test", action="store_true", help=argparse.SUPPRESS)
     build = commands.add_parser("build", help="Build a local application bundle")
     build.add_argument("target", nargs="?", choices=["windows", "macos"])
     build.add_argument("--project", type=Path, default=Path.cwd())
@@ -33,6 +38,16 @@ def main() -> int:
     build.add_argument("--requirements", type=Path)
     build.add_argument("--output", type=Path)
     args = parser.parse_args()
+    if args.command == "run":
+        from ._native_host import launch
+
+        try:
+            launch(
+                args.project, args.python, smoke_test=args.smoke_test, diagnostics=args.diagnostics
+            )
+        except (OSError, ValueError, TypeError, AttributeError) as exc:
+            parser.exit(1, f"pyyaki: cannot run native application: {exc}\n")
+        return 0
     if args.command == "build" and args.target == "windows":
         required = ("host", "runtime", "webview2", "wheelhouse", "framework_wheel", "requirements")
         if any(getattr(args, name) is None for name in required):
@@ -98,7 +113,7 @@ def main() -> int:
         print(f"Built local macOS prototype (ad-hoc signed, not notarized): {result}")
         return 0
     if args.command != "dev":
-        parser.error("run and build without a target are not implemented in this prototype")
+        parser.error("build without a target is not implemented in this prototype")
     if not 1 <= args.port <= 65535:
         parser.error("port must be between 1 and 65535")
     config_path = Path.cwd() / "pyproject.toml"
