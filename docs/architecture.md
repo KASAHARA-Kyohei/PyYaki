@@ -2,7 +2,7 @@
 
 状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-08 / Windows既存ホストの実機確認済み・Windowsベンチマーク未実施
 
-初期試作では、`web.py`と通信に依存しない`app.py`、共有セッション`_rpc.py`、匿名パイプの`worker.py`、Windows用Rustホスト`native/`を実装した。RPC、接続単位のContext、順序付きイベントとSDK購読、起動・終了フックを提供する。MacのWeb/ワーカー試験とWindowsの型検査に加え、WindowsのGUI/RPCと通常終了・ホスト強制終了時のPython回収を2026-11-03に[実機確認](validation-windows.md)した。ネイティブwheel・ネットワーク/企業環境等は未完了で、Windows用のADRやMVP全体の採択とは扱わない。
+初期試作では、`web.py`と通信に依存しない`app.py`、共有セッション`_rpc.py`、匿名パイプの`worker.py`、Windows用Rustホスト`native/`を実装した。RPC、接続単位のContext、順序付きイベントとSDK購読、起動・終了フックを提供する。MacのWeb/ワーカー試験とWindowsの型検査に加え、WindowsのGUI/RPCと通常終了・ホスト強制終了時のPython回収を2026-11-03に[実機確認](validation-windows.md)した。Windowsネイティブwheel・ネットワーク/企業環境等は未完了で、Windows用のADRやMVP全体の採択とは扱わない。
 
 Windows単一exeは[ローカル生成・全ハッシュ検証付き展開](windows-onefile.md)を追加し、[実機での結果と限界](validation-windows-onefile-2026-11-07.md)を記録した。初回GDI窓から、別スレッドでの検証/展開を経て同じexeのGUI子ホストへ渡す2段階の試作で、同一窓での連続合流の設計案と区別する。正式採択はADR-005/020の残る条件を評価する。
 
@@ -30,6 +30,8 @@ macOS開発用ホストも利用者の依頼で追加。Windowsのtao/wryホス�
 **推奨案**は汎用のtao/wryホストと別プロセスPython。ただしADR-001の試作で、Tauri側の再利用が同じ起動順・配布要件をより少ない保守負担で満たすなら変更する。既存OSSより高速、軽量、企業利用に最適といった比較広告は実測まで行わない。
 
 Web開発時更新の追加比較（参照日2026-11-08）: [Uvicorn標準reload](https://uvicorn.dev/settings/#development)はPython変更のポーリングを提供し、watchfiles導入時はinclude/excludeも指定できる。[watchfiles](https://watchfiles.helpmanual.io/)はRustのNotifyを使い、主要OSのwheelと[子プロセス再起動](https://watchfiles.helpmanual.io/api/run_process/)を提供する。いずれもブラウザのページ更新は別途必要。今回は追加wheelの資材・来歴管理とUvicorn内部supervisor APIへの依存を避け、標準ライブラリの監視・spawn親と既存Uvicornサーバーを組み合わせた。UIだけの変更ではPythonを再起動せず、Python/設定の追加・削除も比較する。独自の監視・終了処理を保守する負担と大規模ツリーの走査負荷がある。OS通知へ移す判断は実測後とし、速度の優位は主張しない（ADR-021）。
+
+Macホストwheelの追加比較（参照日2026-11-08）: [maturin bin bindings](https://www.maturin.rs/bindings.html#bin)はRust実行ファイルをwheelのscriptsへ配置できる。[setuptoolsの拡張](https://setuptools.pypa.io/en/latest/userguide/extension.html)で生成処理を統合する案も比較した。今回は既存のPython CLI・pure wheelを維持し、明示したホストを[wheel仕様](https://packaging.python.org/en/latest/specifications/binary-distribution-format/)に沿って後から同梱する小さいローカル組立器を採用した。追加ビルド依存や導入時のCargo実行はないが、タグ・RECORD・整合性と公開資材の管理を自前で保守する。Mac限定の初期試作で、WindowsのPython前描画にはこのラッパーを使わない（ADR-022）。
 
 ## 2. 技術候補と採用方針
 
@@ -234,6 +236,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-019 | EOFのみの障害検出 / 明示的異常通知 / venvの起動入口変更 | 11-05の[初回調査](validation-windows-boundary-2026-11-05.md)ではvenv launcherがwriterを保持する制約を確認。[追試](validation-windows-boundary-followup-2026-11-05.md)で埋込Pythonの全writer closeは障害通知・保留RPC拒否・回収に成功し、venvの部分closeとは区別した。追加通知や入口変更は未実装・未採択 | 生存中の部分closeへどの通知が必要かを、全writer切断・worker/launcher終了と区別して判断する。入口変更ならvenvのsys.prefix・依存探索・隔離・GIL・終了回収と先行描画順の維持が必要。元の独立再現と公式ソース、実パイプ対照は上記記録を参照 |
 | ADR-020 | 非圧縮blob / ZIP等の圧縮、同一窓での展開 / 別GUI子ホスト | [単一exeローカル試作](windows-onefile.md)は新しい圧縮ライブラリを選定せず、非圧縮blobを採用。準備GDI窓→別スレッド検証/展開→同じexeのGUI子ホストで、既存の描画順/期限を維持する。全件検証のI/Oと容量、2段階の窓・ホストが増える | 試作限定。正式採択には圧縮形式との比較、1窓合流、実署名後読取、初回/キャッシュ起動の定義した計測、未導入クリーンVM、容量不足/電源断と安全な清掃を確認する |
 | ADR-021 | Uvicorn reload / watchfiles / 標準ライブラリの監視親 | Web dev限定の250ms監視・spawn子と500msのページ更新確認を試作。追加依存はなくUI/Python更新を分離するが、独自の終了管理と走査コストが増える | [Mac検証](validation-web-reload-2026-11-08.md)で古いpyc、エラー復帰、RPC再接続、終了を確認。Windows実機・大規模監視・親SIGKILL回収が残り、正式採択は未了 |
+| ADR-022 | maturin bin / setuptools拡張 / pure wheelへの明示ホスト同梱 | Macは既存Python CLIから検査済みホストへexecし、同じvenvを使用。組立器はCPU・最低OS由来のタグと全RECORDを生成する。独自の配布検査を保守する負担がある | [Mac検証](validation-macos-wheel-2026-11-08.md)でオフライン導入・実WKWebView・同版置換/削除を確認。他Mac・異版upgrade・正式署名/公開は未了。WindowsネイティブCLIのADR-003とは区別 |
 
 2026-10-31のMac同梱方式比較（Windowsの配布方式の採択とは別）: [PyInstaller](https://pyinstaller.org/en/stable/operating-mode.html)はPythonと依存の収集を再利用できる一方、動的import・データの収集指定が必要。Python.orgのframework型をそのままvenvからコピーする方法は再配置確認が別途必要。[python-build-standalone](https://gregoryszorc.com/docs/python-build-standalone/main/running.html)はinstall_onlyの事前ビルドとライセンスファイルを提供し、既存Rustホストの後段ワーカーとして使えるため、Macローカル試作ではこちらを採用して再配置を確認した。全依存・OS・配布署名の互換性や法的な再配布確認は未完了。
 

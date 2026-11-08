@@ -2,13 +2,13 @@
 
 状態: 初期設計案 + Web用wheel・Mac .app / Windows単一exeのローカル試作 / 技術調査日: 2026-10-30 / 更新: 2026-11-08 / 正式配布・実署名・未導入クリーン環境は未完了
 
-Pythonパッケージ`0.1.0.dev0`のwheelにはPythonワーカーとSDKを含むが、ネイティブexe・ランタイム資材は含まない。Windowsは事前ビルド済みホストと明示した資材から単一exeを組み立てるローカル試作を追加した。`native/Cargo.lock`はRust依存を固定し、`examples/hello/requirements-windows.lock`は今回のWindows x64 / CPython 3.14の組合せを固定する。ネイティブwheel配置は未実装。Macの`requirements-dev.lock`をWindows配布の互換性証明に使わない。
+通常の`0.1.0.dev0` pure wheelはPythonワーカーとSDKを含み、ホスト・ランタイムは含まない。別途、Mac向けには[明示したホストを組み込む専用wheel](macos-wheel.md)をローカル生成し、オフライン導入と`pyyaki run`を確認した。Windowsは事前ビルド済みホストと明示した資材から単一exeを組み立てるローカル試作を追加した。`native/Cargo.lock`はRust依存を固定し、`examples/hello/requirements-windows.lock`は今回のWindows x64 / CPython 3.14の組合せを固定する。Windowsネイティブwheel配置は未実装。Macの`requirements-dev.lock`をWindows配布の互換性証明に使わない。
 
-初期試作の`pyyaki`はPython console scriptで、`dev`と`build macos`/`build windows`のローカル試作を実装。Python CLIの`run`は未実装で、以下に設計するWindowsネイティブCLIとは区別する。生成したWindows exeはPythonに依存せずRust側から起動する。wheelはRustホスト・Pythonランタイム・WebView2を含まず、公開も行っていない。
+初期試作の`pyyaki`はPython console scriptで、`dev`と`build macos`/`build windows`のローカル試作を実装。Macホスト同梱wheelでPython CLIの`run`を実装した。MacはCLIのPython初期化後にホストへexecし、以下に設計するWindowsネイティブCLIとは区別する。生成したWindows exeはPythonに依存せずRust側から起動する。pure wheelはホストを含まず、Mac専用wheelもPythonランタイム・WebView2は含まない。いずれも公開していない。
 
 Windowsの開発用確認はRust版`pyyaki.exe run --project <path> --python <venv-python.exe>`を直接使う。[メンテナー向け手順](../native/README.md)では事前導入したRust/MSVCでWindows上でビルドし、開発venvと既存WebView2で実行する。Macで行ったWindowsターゲットの型検査は、exeの生成や起動成功ではない。2026-11-03にこの手順でWindows 11 x64のMSVCリンク・実WebView2を確認した。[実機記録](validation-windows.md)を参照。アプリ利用者にRustを要求する正式配布へ方針変更したものではない。
 
-Mac向けは開発機でCargoビルドしたホストを直接実行する段階。開発時のSDK再ビルド・変更反映は[開発ガイド](development.md#変更する場所と反映方法)、診断releaseビルドの実行結果は[Mac初期計測](performance-macos.md)を参照する。依存は同じCargo.lockで固定し、Pythonは事前導入したvenvを使用する。Python同梱.appのローカル生成を追加した。準備済み資材・ハッシュ固定wheelからオフラインで組み立て、アドホック署名と再配置を検証する。[入力・生成手順・限界](macos-build.md)を参照。Developer ID署名、notarization、第三者への正式配布は未対応。Windows向け単一exe要件は維持する。
+Mac向けはメンテナーがCargoビルドしたホストの直接実行に加え、同梱wheelからの`pyyaki run`を実装した。開発時のSDK再ビルド・変更反映は[開発ガイド](development.md#変更する場所と反映方法)、診断releaseビルドの実行結果は[Mac初期計測](performance-macos.md)を参照する。依存は同じCargo.lockで固定し、Pythonは事前導入したvenvを使用する。Python同梱.appのローカル生成を追加した。準備済み資材・ハッシュ固定wheelからオフラインで組み立て、アドホック署名と再配置を検証する。[入力・生成手順・限界](macos-build.md)を参照。Developer ID署名、notarization、第三者への正式配布は未対応。Windows向け単一exe要件は維持する。
 
 2026-11-08の[Mac回帰確認](validation-macos-2026-11-08.md)では、同じHEADのホスト/wheelから再生成し、署名・全manifest・日本語パス再配置・実WKWebViewを確認した。既存runtimeの欠落による初回失敗と、同じ公式版のハッシュ照合・再取得も記録している。今回の資材準備全体がオフラインだったという結果ではない。
 
@@ -35,7 +35,8 @@ Macのローカル生成は、staging内でレポートを書き終えてから�
 | OSS開発者がホストを開発・公開 | Rust/Cargo、Windowsのビルド環境、対応Python | CI/メンテナー環境だけで使用 |
 | 利用者が`pip install pyyaki` | 対応Pythonとpip、公開済みwheel | 通常は取得時に接続。事前配布したwheelhouseでオフライン導入可。venvなら管理者不要 |
 | 利用者が`pyyaki dev` | Python環境、ブラウザ | loopback HTTP/WebSocket。外部サービスを使わなければオフライン可 |
-| 利用者が`pyyaki run` | Windows、開発venv、利用可能なWebView2 | Rust不要。既存Evergreenまたは事前取得したFixed Version。実行時の自動取得・昇格はしない |
+| 利用者が`pyyaki run`（Mac試作） | CPython 3.14通常GIL版venv、CPU/OSに合うホスト同梱wheel | 導入・実行にRust/Cargo不要。ローカル資材でオフライン導入可。管理者不要 |
+| 利用者が`pyyaki run`（Windows設計・未実装） | Windows、開発venv、利用可能なWebView2 | Rust不要。既存Evergreenまたは事前取得したFixed Version。実行時の自動取得・昇格はしない |
 | 利用者が`pyyaki build windows` | 対応Windows/Python、ホストと対象依存wheel、ランタイム資材 | Rust/Cargo/MSVC/Node不要。未取得資材の明示取得時だけ接続 |
 | 配布exeを使う人 | 対応Windows、ローカルの配置先と書込み可能なユーザー領域 | Python/WebView2導入・ネット接続・管理者権限不要。ただし組織の実行許可は必要 |
 
@@ -47,7 +48,7 @@ Macのローカル生成は、staging内でレポートを書き終えてから�
 
 - `pyyaki`: 共通Pythonディスパッチャー、Webアダプター、JS SDK、ビルド機能。
 - Windows x64の`pyyaki` wheelには、同じ版のビルド済みネイティブ`pyyaki.exe`と汎用GUIホストの資材を同梱する。
-- 非Windowsのpure Python wheelはWeb開発用Python CLIを提供し、`run`/`build windows`は未対応と明確にエラーにする。Macでは明示した事前取得資材を使う`build macos`試作も提供するが、ホスト資材はまだwheelへ同梱しない。
+- pure Python wheelはWeb開発用CLIと明示資材によるbuild試作を提供する。Macの`run`には別途ホスト同梱wheelが必要で、pure/editable導入からの暗黙のホスト探索はしない。Windows Pythonラッパーの`run`は拒否し、ネイティブCLI配置を待つ。
 - Python、WebView2、アプリ固有依存の大きなアーカイブは基本wheelへすべて詰めず、バージョン固定の資材キャッシュからビルド時に取得する案。`pip install`時に任意URLから実行ファイルを取得・実行しない。
 - Windows wheelはPython ABIへ直接リンクしない実行ファイルを含むため、`py3-none-win_amd64`をタグ候補とする。`Requires-Python`とCPython判定は別途設定する。タグと実際の対応Pythonの一致をG1で検証する。
 
@@ -68,6 +69,10 @@ CLIの分岐案:
 最初はvenvへの導入を推奨する。CLIは自分の配置場所と`pyvenv.cfg`から関連Pythonを特定し、PATHの先頭のPythonへ暗黙に切り替えない。例外環境向けに`run --python <absolute-path>`を候補とし、指定したインタープリターが同じフレームワーク版を持つかワーカー接続時に確認する。
 
 `pip --user`や通常インストール環境でのネイティブコマンドとPythonの対応付けはG1で確認する。未対応なら明示エラーとvenv導入手順を提供し、別のPythonで勝手に起動しない。`python -m pyyaki run`はPython初期化済みになるため、先行描画を保証する入口としては提供しない。
+
+### 2.3 Macで実装したホスト同梱wheel
+
+`pyyaki.build_macos_wheel`が同版のpure wheelと署名検査済みthin Mach-Oホストを入力とし、CPU・deployment target由来のプラットフォームタグ、`Root-Is-Purelib: false`、manifest・RECORDを生成する。既存ファイルへ上書きせず、新規wheelとレポートだけを作る。実行時は同梱ホストのハッシュ・版・CPU・最低OSを検査し、venvのPythonパスをsymlinkのまま渡してexecする。公開・他Mac・Windowsでの成立を保証するものではない。[生成・導入手順](macos-wheel.md)と[実機結果](validation-macos-wheel-2026-11-08.md)を参照する。
 
 ## 3. ビルドパイプライン案
 

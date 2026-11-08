@@ -14,7 +14,7 @@
 
 ## 資材を準備する
 
-以下はリポジトリのルート、開発用venvを準備済みのApple Silicon Macでの例。現在はメンテナーがホストとwheelを用意する。生成処理自体はCargoを呼ばず、指定した資材から組み立てるが、Appleのcodesign/otool/lipo（Command Line Tools）も必要。これらは配布先でのアプリ実行には使わない。公開wheelへのホスト同梱・資材の自動取得は今後の作業。
+以下はリポジトリのルート、開発用venvを準備済みのApple Silicon Macでの例。現在はメンテナーがホストとwheelを用意する。生成処理自体はCargoを呼ばず、指定した資材から組み立てるが、Appleのcodesign/otool/lipo（Command Line Tools）も必要。これらは配布先でのアプリ実行には使わない。Mac専用wheelへのホスト同梱は[ローカル生成](macos-wheel.md)を追加したが、公開・資材の自動取得は今後の作業。.app向けのframework入力には従来どおりpure wheelを使う。
 
 ```console
 cargo build --manifest-path native/Cargo.toml --release --locked

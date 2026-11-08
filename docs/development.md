@@ -49,7 +49,7 @@ Macネイティブはリポジトリのルートから、ビルド済みのRust�
 ./native/target/debug/pyyaki run --project examples/hello --python .venv/bin/python
 ```
 
-ウィンドウを閉じるかCtrl+Cで終了する。Python版CLIの`pyyaki run`は未対応。MacのPython同梱.appローカル生成は[専用手順](macos-build.md)を参照する。Windowsの開発用コマンドは[native/README.md](../native/README.md#windowsでの開発用確認)を参照する。
+ウィンドウを閉じるかCtrl+Cで終了する。Macホスト同梱wheelを導入したvenvでは`pyyaki run --project examples/hello`も使える。pure wheel/editable導入はホストを含まず、この直接起動を使う。[同梱wheelの導入・生成・再確認](macos-wheel.md)を参照する。MacのPython同梱.appローカル生成は[専用手順](macos-build.md)を参照する。Windowsの開発用コマンドは[native/README.md](../native/README.md#windowsでの開発用確認)を参照する。
 
 未ビルド、Rust/SDKを変更した、またはSDKのJSを変更した場合は、先に次を実行する。
 
@@ -132,6 +132,8 @@ Macの通常/遅延/fullscreen開始と任意の既存.appの署名・全manifes
 表示状態によるタイマーの遅れは`--timer-probe-seconds 15 --prevent-idle-sleep`で7条件を短く比較できる。自分の検証窓が切り替わるため、通常の開発作業と同時に走らせず、[手順と記録の読み方](../native/README.md#macのウィンドウ状態とタイマーを比較する)を確認する。
 
 Markdownだけの変更では、関連文書・ローカルリンク・見出し・API例の整合性を確認する。無関係な実装テストの追加や、5分試験の再実行は必要としない。
+
+Mac専用wheelのオフライン導入・実WKWebView・例外DOM・終了・同版置換・削除は[専用検証器](macos-wheel.md#回帰検証)で実行する。Python共通の回帰とWindowsネイティブCLIの実機確認を区別する。
 
 ## 問題を切り分ける
 

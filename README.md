@@ -43,11 +43,13 @@ pyyaki dev
 
 Mac向け`build macos`は、準備済みのホスト・standalone Python・wheelから`.app`を生成するローカル試作として実装済みです。[生成手順](docs/macos-build.md)を参照してください。
 
-未実装: ネイティブの自動再読込、ネイティブexeのpip配置。Windows `build windows`は明示資材を使うローカル試作として実装済みです。Python版CLIの`run`は未対応で、Mac/Windowsの開発用ホストは、別のRustバイナリを直接起動します。`app.asgi()`は自動更新を挿入しないloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
+未実装: ネイティブの自動再読込、Windowsネイティブexeのpip配置。Windows `build windows`は明示資材を使うローカル試作として実装済みです。Macホスト同梱wheelでは`pyyaki run`を実装しました。pure wheel・editable導入にはホストがなく、WindowsのPythonラッパー経由の`run`は提供しません。`app.asgi()`は自動更新を挿入しないloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
 
 テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザ・ネイティブ検査の使い分けと、変更後の反映方法は[開発ガイド](docs/development.md#検証する)に記載しています。
 
 ## Macでネイティブ起動する
+
+Macホスト同梱wheelを導入したvenvでは`pyyaki run --project examples/hello`で起動できます。利用者の導入・実行にRust/Cargoは不要です。まだ未公開のローカル試作で、Pythonランタイムは同梱しません。[導入・生成・制約](docs/macos-wheel.md)を参照してください。以下はホストを開発するメンテナー向けの直接起動です。
 
 開発用ホストはRustとWKWebViewを使います。リポジトリのルートから、上記のvenvを準備した状態で実行してください。
 

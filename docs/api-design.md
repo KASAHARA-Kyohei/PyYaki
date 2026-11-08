@@ -102,7 +102,7 @@ async def greet(name: str, *, ctx: Context) -> dict[str, str]:
 asgi = app.asgi()
 ```
 
-同じファイルを、現在はRustホストの`run --project ... --python ...`がワーカーでimportし、Python CLIの`pyyaki dev`がASGI経由で使う。統合CLIの`pyyaki run`は未対応。`asgi`の生成はサーバー起動、GUI表示、業務処理開始を行わない。ライフサイクル開始はホスト/ASGI lifespanが担当する。
+同じファイルを、現在はRustホストの`run --project ... --python ...`がワーカーでimportし、Python CLIの`pyyaki dev`がASGI経由で使う。Macホスト同梱wheelでは`pyyaki run [--project <path>] [--python <path>]`を実装し、既定は現在のプロジェクトとCLIのPythonを使う。静的設定と同梱ホストを検査してexecし、業務importはホストのshell通知後へ維持する。pure wheel/editable導入とWindows Pythonラッパーには`run`を提供しない。[導入と制約](macos-wheel.md)を参照する。`asgi`の生成はサーバー起動、GUI表示、業務処理開始を行わない。ライフサイクル開始はホスト/ASGI lifespanが担当する。
 
 ### 3.2 公開するクラスとメソッド
 

@@ -136,6 +136,8 @@ CPython 3.14通常GIL版を使い、HTMLから明示登録したPythonコマン�
 
 同日の後続実装でContext・イベント・ライフサイクルフックを追加した。[当時の共通APIの検証記録](roadmap.md#2026-10-31-共通apiのcontextイベントフック)と最新の[現在地](roadmap.md#現在地と次の作業)を区別する。2026-11-08にFR-06のWeb開発用自動再読込を追加し、[Macで確認](validation-web-reload-2026-11-08.md)した。この機能のWindows実機確認や、G1/G2全体の合格を含まない。
 
+2026-11-08にはMacホスト同梱wheelでRust/Cargo不要の導入・`pyyaki run`を[補助検証](validation-macos-wheel-2026-11-08.md)した。MacのPython CLI初期化後にホストへexecする開発用経路であり、WindowsのPython前描画・ネイティブCLI配置や、配布後Python不要の受入条件の合格を示さない。
+
 ### 6.2 MVP全体の範囲
 
 単一ウィンドウ、静的UI資産、明示登録した非同期Pythonコマンド、JSON要求/応答、セッション限定イベント、Web向け開発サーバーとASGI公開、Windowsでの実行、単一exeビルド、初回展開、エラー表示、計測を対象とする提案。
