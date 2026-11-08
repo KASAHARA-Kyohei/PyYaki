@@ -14,6 +14,8 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from startup_checks import validate_startup
+
 ROOT = Path(__file__).resolve().parents[1]
 PREFIX = "pyyaki_startup="
 
@@ -24,6 +26,104 @@ def records(path):
         for line in path.read_text(encoding="utf-8").splitlines()
         if line.startswith(PREFIX)
     ]
+
+
+def wait_owned(process, watchdog):
+    """Reap only this Popen child, including when the caller is interrupted."""
+    expired = False
+    try:
+        try:
+            process.wait(timeout=watchdog)
+        except subprocess.TimeoutExpired:
+            expired = True
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
+    return expired
+
+
+def observe(command, folder, base, watchdog, *, env=None):
+    """Collect one owned host's logs for either development or packaged invocation."""
+    before = set(base.iterdir()) if base.exists() else set()
+    pending_error = None
+    with (folder / "launcher.log").open("wb") as log:
+        process = subprocess.Popen(command, stdout=log, stderr=log, cwd=ROOT, env=env)
+        closed_by_harness = False
+        try:
+            closed_by_harness = wait_owned(process, watchdog)
+        except BaseException as error:
+            pending_error = error
+        finally:
+            (folder / "process.json").write_text(
+                json.dumps(
+                    {
+                        "pid": process.pid,
+                        "command": command,
+                        "exit_code": process.returncode,
+                        "closed_by_harness": closed_by_harness,
+                        "interrupted": isinstance(pending_error, KeyboardInterrupt),
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+    matches = []
+    for instance in (set(base.iterdir()) - before) if base.exists() else []:
+        host_log = instance / "host.log"
+        if not host_log.is_file():
+            continue
+        try:
+            first_line = next(
+                line
+                for line in host_log.read_text(encoding="utf-8").splitlines()
+                if line.startswith(PREFIX)
+            )
+            first = json.loads(first_line[len(PREFIX) :])
+        except OSError, UnicodeError, ValueError, StopIteration:
+            continue
+        if not isinstance(first, dict):
+            continue
+        if first.get("phase") == "host_started" and first.get("data") == {"pid": process.pid}:
+            matches.append(instance)
+    if len(matches) != 1:
+        if pending_error is not None:
+            raise pending_error
+        raise RuntimeError(
+            f"Cannot identify own host log: pid={process.pid}, matches={len(matches)}"
+        )
+    instance = matches[0]
+    for name in ("host.log", "worker.log"):
+        source = instance / name
+        if source.is_file():
+            shutil.copy2(source, folder / name)
+    if pending_error is not None:
+        raise pending_error
+    trace = records(folder / "host.log")
+    host_text = (folder / "host.log").read_text(encoding="utf-8")
+    smoke = [
+        json.loads(line.removeprefix("native_smoke="))
+        for line in host_text.splitlines()
+        if line.startswith("native_smoke=")
+    ]
+    phases = [record["phase"] for record in trace]
+    return {
+        "pid": process.pid,
+        "exit_code": process.returncode,
+        "closed_by_harness": closed_by_harness,
+        "instance": str(instance),
+        "markers": trace,
+        "smoke": smoke,
+        "ok": not closed_by_harness
+        and process.returncode == 0
+        and bool(smoke)
+        and smoke[-1].get("ok") is True
+        and "sdk_welcome_posted" in phases,
+    }
 
 
 def run_case(binary, output, base, scenario, index, delay, watchdog):
@@ -42,7 +142,6 @@ def run_case(binary, output, base, scenario, index, delay, watchdog):
                 "\n@app.on_startup\nasync def probe_startup():\n"
                 f"    await asyncio.sleep({delay!r})\n"
             )
-    before = set(base.iterdir()) if base.exists() else set()
     command = [
         str(binary),
         "run",
@@ -52,61 +151,11 @@ def run_case(binary, output, base, scenario, index, delay, watchdog):
         sys.executable,
         "--smoke-test",
     ]
-    with (folder / "launcher.log").open("wb") as log:
-        process = subprocess.Popen(command, stdout=log, stderr=log, cwd=ROOT)
-        closed_by_harness = False
-        try:
-            process.wait(timeout=watchdog)
-        except subprocess.TimeoutExpired:
-            closed_by_harness = True
-            # Only our own child is terminated. Windows Job Object owns its worker cleanup.
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
-    matches = []
-    for instance in (set(base.iterdir()) - before) if base.exists() else []:
-        host_log = instance / "host.log"
-        if host_log.is_file():
-            trace = records(host_log)
-            if (
-                trace
-                and trace[0]["phase"] == "host_started"
-                and trace[0]["data"] == {"pid": process.pid}
-            ):
-                matches.append((instance, trace))
-    if len(matches) != 1:
-        raise RuntimeError(
-            f"Cannot identify own host log: pid={process.pid}, matches={len(matches)}"
-        )
-    instance, trace = matches[0]
-    for name in ("host.log", "worker.log"):
-        source = instance / name
-        if source.is_file():
-            shutil.copy2(source, folder / name)
-    host_text = (folder / "host.log").read_text(encoding="utf-8")
-    smoke = [
-        json.loads(line.removeprefix("native_smoke="))
-        for line in host_text.splitlines()
-        if line.startswith("native_smoke=")
-    ]
-    phases = [record["phase"] for record in trace]
-    return {
-        "scenario": scenario,
-        "index": index,
-        "pid": process.pid,
-        "exit_code": process.returncode,
-        "closed_by_harness": closed_by_harness,
-        "instance": str(instance),
-        "markers": trace,
-        "ok": not closed_by_harness
-        and process.returncode == 0
-        and bool(smoke)
-        and smoke[-1].get("ok") is True
-        and "sdk_welcome_posted" in phases,
-    }
+    result = observe(command, folder, base, watchdog)
+    result.update(scenario=scenario, index=index)
+    result["validation_errors"] = validate_startup(result["markers"])
+    result["ok"] &= not result["validation_errors"]
+    return result
 
 
 def main():
@@ -147,6 +196,8 @@ def main():
         ),
         "delay_seconds": args.delay,
         "note": "Marker times include scheduling/IPC, not physical frame presentation.",
+        "expected_runs": 3 * args.runs,
+        "status": "running",
         "runs": [],
     }
     print(f"Output: {output}", flush=True)
@@ -159,11 +210,23 @@ def main():
                     f"{scenario}-{index:02}: ok={record['ok']} exit={record['exit_code']}",
                     flush=True,
                 )
+        report["status"] = (
+            "passed"
+            if (
+                len(report["runs"]) == report["expected_runs"]
+                and all(record["ok"] for record in report["runs"])
+            )
+            else "failed"
+        )
+    except KeyboardInterrupt:
+        report.update(status="interrupted", error="KeyboardInterrupt")
+    except Exception as error:
+        report.update(status="error", error=f"{type(error).__name__}: {error}")
     finally:
         (output / "report.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
         )
-    return 0 if all(record["ok"] for record in report["runs"]) else 1
+    return 130 if report["status"] == "interrupted" else (0 if report["status"] == "passed" else 1)
 
 
 if __name__ == "__main__":
