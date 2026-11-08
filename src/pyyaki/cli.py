@@ -2,17 +2,13 @@
 
 import argparse
 import errno
-import importlib
 import socket
 import struct
 import subprocess
-import sys
 import zipfile
 from pathlib import Path
 
-import uvicorn
-
-from . import App, __version__
+from . import __version__
 from .config import load_config
 
 
@@ -22,6 +18,9 @@ def main() -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     dev = commands.add_parser("dev", help="Start the local web prototype")
     dev.add_argument("--port", type=int, default=8000)
+    dev.add_argument(
+        "--no-reload", action="store_true", help="Disable automatic development reload"
+    )
     commands.add_parser("run", help="Windows GUI (not implemented)")
     build = commands.add_parser("build", help="Build a local application bundle")
     build.add_argument("target", nargs="?", choices=["windows", "macos"])
@@ -136,38 +135,12 @@ def main() -> int:
                     f"for example: pyyaki dev --port {example_port}\n",
                 )
             parser.exit(1, f"pyyaki: cannot listen on 127.0.0.1:{args.port}: {exc}\n")
-        try:
-            sys.path.insert(0, str(config.root))
-            module, name = config.entry.split(":")
-            app = getattr(importlib.import_module(module), name)
-            if not isinstance(app, App):
-                raise ValueError("entry must refer to a pyyaki.App")
-        except (OSError, ValueError, TypeError, ImportError, AttributeError) as exc:
-            parser.exit(
-                1,
-                f"pyyaki: cannot load application {config.entry!r}: {exc}\n"
-                f"Check the entry in {config_path} and the application dependencies.\n",
-            )
-        from .web import create_asgi
+        from ._dev import serve, supervise
 
-        server = uvicorn.Server(
-            uvicorn.Config(
-                create_asgi(app, config),
-                host="127.0.0.1",
-                port=args.port,
-                proxy_headers=False,
-                ws="websockets-sansio",
-                ws_max_size=1_048_576,
-                timeout_graceful_shutdown=2,
-            )
-        )
         print(f"PyYaki prototype: http://127.0.0.1:{args.port}", flush=True)
-        try:
-            server.run(sockets=[listener])
-        except KeyboardInterrupt:
-            # Uvicorn re-raises SIGINT after its graceful shutdown completes.
-            return 130
-    return 0
+        if args.no_reload:
+            return serve(config.root, listener, reload=False)
+        return supervise(config.root, listener)
 
 
 if __name__ == "__main__":

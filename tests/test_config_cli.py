@@ -138,17 +138,20 @@ def test_cli_suggests_a_different_port_when_8001_is_in_use(monkeypatch, capsys):
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX SIGINT behavior")
-def test_ctrl_c_with_active_websocket_exits_without_traceback():
+@pytest.mark.parametrize("arguments", [[], ["--no-reload"]])
+@pytest.mark.parametrize("process_group", [False, True])
+def test_ctrl_c_with_active_websocket_exits_without_traceback(arguments, process_group):
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
 
     process = subprocess.Popen(
-        [sys.executable, "-m", "pyyaki.cli", "dev", "--port", str(port)],
+        [sys.executable, "-m", "pyyaki.cli", "dev", "--port", str(port), *arguments],
         cwd=ROOT / "examples/hello",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        start_new_session=True,
     )
     origin = f"http://127.0.0.1:{port}"
     try:
@@ -181,7 +184,11 @@ def test_ctrl_c_with_active_websocket_exits_without_traceback():
                     )
                 )
                 assert json.loads(websocket.recv(timeout=3))["type"] == "welcome"
-                process.send_signal(signal.SIGINT)
+                if process_group:
+                    assert os.getpgid(process.pid) == process.pid
+                    os.killpg(process.pid, signal.SIGINT)
+                else:
+                    process.send_signal(signal.SIGINT)
                 stdout, stderr = process.communicate(timeout=10)
         assert process.returncode == 130
         assert "Application shutdown complete" in stderr

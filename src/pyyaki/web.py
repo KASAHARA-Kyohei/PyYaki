@@ -5,6 +5,7 @@ import contextlib
 import secrets
 import time
 from collections import OrderedDict
+from html.parser import HTMLParser
 from importlib.resources import files
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
@@ -74,11 +75,56 @@ def expected_origin(connection) -> str:
     return f"{scheme}://{connection.headers.get('host', '')}"
 
 
-def create_asgi(app: App, config: Config) -> FastAPI:
+def reload_html(content: bytes, revision: str) -> bytes:
+    """Insert an external module without mistaking comments or script text for tags."""
+    text = content.decode("latin-1")  # A reversible byte mapping; preserve the original encoding.
+
+    class InsertionPoint(HTMLParser):
+        position = len(content)
+        found = False
+
+        def handle_endtag(self, tag):
+            if not self.found and tag in ("head", "body"):
+                line, column = self.getpos()
+                self.position = sum(len(part) + 1 for part in text.split("\n")[: line - 1]) + column
+                self.found = True
+
+    parser = InsertionPoint(convert_charrefs=False)
+    parser.feed(text)
+    script = f'<script type="module" src="/_pyyaki/dev.js?revision={revision}"></script>'.encode()
+    return content[: parser.position] + script + content[parser.position :]
+
+
+def create_asgi(app: App, config: Config, *, dev_reload: bool = False) -> FastAPI:
+    revision = secrets.token_hex(16)
+
+    async def watch_ui(previous):
+        from ._dev import INTERVAL, snapshot
+
+        nonlocal revision
+        while True:
+            await asyncio.sleep(INTERVAL)
+            current = await asyncio.to_thread(snapshot, config.ui_dir)
+            if current != previous:
+                revision = secrets.token_hex(16)
+                previous = current
+
     @contextlib.asynccontextmanager
     async def lifespan(server):
         async with app._lifespan():
-            yield
+            watcher = None
+            if dev_reload:
+                from ._dev import snapshot
+
+                previous = await asyncio.to_thread(snapshot, config.ui_dir)
+                watcher = asyncio.create_task(watch_ui(previous))
+            try:
+                yield
+            finally:
+                if watcher is not None:
+                    watcher.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await watcher
 
     server = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     nonces = Nonces()
@@ -117,6 +163,24 @@ def create_asgi(app: App, config: Config) -> FastAPI:
         return Response(
             files("pyyaki").joinpath("static/sdk.js").read_text(), media_type="text/javascript"
         )
+
+    if dev_reload:
+
+        @server.get("/_pyyaki/dev")
+        async def dev_revision(request: Request):
+            origin = expected_origin(request)
+            supplied = request.headers.get("origin")
+            if (supplied is not None and supplied != origin) or request.headers.get(
+                "sec-fetch-site", "same-origin" if supplied else ""
+            ) != "same-origin":
+                return Response(status_code=403)
+            return JSONResponse({"revision": revision})
+
+        @server.get("/_pyyaki/dev.js")
+        async def dev_script():
+            return Response(
+                files("pyyaki").joinpath("static/dev.js").read_text(), media_type="text/javascript"
+            )
 
     @server.websocket("/_pyyaki/ws")
     async def websocket(socket: WebSocket):
@@ -181,6 +245,9 @@ def create_asgi(app: App, config: Config) -> FastAPI:
             or target.suffix.lower() not in SAFE_ASSETS
         ):
             return Response(status_code=404)
+        if dev_reload and target.suffix.lower() == ".html":
+            content = await asyncio.to_thread(target.read_bytes)
+            return Response(reload_html(content, revision), media_type="text/html")
         return FileResponse(target)
 
     return server
