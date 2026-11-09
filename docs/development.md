@@ -21,6 +21,8 @@
 
 ## 最初に確認すること
 
+ホスト/SDKの資材を作る前に`.venv\Scripts\python.exe tools/check_versions.py`（Macでは`.venv/bin/python`）でsourceの版を照合する。アプリはimportしない。依存棚卸し・別端末での確認は[配布前の準備](release-readiness.md)、WindowsからMacへ戻る場合は[専用引き継ぎ](handoff-macos-after-windows-2026-11-09.md)を参照。新しいCargo binがあっても既定のcargo runはpyyaki GUIホストを選ぶ。
+
 1. [AGENTS.md](../AGENTS.md)の作業ルールを読む。実装開始は承認済みで、作業した変更は目的ごとにコミットする。
 2. `git status --short`で既存変更を確認する。既存変更は作業へ混ぜたり取り消したりしない。
 3. [ロードマップの現在地](roadmap.md#現在地と次の作業)から未完了の範囲を確認する。過去の検証記録は各作業時点の結果として読む。

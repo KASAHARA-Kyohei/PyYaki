@@ -1,5 +1,7 @@
 # PyYaki
 
+2026-11-09の[追加検証](docs/validation-windows-followup-2026-11-09.md)でWindowsの実画面・実クリック・境界対照を確認し、[依存棚卸し・クリーン端末向けの確認手順](docs/release-readiness.md)を追加しました。Mac回帰・クリーンVM・実署名・正式ライセンス/公開の判断は残っています。
+
 2026-11-09にWindows x64向けのネイティブCLI同梱wheelをローカル実装しました。利用者の導入・dev/run/buildにRust/Cargo/MSVCは不要です。Python前の描画順と10秒期限を維持し、新規日本語・空白venv・実WebView2・Web更新/終了を実機で確認しました。[導入・生成手順](docs/windows-wheel.md)と[結果・失敗・未確認事項](docs/validation-windows-wheel-2026-11-09.md)を参照してください。未公開であり、クリーン環境・正式配布の合格ではありません。
 
 Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、WindowsデスクトップアプリとWebアプリを開発するためのOSSフレームワークの初期試作です。

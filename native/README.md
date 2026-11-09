@@ -77,6 +77,8 @@ Rustの`--diagnostics --timer-probe-seconds <秒>`が必要で、通常起動で
 
 ## Windowsでの開発用確認
 
+追加の境界追試と実画面は[11-09追試](../docs/validation-windows-followup-2026-11-09.md)。Pythonがない検証端末では[Windows標準の補助確認器](../docs/release-readiness.md#python不要のwindows確認器)を使える。既定のcargo runはGUIホストを選び、wheel向けconsole binは`--bin pyyaki-cli`で明示する。
+
 2026-11-03にWindows 11 Pro 25H2 / Intel Core i5-8250U x64、CPython 3.14.10通常GIL版、Rust 1.89.0 MSVC、既存MSVCとWebView2でビルド・起動を確認した。詳細は[実機記録](../docs/validation-windows.md)。以下は開発用の汎用手順。[単一exeローカル試作](../docs/windows-onefile.md)の資材生成・検証とは区別する。
 
 [MicrosoftのRust環境手順](https://learn.microsoft.com/en-us/windows/dev-environment/rust/setup)に従い、MSVC Build Toolsの「C++によるデスクトップ開発」（MSVC x64/x86とWindows SDKを含む）、RustのMSVCツールチェーン、CPython 3.14通常GIL版を用意する。導入後にPowerShellを開き直し、次を確認する。

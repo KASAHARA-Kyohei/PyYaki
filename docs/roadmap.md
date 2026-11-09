@@ -8,6 +8,8 @@
 
 ## 現在地と次の作業
 
+残作業の追加対応は[11-09追試](validation-windows-followup-2026-11-09.md)を参照。Windowsのready後実画面・実クリック・正常close、現行境界15件中14と埋込対照4/4、依存棚卸し草稿・版一致確認・Python不要の確認器を追加した。venvの部分closeは制約のまま。VM/Macの実行環境、正式ライセンス、署名方式が必要な項目は回答待ちで、全受入は未完了。[配布前の準備](release-readiness.md)と[Mac引き継ぎ](handoff-macos-after-windows-2026-11-09.md)を用意した。
+
 Mac作業後のWindows向けpip導入・ネイティブCLI実装の再開手順とプロンプトは、[2026-11-08のWindows引き継ぎ](handoff-windows-2026-11-08.md)を参照する。Windowsの実行結果は同書の計画から区別する。
 
 2026-11-09時点。ここを現在の実装・検証状態の要約とし、末尾の記録は各作業時点の履歴として残す。開発・再確認の手順は[開発ガイド](development.md)、APIの詳細は[API設計](api-design.md)を参照。

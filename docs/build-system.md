@@ -220,6 +220,8 @@ PyYaki本体はApache-2.0を第一候補、MITを代替候補とし、権利者�
 
 ### 9.2 公開前に必要な管理
 
+2026-11-09に[明示資材の棚卸し補助](release-readiness.md#ローカル依存棚卸し)を追加した。固定wheel・選択したCargo source/build graph・Python/WebView2ファイルからSBOM/通知草稿を生成し、原文・不足一覧を残す。以下の公開ゲートを完了した意味ではなく、プロジェクトの正式ライセンスやバイナリ再配布を自動承認しない。
+
 1. Cargo.lock、Pythonの固定依存・ハッシュ、JS SDK資産、Python/WebView2資材版を固定する。
 2. CIアクションはコミットSHA等で固定し、最小権限で実行。外部PRへ署名秘密鍵や公開トークンを渡さない。
 3. wheel/ホストは信頼したCIから公開し、Trusted Publishingと来歴attestationを候補にする。ハッシュと署名/来歴は別の検証として記録する。

@@ -217,6 +217,8 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 
 ## 8. ADR候補一覧
 
+配布前棚卸しの追加比較（参照日2026-11-09）は[準備手順](release-readiness.md#ローカル依存棚卸し)に記録した。Syft/cargo-aboutの再利用と比較し、現試作は明示したローカル資材だけを読む小さい補助器を追加した。独自形式/スキーマ保守・source graphとbinary linkの差・本文不足を残し、正式なライセンス監査や公開可否の判断を代替しない。
+
 以下のADRは、MVPの技術・ライセンス全体としては**候補・未採択**。名称PyYaki/`pyyaki`と、ADR-007の初期試作用Pythonの選択は2026-10-31に利用者が承認した。初期試作の選択と、配布互換性を検証した採択を区別する。その他の推奨案は設計上の提案であり、採用記録ではない。採択時は日付、結果、測定物、採択理由、廃案の影響を同じIDに追記する。
 
 | ID | 論点 / 選択肢 | 推奨案と影響 | 採択条件・時期 |
@@ -245,6 +247,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-022 | maturin bin / setuptools拡張 / pure wheelへの明示ホスト同梱 | Macは既存Python CLIから検査済みホストへexecし、同じvenvを使用。組立器はCPU・最低OS由来のタグと全RECORDを生成する。独自の配布検査を保守する負担がある | [Mac検証](validation-macos-wheel-2026-11-08.md)でオフライン導入・実WKWebView・同版置換/削除を確認。他Mac・異版upgrade・正式署名/公開は未了。WindowsネイティブCLIのADR-003とは区別 |
 | ADR-023 | Drop/command-group / Python監視thread / 別Rust guard | 同一バイナリのMac専用guardがpipe EOF・NOTE_EXITで専用グループを回収。GIL停止中も動き、リーダーPIDを保持して別グループを終了しない。追加1プロセスとFFI/配布経路の保守が必要 | [11-09の再現と検証](validation-macos-host-cleanup-2026-11-09.md)。実GUI・同梱wheel/.app・headless補助を区別。グループ離脱やhost/guard同時SIGKILL、資源コストは未確認。Windows Jobの代替にはしない |
 | ADR-024 | Windows reloadのProactor / selector / 常駐acceptor・再bind | 共有socketと排他的予約を保つためreloadだけ標準selectorを使用。Python/設定は内容ハッシュも使う。独自の受渡し・追加バイナリ依存は増やさない | 実ブラウザの更新・修正復帰・終了を確認。asyncio pipe/subprocess・512超socketは対象外として明示。高負荷・他loopへの拡張は未採択 |
+| ADR-025 | Syft / cargo-about / 明示資材の小さい棚卸し器 | 現試作は追加取得なしでlock照合・source graph・本文原文/不足を草稿へ保存。独自のスキーマ/パーサー保守が増え、binary完全性・法的互換性は保証しない | 137コンポーネント・230本文参照を補助確認。正式運用は既存OSSとのschema/実exe比較・不足解消・来歴/監査を行ってから別採択 |
 
 2026-10-31のMac同梱方式比較（Windowsの配布方式の採択とは別）: [PyInstaller](https://pyinstaller.org/en/stable/operating-mode.html)はPythonと依存の収集を再利用できる一方、動的import・データの収集指定が必要。Python.orgのframework型をそのままvenvからコピーする方法は再配置確認が別途必要。[python-build-standalone](https://gregoryszorc.com/docs/python-build-standalone/main/running.html)はinstall_onlyの事前ビルドとライセンスファイルを提供し、既存Rustホストの後段ワーカーとして使えるため、Macローカル試作ではこちらを採用して再配置を確認した。全依存・OS・配布署名の互換性や法的な再配布確認は未完了。
 
