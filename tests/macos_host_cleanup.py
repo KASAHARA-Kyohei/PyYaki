@@ -129,7 +129,7 @@ time.sleep(120)
 from pathlib import Path
 def mark(phase):
     Path("phase.json").write_text(json.dumps(dict(phase=phase,pid=os.getpid(),ppid=os.getppid(),pgid=os.getpgrp())))
-child = subprocess.Popen([sys.executable,"-I",str(Path("owned_child.py").absolute())],
+child = subprocess.Popen([sys.executable,"-I","-B",str(Path("owned_child.py").absolute())],
     stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 mark("import")
 if SCENARIO == "rpc-gil":
@@ -176,6 +176,7 @@ if (SCENARIO === "rpc-gil") pyyaki.invoke("block_gil").catch(() => {});
             command = [
                 str(python),
                 "-I",
+                "-B",
                 str(owner),
                 str(binary),
                 str(python),
