@@ -2,6 +2,8 @@
 
 #[cfg(target_os = "macos")]
 mod bundle;
+#[cfg(target_os = "macos")]
+mod guard_macos;
 #[cfg(any(windows, target_os = "macos"))]
 mod host;
 #[cfg(target_os = "macos")]
@@ -20,6 +22,14 @@ mod timer_probe;
 
 #[cfg(any(windows, target_os = "macos"))]
 fn main() {
+    #[cfg(target_os = "macos")]
+    if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new(guard_macos::ARG)) {
+        if let Err(error) = guard_macos::run() {
+            eprintln!("PyYaki private guard: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     #[cfg(windows)]
     if std::env::args_os()
         .nth(1)

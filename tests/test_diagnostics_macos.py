@@ -1,6 +1,21 @@
 """Report math only; does not launch macOS windows or power assertions."""
 
-from diagnostics_macos import timer_summary
+from diagnostics_macos import owns_worker, timer_summary
+
+
+def test_fault_target_requires_owned_direct_or_logged_guard_chain():
+    table = {10: {"ppid": 1}, 20: {"ppid": 10}, 30: {"ppid": 20}, 40: {"ppid": 1}}
+    markers = [
+        {
+            "phase": "python_spawned",
+            "data": {"worker_pid": 30, "guard_pid": 20, "process_group": 20},
+        }
+    ]
+    assert owns_worker(table, 10, 20, [])
+    assert owns_worker(table, 10, 30, markers)
+    assert not owns_worker(table, 10, 30, [])
+    assert not owns_worker(table, 40, 30, markers)
+    assert not owns_worker(table, 10, 40, markers)
 
 
 def record():

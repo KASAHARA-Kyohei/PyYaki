@@ -115,6 +115,22 @@ def sample_processes(host):
     return {str(pid): row for pid, row in table.items() if pid in selected}
 
 
+def owns_worker(table, host, worker, markers):
+    """Accept a direct legacy worker or the host's explicitly logged guard chain."""
+    parent = table.get(worker, {}).get("ppid")
+    if parent == host:
+        return True
+    return any(
+        marker.get("phase") == "python_spawned"
+        and isinstance(data := marker.get("data"), dict)
+        and data.get("worker_pid") == worker
+        and data.get("guard_pid") == parent
+        and data.get("process_group") == parent
+        and table.get(parent, {}).get("ppid") == host
+        for marker in markers
+    )
+
+
 def run_case(
     binary,
     output,
@@ -240,7 +256,7 @@ def run_case(
             if phase == "fault_ready":
                 worker_pid = marker["data"]["pid"]
                 table = processes()
-                if table.get(worker_pid, {}).get("ppid") != process.pid:
+                if not owns_worker(table, process.pid, worker_pid, record["markers"]):
                     raise RuntimeError("Refusing fault injection into an unrelated process")
                 if scenario == "freeze":
                     os.kill(worker_pid, signal.SIGSTOP)

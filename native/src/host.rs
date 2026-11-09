@@ -212,7 +212,12 @@ fn start_backend(
         let result = (|| -> Result<(), Box<dyn Error>> {
             trace.mark("python_spawn_started", Value::Null);
             let worker = Worker::spawn(&paths.python, &paths.root, &paths.log)?;
-            trace.mark("python_spawned", Value::Null);
+            #[cfg(target_os = "macos")]
+            let spawned = json!({"worker_pid":worker.pid(), "guard_pid":worker.guard_pid(),
+                "process_group":worker.guard_pid()});
+            #[cfg(windows)]
+            let spawned = Value::Null;
+            trace.mark("python_spawned", spawned);
             if closing.load(Ordering::Acquire) {
                 return Ok(());
             }
