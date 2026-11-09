@@ -38,7 +38,11 @@ def wait_for(check, timeout=12):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--cli", type=Path, help="Installed Windows native CLI to exercise")
+    parser.add_argument("--browser-channel", help="Explicit installed Playwright browser channel")
     args = parser.parse_args()
+    if args.cli and os.name != "nt":
+        parser.error("--cli currently requires Windows")
     output = args.output.resolve()
     if not output.is_relative_to(ROOT / "test-results"):
         parser.error("output must be a new directory under test-results")
@@ -81,14 +85,38 @@ async def record_shutdown():
         "checks": [],
         "errors": [],
         "unverified": [
-            "Windows execution",
+            *([] if os.name == "nt" else ["Windows execution"]),
             "native reload",
             "HMR/state preservation",
             "large tree performance",
         ],
     }
     process = None
+    console = None
+    command_index = 0
     log = (output / "server.log").open("w")
+
+    def launch(extra=()):
+        nonlocal console, command_index
+        command_index += 1
+        command = [str(args.cli.resolve())] if args.cli else [sys.executable, "-m", "pyyaki.cli"]
+        command += ["dev", "--port", str(port), *extra]
+        if os.name == "nt":
+            from windows_console import ConsoleRun
+
+            env = os.environ.copy()
+            if args.cli:
+                env["PATH"] = f"{args.cli.resolve().parent};{Path(env['SYSTEMROOT']) / 'System32'}"
+                assert shutil.which("cargo", path=env["PATH"]) is None
+            console = ConsoleRun(
+                command,
+                project,
+                output / f"console-{command_index}",
+                env,
+                log_path=output / "server.log",
+            )
+            return console.process
+        return subprocess.Popen(command, cwd=project, stdout=log, stderr=subprocess.STDOUT)
 
     def passed(name):
         report["checks"].append(name)
@@ -96,7 +124,12 @@ async def record_shutdown():
 
     def stop():
         if process is not None and process.poll() is None:
-            process.send_signal(signal.SIGINT if os.name != "nt" else signal.SIGTERM)
+            if console:
+                console.interrupt()
+                _, evidence = console.wait(12)
+                report.setdefault("console_results", []).append(evidence)
+                return
+            process.send_signal(signal.SIGINT)
             try:
                 process.wait(12)
             except subprocess.TimeoutExpired:
@@ -113,12 +146,7 @@ async def record_shutdown():
         }""")
 
     try:
-        process = subprocess.Popen(
-            [sys.executable, "-m", "pyyaki.cli", "dev", "--port", str(port)],
-            cwd=project,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-        )
+        process = launch()
         report["supervisor_pid"] = process.pid
         with httpx.Client(base_url=origin, timeout=0.5, trust_env=False) as client:
 
@@ -129,9 +157,23 @@ async def record_shutdown():
                 except httpx.TransportError:
                     return False
 
-            wait_for(started)
+            wait_for(started, timeout=40)
+        conflict = subprocess.run(
+            ([str(args.cli.resolve())] if args.cli else [sys.executable, "-m", "pyyaki.cli"])
+            + ["dev", "--port", str(port)],
+            cwd=project,
+            capture_output=True,
+            timeout=15,
+        )
+        (output / "port-conflict.log").write_bytes(conflict.stdout + conflict.stderr)
+        assert conflict.returncode == 1 and (
+            b"already in use" in conflict.stderr or b"occupied or restricted" in conflict.stderr
+        )
+        passed("port conflict explains the occupied port")
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True, chromium_sandbox=True)
+            browser = playwright.chromium.launch(
+                headless=True, chromium_sandbox=True, channel=args.browser_channel
+            )
             report["browser"] = browser.version
             context = browser.new_context()
             context.tracing.start(screenshots=True, snapshots=True, sources=True)
@@ -212,26 +254,21 @@ async def record_shutdown():
             pages[0].screenshot(path=str(output / "after.png"))
             assert not report["errors"], report["errors"]
             stop()
-            assert process.returncode == (130 if os.name != "nt" else 143)
+            assert process.returncode == 130
             assert final["pid"] in (project / "shutdown.log").read_text().splitlines()
             passed("shutdown with active RPC WebSockets exits and runs shutdown hook")
             context.tracing.stop(path=str(output / "trace.zip"))
             browser.close()
 
         # The escape hatch serves unchanged HTML and never starts a reload supervisor.
-        process = subprocess.Popen(
-            [sys.executable, "-m", "pyyaki.cli", "dev", "--port", str(port), "--no-reload"],
-            cwd=project,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-        )
+        process = launch(["--no-reload"])
         with httpx.Client(base_url=origin, timeout=0.5, trust_env=False) as client:
-            wait_for(started)
+            wait_for(started, timeout=40)
             assert client.get("/").content == html.read_bytes()
             assert client.get("/_pyyaki/dev").status_code == 404
             assert client.get("/_pyyaki/dev.js").status_code == 404
         stop()
-        assert process.returncode == (130 if os.name != "nt" else 143)
+        assert process.returncode == 130
         passed("--no-reload preserves HTML and omits development endpoints")
         report["status"] = "passed"
     except BaseException:
