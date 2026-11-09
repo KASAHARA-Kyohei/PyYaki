@@ -1,6 +1,6 @@
 # PyYaki 開発ロードマップ
 
-状態: 初期設計案 + G2の共通API・Mac開発用ホスト・G1向けWindowsホストのソース実装 / 作成: 2026-10-30 / 更新: 2026-11-08 / G1・G2全体は未完了
+状態: 初期設計案 + G2の共通API・Mac開発用ホスト・G1向けWindowsホストのソース実装 / 作成: 2026-10-30 / 更新: 2026-11-09 / G1・G2全体は未完了
 
 日程や工数は見積もっていない。開発機はMacで、ある程度開発が進んだ段階で手元のWindowsを使って確認する体制が2026-10-31に確認された。同日、利用者の依頼により最初のMac向けWeb試作を開始した。Windows固有の実現性はG1で検証し、ゲートに不合格なら、その前提に依存する機能実装を進めず設計を更新する。以下は段階ごとの計画であり、完了した範囲は末尾の検証記録に記す。
 
@@ -8,15 +8,17 @@
 
 Mac作業後のWindows向けpip導入・ネイティブCLI実装の再開手順とプロンプトは、[2026-11-08のWindows引き継ぎ](handoff-windows-2026-11-08.md)を参照する。Windowsの実行結果は同書の計画から区別する。
 
-2026-11-08時点。ここを現在の実装・検証状態の要約とし、末尾の記録は各作業時点の履歴として残す。開発・再確認の手順は[開発ガイド](development.md)、APIの詳細は[API設計](api-design.md)を参照。
+2026-11-09時点。ここを現在の実装・検証状態の要約とし、末尾の記録は各作業時点の履歴として残す。開発・再確認の手順は[開発ガイド](development.md)、APIの詳細は[API設計](api-design.md)を参照。
 
 | 領域 | 現在地 | 残る確認・実装 |
 | --- | --- | --- |
 | 共通API / Web | コマンド・厳密な型検証・Context・イベント・ライフサイクル・取消/期限切れ、Web devの自動再読込を実装。MacのPython/ブラウザで確認 | Web dev更新のWindows実機・大規模監視、本番Web運用、長時間/高負荷の評価 |
-| Macネイティブ | WKWebViewと専用パイプで実行。起動・連続試験・障害/終了、Python同梱.appの生成・再配置を確認。初期描画中だけMoveToActiveSpaceを設定し、shell/失敗/終了時に復元する対策を追加 | 利用者のSpace移動/復帰・複数画面等の未確認条件、Dock/Finderの目視、時間単位の稼働、ホストSIGKILL時の回収、全WebKitを含む資源計測、正式.app配布 |
+| Macネイティブ | WKWebViewと専用パイプで実行。起動・連続試験・障害/終了、Python同梱.appの生成・再配置を確認。初期Space設定を復元する対策に加え、専用guardによるホスト強制終了時のグループ回収を追加 | 利用者のSpace移動/復帰・複数画面等の未確認条件、Dock/Finderの目視、時間単位の稼働、グループ離脱/host・guard同時終了、全WebKitを含む資源計測、正式.app配布 |
 | Windowsネイティブ | MSVC release・実WebView2の共通動作、UTF-8ログ、起動反復9/9を確認。追試で完全切断・不要ハンドル非継承・Job割当失敗回収・実クリック拒否・アプリ孫の回収を追加 | venvの部分closeはwriter保持の制約として残る。以前の初回失敗の原因、GDI実提示・性能、Jobの全失敗条件・全origin、ネットワーク切断・企業環境は未確認。[追試の結果と限界](validation-windows-boundary-followup-2026-11-05.md) |
 | 導入 / 配布 | Macホスト同梱wheelのオフライン導入と`pyyaki run`、Mac .app生成、Windowsの明示資材から未署名単一exeを生成・全ハッシュ検証して展開するローカル試作を実装 | WindowsネイティブCLI配置、他Mac、版をまたぐ更新、自動資材準備、実署名、未導入クリーンVM、性能・清掃等は未完了。[試作の手順と制約](windows-onefile.md)をFR-08全体の合格にしない |
 | 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
+
+11-09のMac強制終了対策は`69acd4b`、検証器のbytecode抑制は`f141f41`。[結果と失敗](validation-macos-host-cleanup-2026-11-09.md)に、変更前7条件中4条件の残存、実GUI8/8成功の実行とコミット後7/8（1件はPython前のSpace/rAF未達）、headless補助7/7、Python 214・Rust 16、同梱wheel 13/13、.app追試と署名/全manifestを記録した。通常の終了待ち・二重rAF・両10秒期限は維持。全子孫や全Space条件の解消と扱わない。
 
 Web devの自動更新は`f8ed948`で追加した。[Mac検証](validation-web-reload-2026-11-08.md)はPython 191成功（スキップ0）、Ruff/lint・format、sandbox有効のheadless Chromiumで9/9項目成功。HTML/CSS/JS変更、2ページ更新、Python依存・追加/削除、古いpyc、構文/設定エラー後の修正復帰、RPC再接続と終了、`--no-reload`を確認した。UIはページ全体を更新し、Python/設定は子サーバーを再起動する。Windows実機・大規模監視負荷・親SIGKILL回収は未確認。ネイティブの自動更新やHMRは対象外で、今回はRust・実WKWebView・.appを再検証していない。
 

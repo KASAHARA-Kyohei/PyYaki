@@ -49,6 +49,8 @@ Mac向け`build macos`は、準備済みのホスト・standalone Python・wheel
 
 ## Macでネイティブ起動する
 
+Macホストの強制終了時の回収は[2026-11-09の条件付き確認](docs/validation-macos-host-cleanup-2026-11-09.md)を参照してください。既存wheel/.appへ反映するには新しいホストでの再生成が必要です。
+
 Macホスト同梱wheelを導入したvenvでは`pyyaki run --project examples/hello`で起動できます。利用者の導入・実行にRust/Cargoは不要です。まだ未公開のローカル試作で、Pythonランタイムは同梱しません。[導入・生成・制約](docs/macos-wheel.md)を参照してください。以下はホストを開発するメンテナー向けの直接起動です。
 
 開発用ホストはRustとWKWebViewを使います。リポジトリのルートから、上記のvenvを準備した状態で実行してください。

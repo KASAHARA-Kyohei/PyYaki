@@ -1,6 +1,8 @@
 # PyYaki ビルド・配布設計
 
-状態: 初期設計案 + Web用wheel・Mac .app / Windows単一exeのローカル試作 / 技術調査日: 2026-10-30 / 更新: 2026-11-08 / 正式配布・実署名・未導入クリーン環境は未完了
+2026-11-09にMacホストの[強制終了時の専用guard回収](validation-macos-host-cleanup-2026-11-09.md)を追加した。新しいホストでwheel/.appを再生成すると反映され、既存生成物は自動更新されない。guardは同一実行ファイルを内部モードで再実行するため別バイナリ資材は不要。署名・全ハッシュ・GUIとheadless補助の確認範囲は同記録を参照する。
+
+状態: 初期設計案 + Web用wheel・Mac .app / Windows単一exeのローカル試作 / 技術調査日: 2026-10-30 / 更新: 2026-11-09 / 正式配布・実署名・未導入クリーン環境は未完了
 
 通常の`0.1.0.dev0` pure wheelはPythonワーカーとSDKを含み、ホスト・ランタイムは含まない。別途、Mac向けには[明示したホストを組み込む専用wheel](macos-wheel.md)をローカル生成し、オフライン導入と`pyyaki run`を確認した。Windowsは事前ビルド済みホストと明示した資材から単一exeを組み立てるローカル試作を追加した。`native/Cargo.lock`はRust依存を固定し、`examples/hello/requirements-windows.lock`は今回のWindows x64 / CPython 3.14の組合せを固定する。Windowsネイティブwheel配置は未実装。Macの`requirements-dev.lock`をWindows配布の互換性証明に使わない。
 

@@ -16,6 +16,8 @@ Windowsは`build.rs`がICOをリソースID 1へ組み込み、Taoがそのリ�
 
 ## Macでの開発用確認
 
+2026-11-09に[ホストSIGKILL時の回収対策](../docs/validation-macos-host-cleanup-2026-11-09.md)を追加した。Macでは同じ実行ファイルの内部guardがPythonと同じ専用グループを保持し、生存pipe切断/ワーカー終了時に回収する。新規ホストで同梱wheel/.appを再生成する。既存の二重rAF・10秒期限・shutdownの2秒待ちは維持する。全子孫やグループ離脱、guardとの同時SIGKILLを保証せず、Windows Jobの代替ではない。
+
 Macホスト同梱wheelを導入済みなら、Rust/Cargoなしで`pyyaki run --project <project>`を使える。[導入・wheel生成と検証](../docs/macos-wheel.md)を参照。以下はRustホストを開発するメンテナー向けの直接起動で、pure wheel/editable導入ではこちらを使う。WindowsのネイティブCLI配置は引き続き未実装。
 
 利用者の依頼によりMac開発用ホストを追加した。tao/wry/WKWebView、同じ静的UI・SDK・Pythonワーカーを使用する。Rust 1.89以降とCPython 3.14の開発venvを用意し、リポジトリ直下で実行する。

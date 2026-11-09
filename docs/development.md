@@ -1,6 +1,6 @@
 # 開発と動作確認
 
-更新: 2026-11-08。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
+更新: 2026-11-09。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
 
 2026-11-08にWindowsからMacへ戻る際の準備・回帰確認の順序と貼り付け用プロンプトは、[Mac作業引き継ぎ](handoff-macos-2026-11-08.md)を参照する。
 
@@ -9,6 +9,13 @@
 その後、`9e9302a`で[初期Space配置の対策](validation-macos-space-2026-11-08.md)を追加し、Rust 14件・Python 145件、独立したfullscreen開始3組を含む比較、5秒遅延反復、失敗/終了時の設定復元と更新.appを確認した。反映にはRustホストの再ビルド、生成.appを使う場合は新しいホストでの再生成が必要。利用者のSpace移動/復帰等の未確認範囲は同記録を参照する。
 
 回帰検証の再実行は[Mac自動検証](macos-regression.md)へ整理した。検証器の`be7e26f`ではPython 181件・Rust 14件と16/16項目の[最終確認](validation-macos-automation-2026-11-08.md)を実施し、負対照・中断時の未完了と原ログ保存も確認した。
+
+11-09に[Macホスト強制終了時の回収](validation-macos-host-cleanup-2026-11-09.md)を追加した。反映にはホストの再ビルドと同梱wheel/.appの再生成が必要。専用検証器は次で実行し、結果のremainingは検証器による後始末前に判定する。headlessは実guard/workerの補助検証で、GUI描画の確認にはしない。
+
+```console
+.venv/bin/python tests/macos_host_cleanup.py --binary native/target/release/pyyaki --output test-results/cleanup-new
+.venv/bin/python tests/macos_host_cleanup.py --binary native/target/release/pyyaki --headless-owner --output test-results/cleanup-headless-new
+```
 
 ## 最初に確認すること
 

@@ -2,6 +2,8 @@
 
 次の一区切りは、**WindowsでRust/Cargo不要のpip導入とネイティブCLIを実装し、新規venv・実WebView2で確認して結果をdocsへ記録すること**。これはWindowsで実行した結果ではない。現在地の正本は[ロードマップ](roadmap.md#現在地と次の作業)、要件は[requirements.md](requirements.md)、配布設計は[build-system.md](build-system.md#2-pip導入とネイティブcli)。
 
+追記2026-11-09: Mac専用の[強制終了時回収](validation-macos-host-cleanup-2026-11-09.md)を`69acd4b`で追加した。Macのプロセス階層はguard経由となり、Mac診断器の所有確認も更新した。Windows Job/継承コードは変更しておらず、Windows実機・型検査の成功を追加した記録ではない。次回取り込み時は実際のHEADと差分を確認する。
+
 ## 最初に確認すること
 
 - ローカルの`AGENTS.md`と`git status`、ブランチ・remoteとの差分を確認して既存変更を保護する。自動stash/reset/強制checkoutをしない。

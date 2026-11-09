@@ -1,6 +1,6 @@
 # PyYaki アーキテクチャ設計
 
-状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-08 / Windows既存ホストの実機確認済み・Windowsベンチマーク未実施
+状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-09 / Windows既存ホストの実機確認済み・Windowsベンチマーク未実施
 
 初期試作では、`web.py`と通信に依存しない`app.py`、共有セッション`_rpc.py`、匿名パイプの`worker.py`、Windows用Rustホスト`native/`を実装した。RPC、接続単位のContext、順序付きイベントとSDK購読、起動・終了フックを提供する。MacのWeb/ワーカー試験とWindowsの型検査に加え、WindowsのGUI/RPCと通常終了・ホスト強制終了時のPython回収を2026-11-03に[実機確認](validation-windows.md)した。Windowsネイティブwheel・ネットワーク/企業環境等は未完了で、Windows用のADRやMVP全体の採択とは扱わない。
 
@@ -171,9 +171,11 @@ wryのカスタムプロトコルを初期候補とする。`pyyaki://localhost/
 
 ### 5.4 終了と子プロセス
 
-Macでは`waitid(WNOWAIT)`で子を回収せずに監視し、PIDを保持したままDropで専用プロセスグループを終了してから回収する。2026-10-31の実機試験で、一時停止時にもwaitidから通知が返ることを再現したため、PIDの有無に加えて`CLD_EXITED/CLD_KILLED/CLD_DUMPED`を照合する。一時停止を終了と誤判定しない。バックエンド障害の検出時はSDKの保留要求を`BACKEND_FAILED`で解放し、原因を画面へ表示する。
+Macは2026-11-09から`GUIホスト → guard → Python`とし、guardを専用プロセスグループのリーダーにする。ホストだけが持つ生存pipeのwriterが閉じるかPythonが終了すると、guardがkqueueで検知し、自分を含む同グループを強制回収する。PythonのGILや初期化状態に依存しない。ホストは`waitid(WNOWAIT)`でguardを未回収のまま監視し、PIDを保持してDropで同グループを終了してからwaitする。2026-10-31の実機試験で、一時停止時にもwaitidから通知が返ることを再現したため、PIDの有無に加えて`CLD_EXITED/CLD_KILLED/CLD_DUMPED`を照合する。一時停止を終了と誤判定しない。バックエンド障害の検出時はSDKの保留要求を`BACKEND_FAILED`で解放し、原因を画面へ表示する。
 
 RustはPythonをWindows Job Objectで管理する案。通常終了ではshutdownを通知し、2秒を上限に停止を待ってから子プロセスを終了する。クラッシュ時はパイプEOFとJob Objectで孤児を防ぐ。WebView2の終了・プロファイル解放も追跡する。管理ソフトが既にJob Objectへ入れている環境での挙動は要検証。
+
+終了方式の追加比較（参照日2026-11-09）: [`command-group`](https://docs.rs/command-group/latest/command_group/struct.GroupChild.html)はグループへのkill/waitを提供するが、呼出元の終了後に実行される監視者を別途要する。既存Dropだけでは今回4条件の残存が再現した。Python threadからの監視も、[`PyDLL`](https://docs.python.org/3.14/library/ctypes.html#ctypes.PyDLL)のGIL保持中やPython初期化前を対象にしづらい。追加依存を増やさず独立したRust guardを選び、[pipe EOF](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/pipe.2.html)、[kqueue](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/kqueue.2.html)、[専用グループへのsignal](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/kill.2.html)を使う。二重rAF・期限・Windowsの起動順を変える案ではない。guardとホストの同時強制終了、グループを離れる子、全WebKit/XPC回収は保証せず、性能上の優位も未測定（ADR-023）。
 
 ## 6. 信頼境界
 
@@ -227,7 +229,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-010 | ライセンス・商標・公開名 | 名称PyYaki/`pyyaki`は2026-10-31に採用済み。ライセンスはApache-2.0を提案し、MITも比較 | 名称調査はREADMEを参照。登録可否は公開時に再確認。ライセンスは権利者が選択し、公開前にLICENSEを追加 |
 | ADR-011 | 署名・来歴・更新 | 最終exeのアプリ配布者署名、SBOM、署名マニフェスト、手動更新 | G3/G4で署名後改変検出と企業環境評価。署名費用は別途判断 |
 | ADR-012 | native依存とDLL探索 | 対応wheel限定、通常のsite初期化と`.pth`は既定不使用 | G3で`.pth`依存wheelを含め確認し、必要な例外だけ宣言 |
-| ADR-013 | Mac開発用ホスト / Webのみ | 利用者の依頼でtao/wry/WKWebViewを試作実装。host.rs/RPCを共用し、macOSのプロセス管理とWebKit差異を保守 | 実WKWebViewのRPC・正常終了・Python停止/クラッシュ時の挙動を確認。ホストSIGKILL時の回収、時間単位の稼働、正式配布は未検証 |
+| ADR-013 | Mac開発用ホスト / Webのみ | 利用者の依頼でtao/wry/WKWebViewを試作実装。host.rs/RPCを共用し、macOSのプロセス管理とWebKit差異を保守 | 実WKWebViewのRPC・正常終了・Python停止/クラッシュ時の挙動を確認。11-09に専用guardによる限定したホスト強制終了回収を追加。グループ離脱・host/guard同時終了、時間単位の稼働、正式配布は未検証 |
 | ADR-014 | MacのPython同梱 / PyInstaller / frameworkコピー | ローカル試作はpython-build-standalone + ハッシュ固定wheel + 既存Rustホスト。Rust不要の生成を事前取得資材から行うが、資材配布は別途必要 | M2で移動後のRPCと署名を確認。他Mac、Developer ID署名/公証、ライセンス・来歴の正式確認は後続。詳細は[Mac .app生成](macos-build.md) |
 | ADR-015 | 要求IDの全履歴 / 有限履歴 / 交渉した単調連番 | 公開前試作では標準SDKがsequenceを交渉し、最後の番号だけで再送を拒否。旧形式は4,096件上限を維持。有限履歴の単純な破棄は古い再送を受理するため採らない。全面的なID形式変更と比べ既存クライアントを維持できるが、2モードの保守が必要 | Webと実パイプで4,100件・重複拒否、再入SDK呼出しを確認。Mac実機の連続試験とWindows更新版を確認して正式採択を判断 |
 | ADR-016 | 既定アイコン / 独自アイコン設定、RC直接呼出し / embed-resource / winresource | 初期試作は利用者が選んだC案を既定として埋め込み。Mac .appはbundle資産、開発Dockは既存objc2バインディング。Windowsはembed-resourceで事前変換ICOをコンパイルする。開発時にリソースコンパイラーを要するが、実行時の画像変換やアプリごとのRust不要という配布方針は変えない | Mac生成・署名とGNU版PEの画像照合を確認。2026-11-04にWindows MSVCとExplorer/ウィンドウを実画面、タスクバーを利用者目視で確認（[記録](validation-windows-2026-11-04.md)）。Mac Dock目視は残る。独自設定と署名前のコンパイラー不要の差替えは別途判断 |
@@ -237,6 +239,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-020 | 非圧縮blob / ZIP等の圧縮、同一窓での展開 / 別GUI子ホスト | [単一exeローカル試作](windows-onefile.md)は新しい圧縮ライブラリを選定せず、非圧縮blobを採用。準備GDI窓→別スレッド検証/展開→同じexeのGUI子ホストで、既存の描画順/期限を維持する。全件検証のI/Oと容量、2段階の窓・ホストが増える | 試作限定。正式採択には圧縮形式との比較、1窓合流、実署名後読取、初回/キャッシュ起動の定義した計測、未導入クリーンVM、容量不足/電源断と安全な清掃を確認する |
 | ADR-021 | Uvicorn reload / watchfiles / 標準ライブラリの監視親 | Web dev限定の250ms監視・spawn子と500msのページ更新確認を試作。追加依存はなくUI/Python更新を分離するが、独自の終了管理と走査コストが増える | [Mac検証](validation-web-reload-2026-11-08.md)で古いpyc、エラー復帰、RPC再接続、終了を確認。Windows実機・大規模監視・親SIGKILL回収が残り、正式採択は未了 |
 | ADR-022 | maturin bin / setuptools拡張 / pure wheelへの明示ホスト同梱 | Macは既存Python CLIから検査済みホストへexecし、同じvenvを使用。組立器はCPU・最低OS由来のタグと全RECORDを生成する。独自の配布検査を保守する負担がある | [Mac検証](validation-macos-wheel-2026-11-08.md)でオフライン導入・実WKWebView・同版置換/削除を確認。他Mac・異版upgrade・正式署名/公開は未了。WindowsネイティブCLIのADR-003とは区別 |
+| ADR-023 | Drop/command-group / Python監視thread / 別Rust guard | 同一バイナリのMac専用guardがpipe EOF・NOTE_EXITで専用グループを回収。GIL停止中も動き、リーダーPIDを保持して別グループを終了しない。追加1プロセスとFFI/配布経路の保守が必要 | [11-09の再現と検証](validation-macos-host-cleanup-2026-11-09.md)。実GUI・同梱wheel/.app・headless補助を区別。グループ離脱やhost/guard同時SIGKILL、資源コストは未確認。Windows Jobの代替にはしない |
 
 2026-10-31のMac同梱方式比較（Windowsの配布方式の採択とは別）: [PyInstaller](https://pyinstaller.org/en/stable/operating-mode.html)はPythonと依存の収集を再利用できる一方、動的import・データの収集指定が必要。Python.orgのframework型をそのままvenvからコピーする方法は再配置確認が別途必要。[python-build-standalone](https://gregoryszorc.com/docs/python-build-standalone/main/running.html)はinstall_onlyの事前ビルドとライセンスファイルを提供し、既存Rustホストの後段ワーカーとして使えるため、Macローカル試作ではこちらを採用して再配置を確認した。全依存・OS・配布署名の互換性や法的な再配布確認は未完了。
 

@@ -8,6 +8,8 @@ Windows単一exeの[ローカル試作](windows-onefile.md)では、既存GUIホ
 
 その後、`9e9302a`で[初期Space配置のローカル対策](validation-macos-space-2026-11-08.md)を追加した。起動中だけMoveToActiveSpaceを設定し、shell/失敗/終了時に元のcollectionBehaviorへ復元する。自作fullscreen窓から変更前の初回失敗2/2を再現し、最終対策は独立した開始3組で初回3/3成功・連続対照込み9/9成功。5秒遅延反復、通知欠落・終了時復元、更新.app回帰も確認した。利用者のSpace移動等の未確認条件を含めた全体解消ではなく、二重rAF・既存期限・Python開始順は維持している。以下の過去の失敗記録は上書きしない。
 
+2026-11-09のMac終了対策から、`python_spawned.data`に`worker_pid`・`guard_pid`・`process_group`を記録する。ワーカーはguardの子となる。生存pipeとNOTE_EXITの監視・回収は[別の記録](validation-macos-host-cleanup-2026-11-09.md)を参照する。`worker.log`の`pyyaki_guard=ready`はguardの準備記録で、GUI描画やSDK接続成功を意味しない。 この構成で`python_spawn_started`から`python_spawned`までにはguard起動・準備も含むため、純粋なPythonの生成時間とは扱わない。診断器の故障注入はログと実PPIDの両方から所有関係を照合する。Windowsの該当dataは従来どおりで、起動順・期限は変えない。
+
 ## 記録と障害画面（実装済み）
 
 通常起動でも、各instanceの`host.log`へ`pyyaki_startup=`に続く1行JSONを出力する。保存先はWindowsでは`%LOCALAPPDATA%\PyYaki\prototype\<instance>\`、Macでは`~/Library/Application Support/PyYaki/prototype/<instance>/`。`--diagnostics`指定時だけ同じ段階を`pyyaki_diagnostic=`としてstderrにも出力する。nonce・RPC引数は起動記録に含めない。
