@@ -81,13 +81,35 @@ def test_cli_port_conflict_has_explanation():
         assert "pyyaki dev --port 8001" in result.stderr
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows exclusive socket reservation")
+def test_windows_dev_reservation_blocks_a_second_reuse_bind(monkeypatch):
+    from pyyaki import _dev
+
+    monkeypatch.chdir(ROOT / "examples/hello")
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    monkeypatch.setattr(sys, "argv", ["pyyaki", "dev", "--port", str(port)])
+
+    def verify_reservation(root, listener):
+        with socket.socket() as competitor:
+            competitor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            with pytest.raises(OSError):
+                competitor.bind(listener.getsockname())
+        return 0
+
+    monkeypatch.setattr(_dev, "supervise", verify_reservation)
+    assert cli_module.main() == 0
+
+
 def test_cli_missing_project_file_explains_where_to_run(tmp_path):
     result = cli("dev", cwd=tmp_path)
     assert result.returncode == 1
     assert str(tmp_path / "pyproject.toml") in result.stderr
     assert "project configuration not found" in result.stderr
     assert "project directory" in result.stderr
-    assert "port" not in result.stderr
+    assert "cannot listen" not in result.stderr
+    assert "already in use" not in result.stderr
 
 
 def test_cli_invalid_project_configuration_identifies_file(tmp_path):

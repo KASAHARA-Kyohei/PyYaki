@@ -2,6 +2,7 @@
 use crate::VERSION;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     error::Error,
@@ -11,6 +12,12 @@ use std::{
     process::Command,
 };
 use windows_sys::Win32::System::Console::{CTRL_BREAK_EVENT, CTRL_C_EVENT, SetConsoleCtrlHandler};
+use windows_sys::Win32::System::JobObjects::{
+    AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
+    SetInformationJobObject,
+};
+use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 pub static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 static DELEGATED: AtomicBool = AtomicBool::new(false);
@@ -32,6 +39,39 @@ pub fn install_console_handler(delegated: bool) -> Result<(), Box<dyn Error>> {
     if unsafe { SetConsoleCtrlHandler(Some(console_handler), 1) } == 0 {
         return Err(std::io::Error::last_os_error().into());
     }
+    Ok(())
+}
+
+fn own_delegation_job() -> Result<(), Box<dyn Error>> {
+    // SAFETY: null security/name creates a new unnamed, non-inheritable job.
+    let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
+    if handle.is_null() {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    // SAFETY: this is the newly created handle, owned exactly once.
+    let job = unsafe { OwnedHandle::from_raw_handle(handle) };
+    let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    // SAFETY: initialized limits is readable for the exact size; job is still owned.
+    if unsafe {
+        SetInformationJobObject(
+            job.as_raw_handle(),
+            JobObjectExtendedLimitInformation,
+            (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+            std::mem::size_of_val(&limits) as u32,
+        )
+    } == 0
+    {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    // SAFETY: attach this CLI before spawning anything, so all delegated descendants
+    // inherit the job without a spawn/assign race. Failure is explicit, never bypassed.
+    if unsafe { AssignProcessToJobObject(job.as_raw_handle(), GetCurrentProcess()) } == 0 {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    // This job includes the CLI itself: keep its sole handle until process teardown.
+    // Closing it earlier would terminate this CLI before it returns the Python code.
+    std::mem::forget(job);
     Ok(())
 }
 
@@ -173,6 +213,7 @@ pub fn dispatch(mut args: Vec<OsString>) -> Result<Action, Box<dyn Error>> {
         args.push(python.into_os_string());
         return Ok(Action::Run(args));
     }
+    own_delegation_job()?;
     install_console_handler(true)?;
     let status = Command::new(python)
         .args(["-I", "-m", "pyyaki.cli"])

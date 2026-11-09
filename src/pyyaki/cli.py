@@ -5,6 +5,7 @@ import errno
 import socket
 import struct
 import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -138,7 +139,10 @@ def main() -> int:
 
     with listener:
         try:
-            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # Windows SO_REUSEADDR permits a second bind to an active dev port.
+            # Reserve it exclusively before sharing the socket with our child.
+            option = socket.SO_EXCLUSIVEADDRUSE if sys.platform == "win32" else socket.SO_REUSEADDR
+            listener.setsockopt(socket.SOL_SOCKET, option, 1)
             listener.bind(("127.0.0.1", args.port))
         except OSError as exc:
             if exc.errno == errno.EADDRINUSE:
@@ -149,7 +153,12 @@ def main() -> int:
                     "Stop the other process or choose another port, "
                     f"for example: pyyaki dev --port {example_port}\n",
                 )
-            parser.exit(1, f"pyyaki: cannot listen on 127.0.0.1:{args.port}: {exc}\n")
+            hint = (
+                "The port may be occupied or restricted; choose another --port.\n"
+                if sys.platform == "win32" and getattr(exc, "winerror", None) == 10013
+                else ""
+            )
+            parser.exit(1, f"pyyaki: cannot listen on 127.0.0.1:{args.port}: {exc}\n{hint}")
         from ._dev import serve, supervise
 
         print(f"PyYaki prototype: http://127.0.0.1:{args.port}", flush=True)
