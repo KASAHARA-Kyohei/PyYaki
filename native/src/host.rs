@@ -332,6 +332,12 @@ extern "C" fn interrupt(_: libc::c_int) {
 }
 
 pub fn run() -> Result<(), Box<dyn Error>> {
+    run_with_args(std::env::args_os().skip(1))
+}
+
+pub fn run_with_args(
+    arguments: impl IntoIterator<Item = std::ffi::OsString>,
+) -> Result<(), Box<dyn Error>> {
     #[cfg(target_os = "macos")]
     // SAFETY: handlers only store to a lock-free atomic; no allocation, locks or UI calls.
     unsafe {
@@ -339,7 +345,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         libc::signal(libc::SIGTERM, interrupt as libc::sighandler_t);
     }
     let started_at = Instant::now();
-    let mut args = std::env::args_os().skip(1);
+    let mut args = arguments.into_iter();
     let first = args.next();
     #[cfg(windows)]
     if first.as_deref() == Some(std::ffi::OsStr::new("--onefile-format")) {
@@ -852,8 +858,11 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                     diagnostic(true, started_at, phase, data);
                 }
             }
+            #[cfg(windows)]
+            let interrupted = pyyaki_host::native_cli::INTERRUPTED.load(Ordering::Relaxed);
             #[cfg(target_os = "macos")]
-            if INTERRUPTED.load(Ordering::Relaxed) && shutdown_at.is_none() {
+            let interrupted = INTERRUPTED.load(Ordering::Relaxed);
+            if interrupted && shutdown_at.is_none() {
                 closing.store(true, Ordering::Release);
                 if let Some(sender) = &input {
                     let _ = sender.try_send(r#"{"v":1,"type":"shutdown"}"#.into());

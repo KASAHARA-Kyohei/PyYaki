@@ -2,6 +2,8 @@ pub mod assets;
 pub mod command_line;
 pub mod config;
 pub mod framing;
+#[cfg(windows)]
+pub mod native_cli;
 pub mod navigation;
 #[cfg(windows)]
 pub mod package;
