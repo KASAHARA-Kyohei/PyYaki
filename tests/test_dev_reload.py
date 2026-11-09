@@ -1,3 +1,4 @@
+import os
 import time
 
 import pytest
@@ -7,6 +8,17 @@ from pyyaki import App
 from pyyaki._dev import snapshot
 from pyyaki.config import Config
 from pyyaki.web import create_asgi, reload_html
+
+
+def test_snapshot_detects_same_size_python_edit_with_preserved_mtime(tmp_path):
+    path = tmp_path / "helper.py"
+    path.write_text('VALUE = "first"\n')
+    before = snapshot(tmp_path, python_only=True)
+    stat = path.stat()
+    path.write_text('VALUE = "other"\n')
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    assert snapshot(tmp_path, python_only=True) != before
+
 
 ORIGIN = "http://127.0.0.1:8000"
 

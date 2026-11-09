@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import hashlib
 import importlib
 import multiprocessing
 import os
@@ -42,7 +43,20 @@ def snapshot(root: Path, *, python_only: bool = False) -> dict:
                 if path.is_symlink() or not path.is_file():
                     continue
                 stat = path.stat()
-                result[path] = (stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size, stat.st_ino)
+                # Windows st_ctime is creation time. Preserving mtime and size can
+                # otherwise hide a source edit even though the contents changed.
+                digest = (
+                    hashlib.sha256(path.read_bytes()).digest()
+                    if os.name == "nt" and (path.suffix == ".py" or path == root / "pyproject.toml")
+                    else None
+                )
+                result[path] = (
+                    stat.st_mtime_ns,
+                    stat.st_ctime_ns,
+                    stat.st_size,
+                    stat.st_ino,
+                    digest,
+                )
             except FileNotFoundError:
                 # Editors may replace or remove a file during the scan.
                 continue
@@ -51,6 +65,10 @@ def snapshot(root: Path, *, python_only: bool = False) -> dict:
 
 def serve(root: Path, listener, *, reload: bool, stop=None, ready=None) -> int:
     """Run one generation; the supervisor alone owns the reserved listener."""
+    if os.name == "nt":
+        for stream in (sys.stdout, sys.stderr):
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8", errors="backslashreplace", line_buffering=True)
     entry = "(configuration)"
     try:
         config = load_config(root)
@@ -106,7 +124,11 @@ def serve(root: Path, listener, *, reload: bool, stop=None, ready=None) -> int:
                     await task
 
     try:
-        asyncio.run(run())
+        # A shared Windows listener cannot be attached to each generation's IOCP.
+        # Use the socket-only selector loop for reload, without changing the global
+        # policy or the native worker's Proactor loop. No-reload keeps the default.
+        factory = asyncio.SelectorEventLoop if os.name == "nt" and reload else None
+        asyncio.run(run(), loop_factory=factory)
     except KeyboardInterrupt:
         return 130
     return 0 if server.started else 1

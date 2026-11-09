@@ -14,6 +14,10 @@ from .config import load_config
 
 
 def main() -> int:
+    if sys.platform == "win32":
+        for stream in (sys.stdout, sys.stderr):
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8", errors="backslashreplace", line_buffering=True)
     parser = argparse.ArgumentParser(prog="pyyaki")
     parser.add_argument("--version", action="version", version=f"PyYaki {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
