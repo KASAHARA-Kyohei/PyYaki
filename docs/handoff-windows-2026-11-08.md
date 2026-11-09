@@ -1,5 +1,7 @@
 # Mac作業後のWindows引き継ぎ（2026-11-08）
 
+更新: 2026-11-09。Windowsでの再開対象には、11-09のMac終了処理・検証器の変更も含める。ファイル名は既存リンクを保つため維持する。
+
 次の一区切りは、**WindowsでRust/Cargo不要のpip導入とネイティブCLIを実装し、新規venv・実WebView2で確認して結果をdocsへ記録すること**。これはWindowsで実行した結果ではない。現在地の正本は[ロードマップ](roadmap.md#現在地と次の作業)、要件は[requirements.md](requirements.md)、配布設計は[build-system.md](build-system.md#2-pip導入とネイティブcli)。
 
 追記2026-11-09: Mac専用の[強制終了時回収](validation-macos-host-cleanup-2026-11-09.md)を`69acd4b`で追加した。Macのプロセス階層はguard経由となり、Mac診断器の所有確認も更新した。Windows Job/継承コードは変更しておらず、Windows実機・型検査の成功を追加した記録ではない。次回取り込み時は実際のHEADと差分を確認する。
@@ -8,7 +10,7 @@
 
 - ローカルの`AGENTS.md`と`git status`、ブランチ・remoteとの差分を確認して既存変更を保護する。自動stash/reset/強制checkoutをしない。
 - `git fetch origin`で最新を確認し、既存変更と分岐がなく安全な場合だけ`git pull --ff-only origin main`を使う。分岐・衝突は内容を確認してから扱う。
-- 基点`12ba635`を祖先に含み、この引き継ぎ文書も取得していることを確認する。実際の対象HEADは別途記録する。
+- 基点`babe85e`を祖先に含み、この引き継ぎ文書の11-09更新も取得していることを確認する。実際の対象HEADは別途記録する。
 - Windows版・CPU・Pythonの絶対パス/版/通常GIL・Rust/MSVC・WebView2を実機で確認する。過去のWindows機は`py` launcherなし、既定Rust 1.84.1を維持して`cargo +1.89.0`を使用した。現在も同じとは仮定せず、既定toolchainを無断で変更しない。
 - CPython 3.14通常GIL版、Rustの最低版はCargo.tomlの1.89。既存Windows用資材・lockを確認する。Macの`.venv`、wheelhouse、Mach-Oホスト、SDKパスを流用しない。
 
@@ -30,8 +32,13 @@
 | `62ba686` | Macホスト同梱wheel用の`pyyaki run`。Python CLI初期化後にexecする。WindowsではこのPythonラッパーのrunを明示拒否 |
 | `98d3c9f` | Mac wheel組立器と新規venv導入検証器。thin Mach-O・codesign専用であり、Windows wheel生成器ではない |
 | `12ba635` | Mac wheelの導入・設計比較・最終結果の文書。Macの成功件数とWindowsの受入を区別 |
+| `69acd4b` | Mac専用guardによるホスト強制終了時のグループ回収。共有host.rsの追加ログはMac限定。Windows Job/継承コードは維持 |
+| `f141f41` | Macの回収検証器で所有者・子のPythonにも`-B`を指定し、同梱.appへのbytecode書込みを抑制 |
+| `babe85e` | 終了対策の再現・結果・Space未達・限界を文書化。Windowsの実行成功を追加した記録ではない |
 
-Macの直近確認はPython 212成功、Rust 14成功、Mac wheel検証13/13（GUI起動5件）。これはWindowsの期待件数ではなく、スキップ・失敗を含む実際の結果を取り直す。Mac用のGUI/停止検証器はWindowsの所有プロセスの終了処理が未確認のものもあるため、そのまま実行せず、対象OSと回収方法を先に確認する。
+11-08のMac wheel確認はPython 212成功、Rust 14成功、wheel検証13/13（GUI起動5件）。11-09はPython 214成功・Rust 16成功、回収の実GUI8/8成功の実行と、コミット後7/8（1件はPython開始前のSpace/rAF未達）を記録した。headless補助は7/7、更新wheelは13/13、.appは初回描画待ち失敗と追試成功・署名/全manifest確認を保持している。詳細は[11-09の記録](validation-macos-host-cleanup-2026-11-09.md)を参照する。
+
+これらはWindowsの期待件数ではなく、スキップ・失敗を含む実際の結果を取り直す。Mac用のGUI/停止検証器はWindowsの所有プロセスの終了処理が未確認のものもあるため、そのまま実行せず、対象OSと回収方法を先に確認する。Macのguard方式をWindows Jobへ無条件に移植せず、Windowsで変わるプロセス階層・シグナル・ハンドル継承を実機で検証する。
 
 Gitで移るのはソース・lock・検証器・docs。`.venv/`、`native/target/`、`test-results/`のwheel・生成exe・ランタイム・生ログは移らない。Windows端末の以前の資材も存在・版・ハッシュを確認する。必要な資材が不足していれば、取得先・条件を調べ、必要な確認を行う。大きいバイナリを通常のGitへ追加しない。
 
@@ -66,7 +73,7 @@ Gitで移るのはソース・lock・検証器・docs。`.venv/`、`native/targe
 ```text
 PyYakiの作業をWindowsで再開してください。
 
-まずgit statusとローカルのAGENTS.mdを確認し、既存変更を保護してorigin/mainを安全に取り込んでください。12ba635を祖先に含み、docs/handoff-windows-2026-11-08.mdを取得していることと、実際のHEADを確認してください。
+まずgit statusとローカルのAGENTS.mdを確認し、既存変更を保護してorigin/mainを安全に取り込んでください。babe85eを祖先に含み、docs/handoff-windows-2026-11-08.mdの2026-11-09更新を取得していることと、実際のHEADを確認してください。
 
 同書と関連文書を読み、今回はWindows向けのRust/Cargo不要pip導入・ネイティブCLIの実装と実機検証を一区切りにしてください。MacのPythonラッパーをWindows runの入口へ流用せず、Python初期化前のネイティブ描画、二重rAF・10秒期限・shell通知後のPython生成、localhost待受なしを維持してください。
 
