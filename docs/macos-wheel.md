@@ -20,7 +20,7 @@ python3.14 -m venv .venv-native
 
 同梱ホストのCPU・最低OS・版・ハッシュ・実行権限を検査し、静的設定を読んでから`os.execv`でRustホストへ置き換える。PID・メインスレッド・シグナルと既存の終了処理を保ち、シェルで引数を組み立てない。業務アプリのimportは従来どおり二重rAFのshell通知後に起動したワーカーで行う。MacのCLI入口ではPython自体の初期化が先にあるため、Python初期化前描画を保証するWindowsネイティブCLIとは区別する。
 
-pure Python wheel・editable/source導入にはホストがないため、`run`は導入案内を表示して終了1。Rust開発者は[従来の直接起動](../native/README.md#macでの開発用確認)を使う。WindowsではこのPythonラッパーの`run`を拒否する。Windowsのネイティブexe配置は未実装である。
+pure Python wheel・editable/source導入にはホストがないため、`run`は導入案内を表示して終了1。Rust開発者は[従来の直接起動](../native/README.md#macでの開発用確認)を使う。WindowsではこのPythonラッパーの`run`を拒否する。Windowsのネイティブexe配置は[専用wheel試作](windows-wheel.md)で実装した。MacのPythonラッパーとは入口を分ける。
 
 ## メンテナーのwheel生成
 

@@ -1,5 +1,7 @@
 # ネイティブ起動の切り分け
 
+2026-11-09追記: Windows同梱wheelのCLIも同じGUIコード・二重rAF・10秒期限を使う。新規venvからの反復と例外/終了の結果は[11-09のWindows結果](validation-windows-wheel-2026-11-09.md)、再実行は[Windows wheelの手順](windows-wheel.md)を参照。描画マーカーを物理提示と扱わない。
+
 Windows単一exeの[ローカル試作](windows-onefile.md)では、既存GUIホストの前に`launcher.log`を追加する。行頭`pyyaki_onefile=`のJSONへ`elapsed_ms`、固定phase、dataを記録する。順序は`launcher_started`→`launcher_native_draw`→`preparation_started`→`preparation_completed`（cache/reused）→`gui_child_started`（PID）→`gui_child_exited`。失敗は`preparation_failed`、閉じる操作は`launcher_close`。準備中にPythonは開始しない。初回描画後の別スレッドで検証/展開し、従来の二重rAFと10秒期限はGUI子ホストでそのまま使う。外部起動からmain到達までの待ち時間をこのelapsed_msだけで測ったことにせず、GDIの実提示とも区別する。
 
 更新: 2026-11-08。Windows実機検証で発生した「5秒遅延の初回だけ接続期限に到達」の原因を追うため、共通ホストとワーカーに段階記録を追加した。原因やWindowsでの解消を確認したものではない。元の失敗条件は[Windows実機記録](validation-windows.md)を参照する。

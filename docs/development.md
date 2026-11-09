@@ -1,5 +1,7 @@
 # 開発と動作確認
 
+2026-11-09 Windows作業: [Windows wheelの手順](windows-wheel.md)と[11-09のWindows結果](validation-windows-wheel-2026-11-09.md)に導入・再確認・元の失敗をまとめた。Windows reloadでは同サイズ/同mtimeのPython・設定を内容ハッシュでも監視するため、ツリー規模に応じた読取り負荷が増える。共有socketのIOCP再登録を避けるselector loopをreloadだけで使う。Windowsのasyncio pipe/subprocessと512を超えるsocketはreload対象外で、該当する開発は`--no-reload`を使う。通常のネイティブworker・ASGIループは変更しない。
+
 更新: 2026-11-09。リポジトリを開き直した際や、作業を再開する際の手順をまとめる。現在の機能と残作業は[ロードマップ](roadmap.md#現在地と次の作業)、契約・制限値は[API設計](api-design.md)、受入条件は[要件定義](requirements.md)を正とする。
 
 2026-11-08にWindowsからMacへ戻る際の準備・回帰確認の順序と貼り付け用プロンプトは、[Mac作業引き継ぎ](handoff-macos-2026-11-08.md)を参照する。
@@ -23,7 +25,7 @@
 2. `git status --short`で既存変更を確認する。既存変更は作業へ混ぜたり取り消したりしない。
 3. [ロードマップの現在地](roadmap.md#現在地と次の作業)から未完了の範囲を確認する。過去の検証記録は各作業時点の結果として読む。
 
-主な開発機はMac。初回のPython環境構築は[README](../README.md#macで試作を動かす)を参照する。以下はCPython 3.14通常GIL版の`.venv`を準備した状態で、リポジトリのルートから実行する。Node.jsはアプリ実行に不要。Rustホストの開発・再ビルドにはRust/Cargoが必要で、Rust不要の利用者向け配布は今後の作業。
+主な開発機はMac。初回のPython環境構築は[README](../README.md#macで試作を動かす)を参照する。以下はCPython 3.14通常GIL版の`.venv`を準備した状態で、リポジトリのルートから実行する。Node.jsはアプリ実行に不要。Rustホストの開発・再ビルドにはRust/Cargoが必要で、Rust不要の利用者向け導入は[Windows wheel](windows-wheel.md)・[Mac wheel](macos-wheel.md)のローカル試作を参照。正式公開は未了。
 
 ## 起動する
 
@@ -46,7 +48,7 @@ cd examples/hello
 - 初回の設定/import/起動失敗はエラー終了する。一度起動できた後の構文・設定・起動エラーでは親を残し、Pythonまたは設定の修正を待つ。既存ページは保ち、復帰後に自動更新する。原因はターミナルのログを確認する。
 - ドットで始まるファイル/ディレクトリ、`__pycache__`、`node_modules`、`venv`、`env`、`test-results`、`build`、`dist`のディレクトリ、シンボリックリンク、末尾`~`/`.swp`/`.tmp`を監視から除外する。プロジェクト外のPython依存やeditable導入したPyYaki本体の変更は手動で再起動する。
 
-終了時は所有する子だけへ停止を依頼し、Uvicornの処理中接続の終了待ちは従来どおり2秒。親は最大5秒待ち、応答しない子をterminate、さらに1秒後も残る場合はkillする。同期処理の停止・巻戻しや、業務コードが生成した孫プロセスの回収は保証しない。親のSIGKILL時の回収、Windows実機、巨大なプロジェクトでの監視負荷は未確認。
+終了時は所有する子だけへ停止を依頼し、Uvicornの処理中接続の終了待ちは従来どおり2秒。親は最大5秒待ち、応答しない子をterminate、さらに1秒後も残る場合はkillする。同期処理の停止・巻戻しや、業務コードが生成した孫プロセスの回収は保証しない。Windows native CLIでは委譲Pythonを専用Jobで回収する。pure Python入口の親強制終了、巨大なプロジェクトの監視負荷・全条件の回収は未確認。
 
 HTMLの応答に同一originの外部moduleを挿入し、元ファイルは変更しない。CSP・Host/Origin検査・nonce付きRPCは維持する。更新通知は開発専用の内部経路で、本番公開や公開SDKの再接続機能ではない。
 

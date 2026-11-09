@@ -1,5 +1,7 @@
 # Mac作業後のWindows引き継ぎ（2026-11-08）
 
+2026-11-09 Windows側の実施結果: [ネイティブwheelの手順](windows-wheel.md)と[実機記録](validation-windows-wheel-2026-11-09.md)を追加した。以下は再開時点の引き継ぎ計画として保持し、完了件数・失敗・残課題は実機記録を正とする。
+
 更新: 2026-11-09。Windowsでの再開対象には、11-09のMac終了処理・検証器の変更も含める。ファイル名は既存リンクを保つため維持する。
 
 次の一区切りは、**WindowsでRust/Cargo不要のpip導入とネイティブCLIを実装し、新規venv・実WebView2で確認して結果をdocsへ記録すること**。これはWindowsで実行した結果ではない。現在地の正本は[ロードマップ](roadmap.md#現在地と次の作業)、要件は[requirements.md](requirements.md)、配布設計は[build-system.md](build-system.md#2-pip導入とネイティブcli)。

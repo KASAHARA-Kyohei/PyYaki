@@ -1,5 +1,7 @@
 # PyYaki 公開API設計
 
+2026-11-09追記: Windowsのnative wheel/CLIは[Windows wheelの手順](windows-wheel.md)を参照。`run`の二重rAF・10秒期限・通信契約は維持する。WindowsのWeb devは排他的ポート予約・同サイズ保存検出・再起動/終了を実機で確認した。
+
 状態: 共通API・Mac開発用ホストを実装、配布等は設計案 / 作成: 2026-10-30 / 更新: 2026-11-08 / Windows開発用ホストの主要動作を実機確認
 
 本書は公開API、JSON契約、エラー、制限値の正本。以下はMVP全体の設計で、実装済み範囲は次の表に限定する。Context・イベント・起動/終了フックも実装済みで、実行可能なサンプルは`examples/hello`。未対応のCLI・ビルド等は設計例として区別する。プロセスと信頼境界は[architecture.md](architecture.md)を参照する。
@@ -10,7 +12,7 @@
 | JS `ready`/`invoke`/`on`、`PyYakiError`、state/capabilities、期限・取消 | 実装済み。SDK/Python版は`0.1.0.dev0`で一致させる |
 | hello/welcome、call/result/error、cancel、event | WebSocketと専用パイプ経路を実装。capabilitiesは`["rpc", "events"]` |
 | `Context`、イベント、`on`、起動・終了フック | 共通処理として実装済み。Windows実WebView2のイベント・取消・終了フックも確認 |
-| Mac/Windowsブリッジ・内部ワーカー通信 | Macは実WKWebView・実パイプで確認。WindowsもMSVCビルド・実WebView2のRPC・Python回収を確認。不要ハンドル非継承の負例等は未確認。[実機記録](validation-windows.md)を参照 |
+| Mac/Windowsブリッジ・内部ワーカー通信 | Macは実WKWebView・実パイプで確認。WindowsもMSVCビルド・実WebView2のRPC・Python回収を確認。不要ハンドル非継承・Job負例等は[境界追試](validation-windows-boundary-followup-2026-11-05.md)、新CLIは[11-09記録](validation-windows-wheel-2026-11-09.md)を参照。全境界の合格ではない |
 
 試作固有の制約: 接続初期化nonceは30秒・一度限りで、未使用nonceは全体256件を上限に古いものから失効。JSONの深さは64まで、標準SDKはhelloで`request_id_mode="sequence"`を交渉し、要求履歴を蓄積しない。旧形式のクライアントだけ要求IDを最大4,096件まで追跡し、超過時は接続を閉じる。通常の接続復帰はページの手動再読み込み。Web devのファイル変更による自動更新は第7節を参照。JSON本文1MiB、同時16要求、invoke既定30秒/最大120秒は設計値を使用。送信待ちは2秒で打ち切り、プロトコル違反・版不一致は接続を閉じる。これらの試作制約はMVPの最終採択ではなく、長時間稼働は未検証。
 
@@ -102,7 +104,7 @@ async def greet(name: str, *, ctx: Context) -> dict[str, str]:
 asgi = app.asgi()
 ```
 
-同じファイルを、現在はRustホストの`run --project ... --python ...`がワーカーでimportし、Python CLIの`pyyaki dev`がASGI経由で使う。Macホスト同梱wheelでは`pyyaki run [--project <path>] [--python <path>]`を実装し、既定は現在のプロジェクトとCLIのPythonを使う。静的設定と同梱ホストを検査してexecし、業務importはホストのshell通知後へ維持する。pure wheel/editable導入とWindows Pythonラッパーには`run`を提供しない。[導入と制約](macos-wheel.md)を参照する。`asgi`の生成はサーバー起動、GUI表示、業務処理開始を行わない。ライフサイクル開始はホスト/ASGI lifespanが担当する。
+同じファイルを、現在はRustホストの`run --project ... --python ...`がワーカーでimportし、Python CLIの`pyyaki dev`がASGI経由で使う。Macホスト同梱wheelでは`pyyaki run [--project <path>] [--python <path>]`を実装し、既定は現在のプロジェクトとCLIのPythonを使う。静的設定と同梱ホストを検査してexecし、業務importはホストのshell通知後へ維持する。pure wheel/editable導入とWindows Pythonラッパーには`run`を提供しない。Windows同梱wheelのネイティブCLIは`run [--project <path>]`を実装し、自身のvenvだけを使う。導入CLIの`--python`は拒否し、メンテナーホストの直接起動と区別する。[導入と制約](macos-wheel.md)を参照する。`asgi`の生成はサーバー起動、GUI表示、業務処理開始を行わない。ライフサイクル開始はホスト/ASGI lifespanが担当する。
 
 ### 3.2 公開するクラスとメソッド
 
@@ -284,7 +286,7 @@ SDKは上記を`PyYakiError`としてrejectし、`code`、`message`、任意のJ
 | 同時実行 | 1セッション16要求。超過は即時BUSYで、無制限に待たせない |
 | 待機期限 | invoke既定30,000ms、最大120,000ms。0・負数・最大超過はBAD_REQUEST |
 | イベント送信キュー | 1セッション64件。満杯では`ctx.emit`がcode=BUSYのFrameworkErrorになり、黙って上書きしない |
-| 接続/バックエンド準備 | SDK ready既定10,000ms。ホストのPython起動待ちも生成から10秒。展開時間とは区別 |
+| 接続/バックエンド準備 | SDK内部接続は接続開始から10,000ms。ホストのworker準備はshell通知の処理時から10,000ms。呼出し単位のready待機・展開時間とは区別 |
 | 正常終了待ち | shutdown通知から2,000msで打切り、必要なら子を終了 |
 
 現在の`ready({ timeoutMs })`は呼出元の待機時間を指定する。SDK内部の接続初期化は別に10秒で打ち切るため、この値を大きくしても接続初期化の期限は延長しない。
@@ -295,7 +297,7 @@ SDKは上記を`PyYakiError`としてrejectし、`code`、`message`、任意のJ
 
 本番Webの起動例は`uvicorn app:asgi --host 127.0.0.1 --port 8000 --workers 1`を想定する。認証・TLS終端・リバースプロキシ・監視は配布者の運用責任であり、`pyyaki dev`をそのまま公開する設計にしない。
 
-`dev`は既定でUI資産を監視してページ全体を再読込する。プロジェクト内のPython・設定変更は子サーバー再起動となり、応答が復帰した世代でページを再読込する。入力・画面状態・Context・イベント購読・処理中のRPCは引き継がない。`--no-reload`で無効化し、`app.asgi()`には挿入しない。監視範囲・エラー後の修正復帰は[開発ガイド](development.md#web開発時の自動更新)、Macでの確認と未確認範囲は[検証記録](validation-web-reload-2026-11-08.md)を参照する。
+`dev`は既定でUI資産を監視してページ全体を再読込する。プロジェクト内のPython・設定変更は子サーバー再起動となり、応答が復帰した世代でページを再読込する。入力・画面状態・Context・イベント購読・処理中のRPCは引き継がない。`--no-reload`で無効化し、`app.asgi()`には挿入しない。監視範囲・エラー後の修正復帰は[開発ガイド](development.md#web開発時の自動更新)、Macは[従来の記録](validation-web-reload-2026-11-08.md)、Windowsは[11-09のWindows結果](validation-windows-wheel-2026-11-09.md)を参照する。Windows reloadはselector loopで、asyncioのpipe/subprocess・512を超えるsocketを扱えない。該当する開発は`--no-reload`を使う。ネイティブworkerと通常のASGIループは変更しない。
 
 開発専用の内部経路は`GET /_pyyaki/dev`（世代を示す`revision`のみ）と`GET /_pyyaki/dev.js`。HTMLへ同一originの外部moduleを挿入し、元ファイルを編集せずCSPを維持する。世代取得は同一origin/Fetch Metadataを検査し、ファイル名や任意コマンドは返さない。これは公開RPCや一般的なSDK再接続APIではない。通常の接続断は従来どおり手動で再読込する。状態を維持するHMR、編集中コードの差替え、ネイティブrunの自動更新はMVPに含めない。
 

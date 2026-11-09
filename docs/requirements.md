@@ -1,5 +1,7 @@
 # PyYaki 要件定義
 
+2026-11-09追記: WindowsのFR-05/07に対し、ネイティブCLI同梱wheelと新規venv・実WebView2の部分確認を追加した。[11-09のWindows結果](validation-windows-wheel-2026-11-09.md)を参照。G1/G3、FR-04の物理的提示・性能、FR-08のクリーン環境、NFR-04全体の受入は未達のまま。要件・期限を緩和しない。
+
 状態: 初期設計案 + Web試作・Windows開発用ホストのソース実装 / 作成・技術調査日: 2026-10-30 / 更新: 2026-11-07 / Windows既存ホストの主要動作確認済み・Windows性能未測定
 
 Windows用Rustホスト、匿名パイプのPythonワーカー、共通SDKのネイティブ経路を追加した。Macで共通処理と実パイプの子プロセスを試験し、Windows GNUターゲットの型検査に加え、2026-11-03にWindows 11 x64のMSVCビルド・実WebView2の主要動作・Python回収を確認した。[実機記録](validation-windows.md)の未確認事項も参照する。FR-03/04/07や単一exeのFR-08、WindowsのNFR-04等の受入条件は、既存ホストの部分確認に留まり、G1以降の残る試験が終わるまで未達として扱う。[開発用確認手順](../native/README.md)と[検証記録](roadmap.md#2026-10-31-windows開発用ネイティブホスト)を参照。

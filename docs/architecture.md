@@ -1,5 +1,9 @@
 # PyYaki アーキテクチャ設計
 
+2026-11-09のWindows CLI追加比較: [maturin bin bindings](https://www.maturin.rs/bindings.html#bin)のscripts配置と[wheel仕様](https://packaging.python.org/en/latest/specifications/binary-distribution-format/)を再確認（参照日2026-11-09）。既存pure wheelへ明示exeを追加する方式をWindowsにも試作し、導入時のCargo実行を追加せず、RECORD/版/配置を保守する。[Windows wheelの手順](windows-wheel.md)と[11-09のWindows結果](validation-windows-wheel-2026-11-09.md)を参照。
+
+Windows Web devのloop比較（参照日2026-11-09）: [Uvicorn公式](https://uvicorn.dev/concepts/event-loop/)もWindowsのreload/multi-workerでSelectorEventLoopを選ぶ。[MicrosoftのIOCP説明](https://learn.microsoft.com/en-us/windows/win32/fileio/i-o-completion-ports)と再起動のWinError 87から、共有listenerを世代ごとのIOCPへ結び直す経路が原因と判断した。reload限定で標準selector loopを使い、global policy・worker/通常ASGIを変えない。代償は[Python公式のWindows制限](https://docs.python.org/3.14/library/asyncio-platforms.html#windows)であるsocket数512・asyncio pipe/subprocess非対応。別の常駐acceptor、世代間の再bind、追加loopライブラリは構成・予約維持・依存管理の負担が増えるため現試作では採用しない（ADR-024）。
+
 状態: 初期設計案 + Web試作・Windowsホストのソース実装 / 技術調査日: 2026-10-30 / 更新: 2026-11-09 / Windows既存ホストの実機確認済み・Windowsベンチマーク未実施
 
 初期試作では、`web.py`と通信に依存しない`app.py`、共有セッション`_rpc.py`、匿名パイプの`worker.py`、Windows用Rustホスト`native/`を実装した。RPC、接続単位のContext、順序付きイベントとSDK購読、起動・終了フックを提供する。MacのWeb/ワーカー試験とWindowsの型検査に加え、WindowsのGUI/RPCと通常終了・ホスト強制終了時のPython回収を2026-11-03に[実機確認](validation-windows.md)した。Windowsネイティブwheel・ネットワーク/企業環境等は未完了で、Windows用のADRやMVP全体の採択とは扱わない。
@@ -219,7 +223,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | --- | --- | --- | --- |
 | ADR-001 | tao/wry、Tauri、PyTauri再利用 | tao/wryを最初の試作対象。小さい起動経路と引換えにホスト保守が増える | G1で同じ描画順・配布条件・保守量を比較 |
 | ADR-002 | PyO3埋込 / 別プロセス | 匿名パイプ + CPython別プロセス。コピーコストとプロセス数が増える | G1/G2でPython遅延・クラッシュ・終了・RPCを評価 |
-| ADR-003 | Python wrapper / ネイティブCLI | Windows wheelへネイティブexeを直接配置。起動前Pythonを排除 | G1でpip/venvの配置・復旧・更新を検証 |
+| ADR-003 | Python wrapper / maturin bin / 明示exeのwheel組立、別GUI子 / 同一プロセス | Windows試作は.data/scriptsへconsole exeを直接配置し同名Python entryを除く。runは同じGUIコードへ直接入りPython前描画・PID/Job境界を保つ。GUIテンプレートも同梱するため容量と二重ビルドの保守が増える。dev/buildは自分をJobへ割り当ててから同venvのPythonを生成し、Job handleをプロセス終了まで保持 | [11-09のWindows結果](validation-windows-wheel-2026-11-09.md)で配置・復旧・更新・終了を部分確認。正式配布・他環境・実署名は残る |
 | ADR-004 | カスタムプロトコル / 仮想ホスト | wryカスタムプロトコル + HTTPS合成origin。セキュリティ制御が必要 | G1/G2で外向き通信、origin、CSP、JS応答APIを検証 |
 | ADR-005 | 単一exeの実行方式・圧縮・検証 | **単一exe必須は確定**。方式はユーザーキャッシュ展開を推奨。容量と初回遅延あり | G1/G3で署名、全ハッシュ確認、キャッシュ競合、初回時間を確認 |
 | ADR-006 | Evergreen / Fixed Version | 配布exeはFixed Version同梱。開発runは既存Evergreenまたは明示したFixed Version | G1/G3で未導入・オフライン・標準権限を確認。再配布条件を確認 |
@@ -240,6 +244,7 @@ Windows 10のFixed Version 120以降にはunpackaged Win32アプリのACL条件�
 | ADR-021 | Uvicorn reload / watchfiles / 標準ライブラリの監視親 | Web dev限定の250ms監視・spawn子と500msのページ更新確認を試作。追加依存はなくUI/Python更新を分離するが、独自の終了管理と走査コストが増える | [Mac検証](validation-web-reload-2026-11-08.md)で古いpyc、エラー復帰、RPC再接続、終了を確認。Windows実機・大規模監視・親SIGKILL回収が残り、正式採択は未了 |
 | ADR-022 | maturin bin / setuptools拡張 / pure wheelへの明示ホスト同梱 | Macは既存Python CLIから検査済みホストへexecし、同じvenvを使用。組立器はCPU・最低OS由来のタグと全RECORDを生成する。独自の配布検査を保守する負担がある | [Mac検証](validation-macos-wheel-2026-11-08.md)でオフライン導入・実WKWebView・同版置換/削除を確認。他Mac・異版upgrade・正式署名/公開は未了。WindowsネイティブCLIのADR-003とは区別 |
 | ADR-023 | Drop/command-group / Python監視thread / 別Rust guard | 同一バイナリのMac専用guardがpipe EOF・NOTE_EXITで専用グループを回収。GIL停止中も動き、リーダーPIDを保持して別グループを終了しない。追加1プロセスとFFI/配布経路の保守が必要 | [11-09の再現と検証](validation-macos-host-cleanup-2026-11-09.md)。実GUI・同梱wheel/.app・headless補助を区別。グループ離脱やhost/guard同時SIGKILL、資源コストは未確認。Windows Jobの代替にはしない |
+| ADR-024 | Windows reloadのProactor / selector / 常駐acceptor・再bind | 共有socketと排他的予約を保つためreloadだけ標準selectorを使用。Python/設定は内容ハッシュも使う。独自の受渡し・追加バイナリ依存は増やさない | 実ブラウザの更新・修正復帰・終了を確認。asyncio pipe/subprocess・512超socketは対象外として明示。高負荷・他loopへの拡張は未採択 |
 
 2026-10-31のMac同梱方式比較（Windowsの配布方式の採択とは別）: [PyInstaller](https://pyinstaller.org/en/stable/operating-mode.html)はPythonと依存の収集を再利用できる一方、動的import・データの収集指定が必要。Python.orgのframework型をそのままvenvからコピーする方法は再配置確認が別途必要。[python-build-standalone](https://gregoryszorc.com/docs/python-build-standalone/main/running.html)はinstall_onlyの事前ビルドとライセンスファイルを提供し、既存Rustホストの後段ワーカーとして使えるため、Macローカル試作ではこちらを採用して再配置を確認した。全依存・OS・配布署名の互換性や法的な再配布確認は未完了。
 

@@ -1,5 +1,7 @@
 # PyYaki
 
+2026-11-09にWindows x64向けのネイティブCLI同梱wheelをローカル実装しました。利用者の導入・dev/run/buildにRust/Cargo/MSVCは不要です。Python前の描画順と10秒期限を維持し、新規日本語・空白venv・実WebView2・Web更新/終了を実機で確認しました。[導入・生成手順](docs/windows-wheel.md)と[結果・失敗・未確認事項](docs/validation-windows-wheel-2026-11-09.md)を参照してください。未公開であり、クリーン環境・正式配布の合格ではありません。
+
 Pythonの業務ロジックとHTML/CSS/JavaScriptのUIを共有し、WindowsデスクトップアプリとWebアプリを開発するためのOSSフレームワークの初期試作です。
 
 名称は「鯛焼き」にかけたものです。表示名を**PyYaki**、パッケージ・Python import・CLI・JavaScript SDKの識別子を**`pyyaki`**に統一します。
@@ -43,7 +45,7 @@ pyyaki dev
 
 Mac向け`build macos`は、準備済みのホスト・standalone Python・wheelから`.app`を生成するローカル試作として実装済みです。[生成手順](docs/macos-build.md)を参照してください。
 
-未実装: ネイティブの自動再読込、Windowsネイティブexeのpip配置。Windows `build windows`は明示資材を使うローカル試作として実装済みです。Macホスト同梱wheelでは`pyyaki run`を実装しました。pure wheel・editable導入にはホストがなく、WindowsのPythonラッパー経由の`run`は提供しません。`app.asgi()`は自動更新を挿入しないloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
+未実装: ネイティブの自動再読込。WindowsネイティブCLIのpip配置は[ローカルwheel試作](docs/windows-wheel.md)で実装済みです。Windows `build windows`は明示資材を使うローカル試作として実装済みです。Macホスト同梱wheelでは`pyyaki run`を実装しました。pure wheel・editable導入にはホストがなく、WindowsのPythonラッパー経由の`run`は提供しません。`app.asgi()`は自動更新を挿入しないloopbackの試作用で、本番Web運用は未検証です。以下の将来構成と区別してください。
 
 テストはルートで`python -m pytest -q`、静的確認は`ruff check src examples tests`を実行します。ブラウザ・ネイティブ検査の使い分けと、変更後の反映方法は[開発ガイド](docs/development.md#検証する)に記載しています。
 
@@ -67,7 +69,7 @@ cargo run --manifest-path native/Cargo.toml --locked -- run --project examples/h
 
 `native/`にRust製の起動画面・WebView2ホストと、専用パイプ経由で同じPythonコマンドを呼ぶ実装を追加しました。HTTP/WebSocketサーバーを起動するコードは使用しません。Windows 11 x64で既存ホストのMSVC releaseビルドと実WebView2の主要動作を確認しました。負荷時の接続期限、先行描画の実提示・性能、ネットワーク/企業環境などの残りは[Windows実機記録](docs/validation-windows.md)を参照してください。
 
-まだメンテナー向けの試作で、Rust/MSVCと開発用Python・既存WebView2が必要です。Windowsでのビルド・起動・確認項目は[native/README.md](native/README.md)を参照してください。開発runと、明示資材から生成する[単一exe試作](docs/windows-onefile.md)を区別してください。Rust不要のpip導入、Python/WebView2未導入クリーン端末の受入は後続作業です。
+ホストをソースから開発するメンテナーにはRust/MSVCが必要です。利用者の導入・dev/run/buildには[Windows wheel試作](docs/windows-wheel.md)を使えます。ホスト開発用のビルド・起動・確認項目は[native/README.md](native/README.md)、明示資材からの配布exe生成は[単一exe試作](docs/windows-onefile.md)を参照してください。Python/WebView2未導入クリーン端末の受入は後続作業です。
 
 ## 目指す使い方（全体の設計）
 
@@ -143,9 +145,9 @@ Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じ�
 
 初期候補はtao/wry、別プロセスCPython、FastAPI/Uvicorn、Windows Embeddable Package、Fixed Version WebView2です。PyO3のプロセス内埋め込みはMVP対象外の提案です。Tauri/PyTauri等の再利用も比較し、実測後に採否を決めます。
 
-特に、単一exeの初回展開時間、WebView2の容量と更新、native wheelのDLL依存、ネイティブCLIのpip配置、署名と企業の実行制限を検証します。署名してもDefender/SmartScreen/企業ポリシーによる制限が必ず解消するとは保証しません。
+特に、単一exeの初回展開時間、WebView2の容量と更新、native wheelのDLL依存、ネイティブCLIの配布互換性、署名と企業の実行制限を検証します。署名してもDefender/SmartScreen/企業ポリシーによる制限が必ず解消するとは保証しません。
 
-主な開発機はMacです。最初のMac試作はCPython 3.14通常GIL版で、HTMLからPythonコマンドを呼び、結果・エラーを表示し、非同期処理中もUIが応答するところまでとする方針を2026-10-31に承認し、実装を開始しました。2026-11-03には手元のWindowsで既存ホストのMSVCビルドと主要動作を確認しました。残る先行描画・境界・ネットワーク等の確認と、未実装の単一exeの最小試作へ進む段階です。Windows固有の起動・配布方式全体は未確定です。詳しい順序は[ロードマップ](docs/roadmap.md)に記載しています。
+主な開発機はMacです。最初のMac試作はCPython 3.14通常GIL版で、HTMLからPythonコマンドを呼び、結果・エラーを表示し、非同期処理中もUIが応答するところまでとする方針を2026-10-31に承認し、実装を開始しました。2026-11-03には手元のWindowsで既存ホストのMSVCビルドと主要動作を確認しました。残る先行描画・境界・ネットワーク等の確認と、実装済みの単一exe・ネイティブwheelの受入を進める段階です。Windows固有の起動・配布方式全体は未確定です。詳しい順序は[ロードマップ](docs/roadmap.md)に記載しています。
 
 高速性と安定性を重視します。起動時間の計測に加え、GUIの応答性、Pythonのクラッシュ・終了処理、キャッシュ破損等を評価する設計です。Mac開発用ホストの起動・RPC・5分/30分の連続稼働・表示状態別タイマー・Python障害時の結果を[計測記録](docs/performance-macos.md)に記録しています。Windowsの性能と長時間稼働の数値基準は今後の検討事項です。
 

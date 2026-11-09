@@ -1,5 +1,7 @@
 # PyYaki native host prototype
 
+2026-11-09追記: `pyyaki-cli.exe`はWindows wheel用のconsole入口、従来の`pyyaki.exe`はGUI/onefile用ホスト。利用者の導入・dev/run/buildは[同梱wheelの手順](../docs/windows-wheel.md)、実機結果・失敗は[検証記録](../docs/validation-windows-wheel-2026-11-09.md)を参照。以下のCargo手順はメンテナーだけに必要。
+
 2026-11-07時点の開発用ネイティブホスト。Rustのtao/wry/WebView2で同じ`examples/hello/ui`を読み、別プロセスのPythonワーカーへ専用匿名パイプで接続するソースを実装した。MacではRust共通処理・Python子プロセス・SDK契約を試験し、Windows GNUターゲットの型検査を行った。**2026-11-03にWindows 11 x64のMSVC releaseビルド・実WebView2のUI/RPC・イベント・取消・終了時のPython回収を確認した。G1/G2全体や単一exe配布は未完了。失敗・未確認事項は[Windows実機記録](../docs/validation-windows.md)を参照する。**
 
 共通APIの現在地は[ロードマップ](../docs/roadmap.md#現在地と次の作業)、SDK変更時の再ビルドや検査の使い分けは[開発ガイド](../docs/development.md)を参照する。
@@ -18,7 +20,7 @@ Windowsは`build.rs`がICOをリソースID 1へ組み込み、Taoがそのリ�
 
 2026-11-09に[ホストSIGKILL時の回収対策](../docs/validation-macos-host-cleanup-2026-11-09.md)を追加した。Macでは同じ実行ファイルの内部guardがPythonと同じ専用グループを保持し、生存pipe切断/ワーカー終了時に回収する。新規ホストで同梱wheel/.appを再生成する。既存の二重rAF・10秒期限・shutdownの2秒待ちは維持する。全子孫やグループ離脱、guardとの同時SIGKILLを保証せず、Windows Jobの代替ではない。
 
-Macホスト同梱wheelを導入済みなら、Rust/Cargoなしで`pyyaki run --project <project>`を使える。[導入・wheel生成と検証](../docs/macos-wheel.md)を参照。以下はRustホストを開発するメンテナー向けの直接起動で、pure wheel/editable導入ではこちらを使う。WindowsのネイティブCLI配置は引き続き未実装。
+Macホスト同梱wheelを導入済みなら、Rust/Cargoなしで`pyyaki run --project <project>`を使える。[導入・wheel生成と検証](../docs/macos-wheel.md)を参照。以下はRustホストを開発するメンテナー向けの直接起動で、pure wheel/editable導入ではこちらを使う。WindowsのネイティブCLI配置は[Windows wheel試作](../docs/windows-wheel.md)を参照。
 
 利用者の依頼によりMac開発用ホストを追加した。tao/wry/WKWebView、同じ静的UI・SDK・Pythonワーカーを使用する。Rust 1.89以降とCPython 3.14の開発venvを用意し、リポジトリ直下で実行する。
 
@@ -89,7 +91,7 @@ rustc -vV
 
 この端末は`py` launcherがなくPythonの絶対パスを使い、既定Rust 1.84.1を維持して`cargo +1.89.0`で検証した。手順中の`py -3.14`や`cargo`は環境に合わせて選択する。`pip install`は完了とimport成功を確認してからホストを起動する。実スモークは起動引数末尾へ`--smoke-test`を追加する。
 
-以下はフレームワークのメンテナー向け。Windows x64、CPython 3.14通常GIL版、利用可能なWebView2 Runtimeと、Rust 1.89以降・MSVCビルド環境を事前に用意する。アプリ利用者向けのRust不要wheel配布は未実装であり、この手順を正式なアプリ導入手順にはしない。ランタイムを自動ダウンロード・インストールする処理はない。
+以下はフレームワークのメンテナー向け。Windows x64、CPython 3.14通常GIL版、利用可能なWebView2 Runtimeと、Rust 1.89以降・MSVCビルド環境を事前に用意する。アプリ利用者向けには[Rust不要のローカルwheel](../docs/windows-wheel.md)を実装した。この手順はホスト開発者向けで、正式公開の導入手順ではない。ランタイムを自動ダウンロード・インストールする処理はない。
 
 PowerShellでリポジトリのルートから実行する想定。実機で試す前にOS・CPUを確認する。Mac用`requirements-dev.lock`をWindows用lockの代用にはしない。ここでのPython依存解決は開発検証用で、Windowsの固定依存・再配布管理は別途必要。
 
@@ -100,7 +102,7 @@ cargo build --manifest-path native/Cargo.toml --release --locked
 .\native\target\release\pyyaki.exe run --project .\examples\hello --python .\.venv\Scripts\python.exe
 ```
 
-WindowsのPython版CLIの`pyyaki run`は引き続き未対応。必ず上記のRust版exeを直接起動する。Python経由のラッパーをWindows先行描画の入口にしない。この開発手順では既存のWebView2とvenvを使い、Fixed Version資材の準備・同梱や未導入端末の検証を含まない。
+WindowsのPython版CLIの`pyyaki run`は引き続き未対応。pure/editable導入では上記のRust版exeを直接起動する。同梱wheelではScriptsのネイティブCLIを使う。Python経由のラッパーをWindows先行描画の入口にしない。この開発手順では既存のWebView2とvenvを使い、Fixed Version資材の準備・同梱や未導入端末の検証を含まない。
 
 11-05の[フォルダーでの資材確認](../docs/windows-onefile-prototype.md)に続き、`build windows`の[単一exeローカル試作](../docs/windows-onefile.md)を追加した。引数なし起動で先行GDI→別スレッド展開/全ハッシュ検証→同じexeのGUI子ホストへ渡す。停止状態の子ホストをランチャーのJobへ割り当ててから再開し、そのPython Jobも含めて回収する。Windowsワーカーは開発用runも含め`-B`でbytecodeを書かない。自動取得・実署名・未導入クリーン環境は未完了。
 
@@ -149,4 +151,4 @@ Windowsターゲットは型検査用に事前導入する。Windows向けexeの
 
 `browser_native_bridge.py`はChromium上の仮のWebView2ブリッジを使う契約テストで、実際のWindows/WebView2実行ではない。`test_worker.py`はPOSIX fd継承専用。`test_worker_logging.py`はWindowsの継承ハンドル/POSIX fdの両方を扱い、ログ・RPC・通常例外を実ワーカーで確認する。実GUIとホストのJob Object回収は別の実機確認が必要。
 
-未実装: Windowsネイティブexeのpip配置、汎用ホスト資材の正式配布、資材の自動準備、実署名。単一exe組立・検証付き展開・Fixed Version WebView2/Python同梱は明示資材を使う[Windowsローカル試作](../docs/windows-onefile.md)として実装済みで、クリーン環境等の受入は残る。詳細な配布方針は[ビルド設計](../docs/build-system.md)を正とする。
+未実装: 汎用ホスト資材の正式配布、資材の自動準備、実署名。単一exe組立・検証付き展開・Fixed Version WebView2/Python同梱は明示資材を使う[Windowsローカル試作](../docs/windows-onefile.md)として実装済みで、クリーン環境等の受入は残る。詳細な配布方針は[ビルド設計](../docs/build-system.md)を正とする。
