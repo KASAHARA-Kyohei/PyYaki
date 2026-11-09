@@ -67,6 +67,13 @@ def test_wrong_hash_and_missing_locked_dependency_fail(inputs):
         build(*inputs)
 
 
+def test_uppercase_hex_lock_digest_is_matched(inputs):
+    text = inputs[2].read_text()
+    name, digest = text.split("--hash=sha256:")
+    inputs[2].write_text(name + "--hash=sha256:" + digest.upper())
+    assert build(*inputs)["components"] == 3
+
+
 def test_missing_dependency_does_not_become_a_complete_inventory(inputs):
     inputs[2].write_text(inputs[2].read_text() + "absent==1 --hash=sha256:" + "b" * 64)
     with pytest.raises(ValueError, match="complete requirements"):

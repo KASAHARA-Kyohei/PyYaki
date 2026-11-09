@@ -199,7 +199,9 @@ def build(
         key = (re.sub(r"[-_.]+", "-", match[1]).lower(), match[2])
         if key in expected:
             raise ValueError("duplicate requirements entry")
-        expected[key] = set(re.findall(r"sha256:([a-fA-F0-9]{64})", match[3]))
+        expected[key] = {
+            value.lower() for value in re.findall(r"sha256:([a-fA-F0-9]{64})", match[3])
+        }
     if not expected:
         raise ValueError("requirements lock is empty")
     output.mkdir(parents=True)
