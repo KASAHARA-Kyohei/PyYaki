@@ -48,3 +48,13 @@ Windows 11 x64 build 26200、CPython 3.14.10通常GIL、setuptools 84.2.1。root
 利用者から署名証明書は「今はない」と回答があった。実署名・署名後の起動/更新は未確認。物理提示の正式計測、クリーン環境での未導入・標準ユーザー・物理オフライン、第三者本文/再配布条件、CI来歴・脆弱性監査、公開先/版は引き続き残る。venvの部分close制約も解消していない。Macの以前の成功件数をWindowsへ流用していない。
 
 ソース変更については`origin`（https://github.com/KASAHARA-Kyohei/PyYaki.git）の`codex/windows-native-cli`への通常pushが明示承認された。以前の自動レビュー拒否を迂回せず、この追加承認に基づいて実行する。mainの変更、force push、バイナリ・原ログ送信、GitHub Release/PyPI公開は含まれない。
+
+## コミット後の棚卸しとpush
+
+採用・パッケージ設定・初回の確認記録は`377e141d8106985c6d28907d8279eaa9fe6f8298`へコミットした。同コミットをsource_commitとして新しいCargo metadataと生成pure wheelから棚卸しを再実行し、137コンポーネント・232件の通知参照を保存した。Python本体とRust rootの宣言/本文は収集され、前回の未解決7項目から本体2件が解消した。
+
+未解決5項目は`webview2-com-macros 0.8.1`、`webview2-com-sys 0.38.2`、`webview2-com 0.38.2`のtop-level本文不足と、CPython/CRT・WebView2の内包ライブラリ/再配布条件確認。statusは`review_required`のまま。これを法的確認・公開可否の合格とはしない。原記録は`inventory.json`、`inventory.log`、`inventory/{inventory.json,bom.cdx.json,licenses/}`。
+
+明示承認後の通常pushで`origin/codex/windows-native-cli`を新規作成し、`377e141`までの送信に成功した。以前の拒否は当時の失敗記録として保持する。追加の文書コミットと最終HEADはGit履歴・最終報告で特定する。署名済み成果物の公開は行っていない。
+
+最終確認では追跡対象Markdown 40文書のローカルリンク415件にエラーなし、diff空白検査に成功。今回の検証パスで識別したPython/CLIの残存は0件だった（`all-docs-verification.json`、`final-owned-processes.json`）。一般の他プロセスを終了したり、全アプリの残存なしと拡張して解釈したりしない。
