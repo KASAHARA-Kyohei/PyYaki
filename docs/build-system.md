@@ -204,9 +204,11 @@ Microsoftは署名済みの新しいバイナリでもSmartScreen警告が出る
 
 ## 9. OSSライセンスとサプライチェーン
 
-### 9.1 ライセンス方針案
+### 9.1 本体のライセンスと依存物の扱い
 
-PyYaki本体はApache-2.0を第一候補、MITを代替候補とし、権利者がADR-010で選択する。現段階では正式採用しておらず、LICENSEファイルを追加したり「Apache-2.0で公開済み」と表示したりしない。
+2026-11-10に利用者がPyYaki本体のApache-2.0採用を承認した（ADR-010）。[公式本文](https://www.apache.org/licenses/LICENSE-2.0.txt)を改変せず、[LICENSE](../LICENSE)とRustパッケージ用の[native/LICENSE](../native/LICENSE)へ配置した。両者は同一バイトを維持する。PythonはPEP 639の`license = "Apache-2.0"`と`license-files = ["LICENSE"]`、Rustは`license = "Apache-2.0"`を宣言する。PEP 639を扱うためsetuptoolsの下限を77へ更新した（[公式対応説明](https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html)、確認日2026-11-10）。固定lockのsetuptools 84.2.1はこの下限を満たす。
+
+本体の採用と、依存物の通知・バイナリ再配布・パッケージ公開の判断は分ける。第三者通知の草稿を正式NOTICEへ昇格した扱いにはしない。権利者名を推測した著作権表示や、依存物への一括再許諾は追加していない。
 
 | 対象 | 取り扱い |
 | --- | --- |

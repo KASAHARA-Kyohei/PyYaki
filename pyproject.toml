@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "pyyaki"
 version = "0.1.0.dev0"
 description = "Python commands and editable web UI: early PyYaki prototype"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.14,<3.15"
 dependencies = [
     "fastapi>=0.115,<1",
@@ -19,7 +21,7 @@ dependencies = [
 pyyaki = "pyyaki.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10", "httpx>=0.28,<1", "httpx2>=2,<3", "playwright>=1.50,<2", "ruff>=0.9,<1", "build>=1,<2", "setuptools>=75", "Pillow>=12,<13"]
+dev = ["pytest>=8,<10", "httpx>=0.28,<1", "httpx2>=2,<3", "playwright>=1.50,<2", "ruff>=0.9,<1", "build>=1,<2", "setuptools>=77", "Pillow>=12,<13"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

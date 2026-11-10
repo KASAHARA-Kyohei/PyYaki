@@ -1,0 +1,3 @@
+# Keep the official license bytes stable on Windows and macOS.
+/LICENSE text eol=lf
+/native/LICENSE text eol=lf

@@ -1,6 +1,6 @@
 # PyYaki
 
-2026-11-09の[追加検証](docs/validation-windows-followup-2026-11-09.md)でWindowsの実画面・実クリック・境界対照を確認し、[依存棚卸し・クリーン端末向けの確認手順](docs/release-readiness.md)を追加しました。Mac回帰・クリーンVM・実署名・正式ライセンス/公開の判断は残っています。
+2026-11-09の[追加検証](docs/validation-windows-followup-2026-11-09.md)でWindowsの実画面・実クリック・境界対照を確認し、[依存棚卸し・クリーン端末向けの確認手順](docs/release-readiness.md)を追加しました。本体のApache-2.0採用は2026-11-10に承認済みです。Mac回帰・クリーンVM・実署名・依存物の再配布条件確認・パッケージ公開の判断は残っています。
 
 2026-11-09にWindows x64向けのネイティブCLI同梱wheelをローカル実装しました。利用者の導入・dev/run/buildにRust/Cargo/MSVCは不要です。Python前の描画順と10秒期限を維持し、新規日本語・空白venv・実WebView2・Web更新/終了を実機で確認しました。[導入・生成手順](docs/windows-wheel.md)と[結果・失敗・未確認事項](docs/validation-windows-wheel-2026-11-09.md)を参照してください。未公開であり、クリーン環境・正式配布の合格ではありません。
 
@@ -170,4 +170,4 @@ Web版はFastAPI/Uvicorn上のPythonとブラウザを組み合わせ、同じ�
 
 ## ライセンス
 
-OSSとして公開する方針です。ライセンスはApache-2.0を第一候補として比較中で、**正式採用前**です。依存OSS、CPython、Microsoft WebView2等の条件はそれぞれ別に確認し、公開前にLICENSE/NOTICEと再配布条件を整備します。
+PyYaki本体は[Apache License 2.0](LICENSE)を採用しています（2026-11-10に利用者が承認、[ADR-010](docs/architecture.md#8-adr候補一覧)）。Python wheelには本文を同梱し、Rustホストにも同じライセンスを適用します。依存OSS、CPython、Microsoft WebView2等はそれぞれの条件に従います。依存物の通知・再配布条件確認と、wheel/exeの正式公開は別途必要です。

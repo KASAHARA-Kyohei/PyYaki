@@ -72,3 +72,7 @@ test-results/windows-followup-20261109/
 `origin`（https://github.com/KASAHARA-Kyohei/PyYaki.git）の`codex/windows-native-cli`への通常pushは、実行前の自動承認レビューにより拒否された。理由は「外部GitHubへリポジトリ内容を送信する操作について対象remote・branchへの明示承認を確認できない」。Gitコマンドは開始されておらず、push未実施。迂回せず対象と内容を示して明示回答を求める。mainの書換え・force push・GitHub Release/PyPI公開は行わない。
 
 関連9文書のローカルリンク224件とdiff空白検査に成功。原ログはdocs-verification.json。最終の所有プロセス読取りはfinal-owned-process-check.jsonに保存し、観測していない全プロセスの一般的な回収保証とは区別する。
+
+## 2026-11-10の回答・追記
+
+上記は11-09時点の記録。利用者が本体のApache-2.0採用と、指定したorigin/codex/windows-native-cliへのソースの通常pushを明示承認した。証明書は現在ない。Windows VMとMacは所有しているとの回答だが利用方法は未確認。[ライセンス反映と再確認記録](validation-license-2026-11-10.md)へ現在の結果と未確認事項を残した。以前のpush拒否や未実施の実機試験を成功へ書き換えない。

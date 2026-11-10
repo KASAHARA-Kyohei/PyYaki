@@ -8,7 +8,7 @@
 
 ## 現在地と次の作業
 
-残作業の追加対応は[11-09追試](validation-windows-followup-2026-11-09.md)を参照。Windowsのready後実画面・実クリック・正常close、現行境界15件中14と埋込対照4/4、依存棚卸し草稿・版一致確認・Python不要の確認器を追加した。venvの部分closeは制約のまま。VM/Macの実行環境、正式ライセンス、署名方式が必要な項目は回答待ちで、全受入は未完了。[配布前の準備](release-readiness.md)と[Mac引き継ぎ](handoff-macos-after-windows-2026-11-09.md)を用意した。
+残作業の追加対応は[11-09追試](validation-windows-followup-2026-11-09.md)と[11-10のライセンス反映](validation-license-2026-11-10.md)を参照。Windowsのready後実画面・実クリック・正常close、現行境界15件中14と埋込対照4/4、依存棚卸し草稿・版一致確認・Python不要の確認器を追加した。venvの部分closeは制約のまま。本体Apache-2.0は承認済み。VM/Macは所有の回答があるが利用方法は未確認、署名証明書は現在ないため、それらの実機試験・実署名を含む全受入は未完了。[配布前の準備](release-readiness.md)と[Mac引き継ぎ](handoff-macos-after-windows-2026-11-09.md)を用意した。
 
 Mac作業後のWindows向けpip導入・ネイティブCLI実装の再開手順とプロンプトは、[2026-11-08のWindows引き継ぎ](handoff-windows-2026-11-08.md)を参照する。Windowsの実行結果は同書の計画から区別する。
 
@@ -20,7 +20,7 @@ Mac作業後のWindows向けpip導入・ネイティブCLI実装の再開手順�
 | Macネイティブ | WKWebViewと専用パイプで実行。起動・連続試験・障害/終了、Python同梱.appの生成・再配置を確認。初期Space設定を復元する対策に加え、専用guardによるホスト強制終了時のグループ回収を追加 | 利用者のSpace移動/復帰・複数画面等の未確認条件、Dock/Finderの目視、時間単位の稼働、グループ離脱/host・guard同時終了、全WebKitを含む資源計測、正式.app配布 |
 | Windowsネイティブ | MSVC release・実WebView2の共通動作、UTF-8ログ、起動反復9/9を確認。追試で完全切断・不要ハンドル非継承・Job割当失敗回収・実クリック拒否・アプリ孫の回収を追加 | venvの部分closeはwriter保持の制約として残る。以前の初回失敗の原因、GDI実提示・性能、Jobの全失敗条件・全origin、ネットワーク切断・企業環境は未確認。[追試の結果と限界](validation-windows-boundary-followup-2026-11-05.md) |
 | 導入 / 配布 | Macホスト同梱wheelのオフライン導入と`pyyaki run`、Mac .app生成、Windowsの明示資材から未署名単一exeを生成・全ハッシュ検証して展開するローカル試作を実装 | WindowsネイティブCLI配置はローカル実装・実機確認済み。他Mac、正式版の更新、自動資材準備、実署名、未導入クリーンVM、性能・清掃等は未完了。[試作の手順と制約](windows-onefile.md)をFR-08全体の合格にしない |
-| 公開 | 未公開、ライセンス正式採用前 | ライセンス・再配布条件、LICENSE/NOTICE、SBOM等の公開前管理 |
+| 公開 | パッケージ未公開、本体Apache-2.0は2026-11-10採用済み | 第三者通知・再配布条件、SBOM・署名等の公開前管理。ソース作業ブランチpushとは区別 |
 
 11-09のMac強制終了対策は`69acd4b`、検証器のbytecode抑制は`f141f41`。[結果と失敗](validation-macos-host-cleanup-2026-11-09.md)に、変更前7条件中4条件の残存、実GUI8/8成功の実行とコミット後7/8（1件はPython前のSpace/rAF未達）、headless補助7/7、Python 214・Rust 16、同梱wheel 13/13、.app追試と署名/全manifestを記録した。通常の終了待ち・二重rAF・両10秒期限は維持。全子孫や全Space条件の解消と扱わない。
 
@@ -46,7 +46,7 @@ Macの次の候補は、初期配置対策後の利用者のCodex fullscreen・S
 
 | 段階 | 目的と作業 | 合格条件 | 成果物・関連ADR |
 | --- | --- | --- | --- |
-| G0: 調査・初期設計 | 既存OSS比較、要件、API、配布案、リスク整理。単一exeの意味を確認 | 7文書が揃い、提案と事実と未検証事項を区別。実装範囲と未決事項が追跡可能 | 本文書群。ADR-010のライセンス正式選択は公開までに別途必要 |
+| G0: 調査・初期設計 | 既存OSS比較、要件、API、配布案、リスク整理。単一exeの意味を確認 | 7文書が揃い、提案と事実と未検証事項を区別。実装範囲と未決事項が追跡可能 | 本文書群。ADR-010の本体Apache-2.0選択は2026-11-10に承認済み |
 | G1: Windows起動・配布の技術検証 | Rust先行描画、WebView2、ネイティブCLI、単一exe展開、Python遅延の最小試作 | Pythonより先に内容を描画。単一exeがPython/WebView2未導入の標準ユーザー環境で初回オフライン起動。待受サーバーなし。署名後もペイロード読取可能 | 起動トレース、pip配置試験、初回/再起動の測定、方式比較。ADR-001/002/003/004/005/006/007/009 |
 | G2: 最小の共通アプリ | Pythonコマンド登録、共通ディスパッチャー、JS SDK、パイプ/ASGIアダプター、`dev`/`run` | 同じPythonとUIで要求/応答、イベント、型検証、失敗、取消、終了が動く。2ブラウザのセッション分離とorigin境界に合格 | 共通契約試験、最小アプリ、内部制御メッセージ仕様。ADR-002/004/008 |
 | G3: 単一exeビルドの製品化 | `build windows`、wheel依存、同梱Python/Fixed Version、安全なキャッシュ、オフライン資材 | 利用者のRust/Cargo/MSVCなしで単一exe生成。代表native依存、破損/競合/中断/容量不足、クリーンVMの試験に合格 | ビルドレポート、互換性表、SBOM、通知一覧、資材マニフェスト。ADR-005/006/007/011/012 |
